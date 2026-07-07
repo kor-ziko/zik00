@@ -103,6 +103,7 @@ public class MypageService {
         return request;
     }
 
+    //나중에 메일인증 한 번하고 수정할 수 있게 하기
     @Transactional
     public void updateProfile(ProfileUpdateRequest request) {
         User user = findCurrentUser();

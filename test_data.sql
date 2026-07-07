@@ -195,8 +195,8 @@ INSERT INTO addresses (
   '010-1234-5678',
   '100-0005',
   '東京都',
-  '千代田区丸の内',
-  TRUE
+  '千代田区丸の内 113232',
+  1
 ) ON DUPLICATE KEY UPDATE
   user_id = VALUES(user_id),
   address_name = VALUES(address_name),
