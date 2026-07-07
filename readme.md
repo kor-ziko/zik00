@@ -1,33 +1,44 @@
-# Shop
+# 개발 architecture
 
-Spring Boot MVC + Thymeleaf mypage sample.
+Layered Architecture
 
-## Data Access
+개요
+MVC보다 한 단계 발전된, 실무에서 가장 널리 쓰이는 구조입니다. Back-end 도메인에서 가장 기본적인 구조입니다.
 
-The project now uses MySQL through Spring Data JPA.
+Controller: HTTP 요청/응답 처리
+Service: 비즈니스 로직 담당
+Repository: 데이터 접근 (DB, JPA 등)
 
-- `controller`: handles HTTP requests and view routing.
-- `service`: owns business logic and transaction boundaries.
-- `repository`: uses `JpaRepository` interfaces for database access.
-- `domain`: JPA entities mapped to MySQL tables.
-- `dto`: request/view objects used between controller, service, and templates.
+com.example.demo
+├── controller
+├── service
+├── repository
+└── domain (또는 entity)
+장점
 
-## Tables
+책임이 명확하게 분리되어 유지보수 용이
+테스트 코드 작성이 용이
+규모 확장에 유리
 
-The previous CSV names are mapped as table names with the `test_` prefix removed.
+단점
 
-- `test_user.csv` -> `user`
-- `test_addresses.csv` -> `addresses`
-- `test_coupon.csv` -> `coupon`
-- `test_buylist.csv` -> `buylist`
-- `test_inquiries.csv` -> `inquiries`
-- `test_inquiry_comments.csv` -> `inquiry_comments`
+단순 CRUD 프로젝트에서는 계층이 과도할 수 있음 (계층은 많으나 Controller나 Service에서 역할이 단순 전달밖에 없는 상황 발생)
+비즈니스 로직이 복잡해지면 service 계층이 비대해짐
 
-## Configuration
+https://ggobugi.tistory.com/269
 
-Default datasource values are in `src/main/resources/application.yaml`.
-Override them with environment variables when needed:
+# JPA
 
-- `SPRING_DATASOURCE_URL`
-- `SPRING_DATASOURCE_USERNAME`
-- `SPRING_DATASOURCE_PASSWORD`
+그냥 sql query문 안쓰고 get,set 함수로 db 저장, 조회를 할 수 있게 도와주는 친구다.
+
+또한, prepare statement(그냥 쿼리문 미리 디버깅해놓는다는 거임) 그래서 sqli도 어느정도 방지가 된다.
+
+# dto
+
+그릇에 담고 옮겨주는 친구다. 그래서 받아도 되는 값만 받아서 사용하는 등 불필요한 정보를 제외하고 줄 수 있다. 
+
+# MYSQL Version
+
+8.0.46
+https://dev.mysql.com/downloads/installer/
+
