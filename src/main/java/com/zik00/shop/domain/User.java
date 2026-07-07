@@ -24,14 +24,6 @@ public class User {
     private String gender;
     private String nickname;
 
-    @Column(name = "zip_code")
-    private String zipCode;
-
-    private String province;
-
-    @Column(name = "detail_address")
-    private String detailAddress;
-
     private String telephone;
 
     @Column(name = "login_id")
@@ -68,9 +60,6 @@ public class User {
             LocalDate birthDate,
             String gender,
             String nickname,
-            String zipCode,
-            String province,
-            String detailAddress,
             String telephone,
             String loginId,
             int depositBalance,
@@ -86,9 +75,6 @@ public class User {
         this.birthDate = birthDate;
         this.gender = gender;
         this.nickname = nickname;
-        this.zipCode = zipCode;
-        this.province = province;
-        this.detailAddress = detailAddress;
         this.telephone = telephone;
         this.loginId = loginId;
         this.depositBalance = depositBalance;
@@ -104,18 +90,12 @@ public class User {
     public void updateProfile(
             String name,
             String nickname,
-            String zipCode,
-            String province,
-            String detailAddress,
             String mobilePhone,
             String email,
             boolean alarmConsent
     ) {
         this.name = normalize(name);
         this.nickname = normalize(nickname);
-        this.zipCode = normalize(zipCode);
-        this.province = normalize(province);
-        this.detailAddress = normalize(detailAddress);
         this.mobilePhone = normalize(mobilePhone);
         this.email = normalize(email);
         this.alarmConsent = alarmConsent;
@@ -124,75 +104,48 @@ public class User {
     private String normalize(String value) {
         return value == null ? "" : value.trim();
     }
-
     public long getMemberId() {
         return memberId == null ? 0L : memberId;
     }
-
     public String getName() {
         return name;
     }
-
     public LocalDate getBirthDate() {
         return birthDate;
     }
-
     public String getGender() {
         return gender;
     }
-
     public String getNickname() {
         return nickname;
     }
-
-    public String getZipCode() {
-        return zipCode;
-    }
-
-    public String getProvince() {
-        return province;
-    }
-
-    public String getDetailAddress() {
-        return detailAddress;
-    }
-
     public String getTelephone() {
         return telephone;
     }
-
     public String getUserId() {
         return loginId;
     }
-
     public int getDepositBalance() {
         return depositBalance;
     }
-
     public int getRewardPoint() {
         return rewardPoint;
     }
-
     public String getMobilePhone() {
         return mobilePhone;
     }
-
     public String getEmail() {
         return email;
     }
-
     public int getCompletedOrderCount() {
         return completedOrderCount;
     }
-
     public LocalDate getJoinedDate() {
         return joinedDate;
     }
-
     public String getMemberDetail() {
         return memberDetail;
     }
-
     public boolean isAlarmConsent() {
         return alarmConsent;
     }

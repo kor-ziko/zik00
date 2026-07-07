@@ -53,23 +53,18 @@ public class Inquiry {
     public long getInquiryId() {
         return inquiryId == null ? 0L : inquiryId;
     }
-
     public long getMemberId() {
         return memberId;
     }
-
     public String getTitle() {
         return title;
     }
-
     public String getContent() {
         return content;
     }
-
     public String getStatus() {
         return status;
     }
-
     public String getCreatedAt() {
         return createdAt;
     }

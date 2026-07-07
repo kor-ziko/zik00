@@ -87,43 +87,33 @@ public class DeliveryAddress {
     public void clearDefaultAddress() {
         this.defaultAddress = false;
     }
-
     private String normalize(String value) {
         return value == null ? "" : value.trim();
     }
-
     public long getId() {
         return id == null ? 0L : id;
     }
-
     public long getMemberId() {
         return memberId;
     }
-
     public String getAddressName() {
         return addressName;
     }
-
     public String getReceiverName() {
         return receiverName;
     }
-
     public String getReceiverPhone() {
         return receiverPhone;
     }
-
     public String getZipCode() {
         return zipCode;
     }
-
     public String getProvince() {
         return province;
     }
-
     public String getDetailAddress() {
         return detailAddress;
     }
-
     public boolean isDefaultAddress() {
         return defaultAddress;
     }

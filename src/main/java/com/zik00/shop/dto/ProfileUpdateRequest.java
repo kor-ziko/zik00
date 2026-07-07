@@ -3,9 +3,6 @@ package com.zik00.shop.dto;
 public class ProfileUpdateRequest {
     private String name;
     private String nickname;
-    private String zipCode;
-    private String province;
-    private String detailAddress;
     private String mobilePhone;
     private String email;
     private boolean alarmConsent;
@@ -22,27 +19,6 @@ public class ProfileUpdateRequest {
     }
     public void setNickname(String nickname) {
         this.nickname = nickname;
-    }
-
-    public String getZipCode() {
-        return zipCode;
-    }
-    public void setZipCode(String zipCode) {
-        this.zipCode = zipCode;
-    }
-
-    public String getProvince() {
-        return province;
-    }
-    public void setProvince(String province) {
-        this.province = province;
-    }
-
-    public String getDetailAddress() {
-        return detailAddress;
-    }
-    public void setDetailAddress(String detailAddress) {
-        this.detailAddress = detailAddress;
     }
 
     public String getMobilePhone() {

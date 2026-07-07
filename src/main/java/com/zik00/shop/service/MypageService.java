@@ -11,6 +11,7 @@ import com.zik00.shop.domain.Coupon;
 import com.zik00.shop.domain.DeliveryAddress;
 import com.zik00.shop.domain.Inquiry;
 import com.zik00.shop.domain.InquiryComment;
+import com.zik00.shop.domain.JapanPostalCode;
 import com.zik00.shop.domain.Purchase;
 import com.zik00.shop.domain.User;
 import com.zik00.shop.dto.AddressCreateRequest;
@@ -25,6 +26,7 @@ import com.zik00.shop.repository.CouponRepository;
 import com.zik00.shop.repository.DeliveryAddressRepository;
 import com.zik00.shop.repository.InquiryCommentRepository;
 import com.zik00.shop.repository.InquiryRepository;
+import com.zik00.shop.repository.JapanPostalCodeRepository;
 import com.zik00.shop.repository.PurchaseRepository;
 import com.zik00.shop.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -38,6 +40,11 @@ public class MypageService {
     private static final String DELIVERY = "\uBC30\uC1A1";
     private static final String INQUIRY_PENDING = "\uB2F5\uBCC0\uB300\uAE30";
     private static final String ADDRESS_NOT_FOUND = "\uBC30\uC1A1\uC9C0\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.";
+    private static final String ADDRESS_NAME_REQUIRED = "\uBC30\uC1A1\uC9C0\uBA85\uC744 \uC785\uB825\uD574\uC8FC\uC138\uC694.";
+    private static final String RECEIVER_NAME_REQUIRED = "\uC218\uB839\uC778\uC744 \uC785\uB825\uD574\uC8FC\uC138\uC694.";
+    private static final String RECEIVER_PHONE_REQUIRED = "\uC218\uB839\uC778 \uC804\uD654\uBC88\uD638\uB97C \uC785\uB825\uD574\uC8FC\uC138\uC694.";
+    private static final String POSTAL_CODE_REQUIRED = "\uC6B0\uD3B8\uBC88\uD638\uB97C \uC870\uD68C\uD574\uC11C \uC8FC\uC18C\uB97C \uC120\uD0DD\uD574\uC8FC\uC138\uC694.";
+    private static final String POSTAL_CODE_NOT_FOUND = "\uC120\uD0DD\uD55C \uC6B0\uD3B8\uBC88\uD638 \uC8FC\uC18C\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.";
     private static final String INQUIRY_NOT_FOUND = "\uBB38\uC758\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.";
     private static final String USER_NOT_FOUND = "\uD68C\uC6D0 \uB370\uC774\uD130\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.";
 
@@ -47,6 +54,7 @@ public class MypageService {
     private final PurchaseRepository purchaseRepository;
     private final InquiryRepository inquiryRepository;
     private final InquiryCommentRepository inquiryCommentRepository;
+    private final JapanPostalCodeRepository japanPostalCodeRepository;
 
     public MypageService(
             UserRepository userRepository,
@@ -54,7 +62,8 @@ public class MypageService {
             CouponRepository couponRepository,
             PurchaseRepository purchaseRepository,
             InquiryRepository inquiryRepository,
-            InquiryCommentRepository inquiryCommentRepository
+            InquiryCommentRepository inquiryCommentRepository,
+            JapanPostalCodeRepository japanPostalCodeRepository
     ) {
         this.userRepository = userRepository;
         this.deliveryAddressRepository = deliveryAddressRepository;
@@ -62,6 +71,7 @@ public class MypageService {
         this.purchaseRepository = purchaseRepository;
         this.inquiryRepository = inquiryRepository;
         this.inquiryCommentRepository = inquiryCommentRepository;
+        this.japanPostalCodeRepository = japanPostalCodeRepository;
     }
 
     public MypageSummary getSummary() {
@@ -87,9 +97,6 @@ public class MypageService {
         ProfileUpdateRequest request = new ProfileUpdateRequest();
         request.setName(user.getName());
         request.setNickname(user.getNickname());
-        request.setZipCode(user.getZipCode());
-        request.setProvince(user.getProvince());
-        request.setDetailAddress(user.getDetailAddress());
         request.setMobilePhone(user.getMobilePhone());
         request.setEmail(user.getEmail());
         request.setAlarmConsent(user.isAlarmConsent());
@@ -102,9 +109,6 @@ public class MypageService {
         user.updateProfile(
                 request.getName(),
                 request.getNickname(),
-                request.getZipCode(),
-                request.getProvince(),
-                request.getDetailAddress(),
                 request.getMobilePhone(),
                 request.getEmail(),
                 request.isAlarmConsent()
@@ -121,15 +125,14 @@ public class MypageService {
         AddressCreateRequest request = new AddressCreateRequest();
         request.setReceiverName(user.getName());
         request.setReceiverPhone(user.getMobilePhone());
-        request.setZipCode(user.getZipCode());
-        request.setProvince(user.getProvince());
-        request.setDetailAddress(user.getDetailAddress());
         return request;
     }
 
     @Transactional
     public void addDeliveryAddress(AddressCreateRequest request) {
         User user = findCurrentUser();
+        validateDeliveryAddressRequest(request);
+        ResolvedAddress resolvedAddress = resolveAddress(request, null);
         if (request.isDefaultAddress()) {
             clearDefaultAddresses(user.getMemberId());
         }
@@ -140,9 +143,9 @@ public class MypageService {
                 request.getAddressName(),
                 request.getReceiverName(),
                 request.getReceiverPhone(),
-                request.getZipCode(),
-                request.getProvince(),
-                request.getDetailAddress(),
+                resolvedAddress.zipCode(),
+                resolvedAddress.province(),
+                resolvedAddress.detailAddress(),
                 request.isDefaultAddress()
         );
         deliveryAddressRepository.save(address);
@@ -151,8 +154,10 @@ public class MypageService {
     @Transactional
     public void updateDeliveryAddress(long addressId, AddressCreateRequest request) {
         User user = findCurrentUser();
+        validateDeliveryAddressRequest(request);
         DeliveryAddress address = deliveryAddressRepository.findUserAddress(addressId, user.getMemberId())
                 .orElseThrow(() -> new IllegalArgumentException(ADDRESS_NOT_FOUND));
+        ResolvedAddress resolvedAddress = resolveAddress(request, address);
 
         if (request.isDefaultAddress()) {
             clearDefaultAddresses(user.getMemberId());
@@ -162,9 +167,9 @@ public class MypageService {
                 request.getAddressName(),
                 request.getReceiverName(),
                 request.getReceiverPhone(),
-                request.getZipCode(),
-                request.getProvince(),
-                request.getDetailAddress(),
+                resolvedAddress.zipCode(),
+                resolvedAddress.province(),
+                resolvedAddress.detailAddress(),
                 request.isDefaultAddress()
         );
     }
@@ -264,8 +269,74 @@ public class MypageService {
         return Math.toIntExact(value);
     }
 
+    private void validateDeliveryAddressRequest(AddressCreateRequest request) {
+        requireNotBlank(request.getAddressName(), ADDRESS_NAME_REQUIRED);
+        requireNotBlank(request.getReceiverName(), RECEIVER_NAME_REQUIRED);
+        requireNotBlank(request.getReceiverPhone(), RECEIVER_PHONE_REQUIRED);
+    }
+
+    private void requireNotBlank(String value, String message) {
+        if (normalize(value).isBlank()) {
+            throw new IllegalArgumentException(message);
+        }
+    }
+
+    private ResolvedAddress resolveAddress(AddressCreateRequest request, DeliveryAddress currentAddress) {
+        JapanPostalCode postalCode = findSelectedPostalCode(request);
+        if (postalCode != null) {
+            return new ResolvedAddress(
+                    formatPostalCode(postalCode.getPostalCode()),
+                    postalCode.getPrefecture(),
+                    joinAddress(postalCode.getDetailAddress(), request.getDetailAddress())
+            );
+        }
+
+        if (currentAddress != null) {
+            return new ResolvedAddress(
+                    currentAddress.getZipCode(),
+                    currentAddress.getProvince(),
+                    normalize(request.getDetailAddress())
+            );
+        }
+
+        throw new IllegalArgumentException(POSTAL_CODE_REQUIRED);
+    }
+
+    private JapanPostalCode findSelectedPostalCode(AddressCreateRequest request) {
+        Long postalCodeId = request.getPostalCodeId();
+        if (postalCodeId == null || postalCodeId <= 0) {
+            return null;
+        }
+        return japanPostalCodeRepository.findById(postalCodeId)
+                .orElseThrow(() -> new IllegalArgumentException(POSTAL_CODE_NOT_FOUND));
+    }
+
+    private String joinAddress(String postalAddress, String userDetailAddress) {
+        String normalizedPostalAddress = normalize(postalAddress);
+        String normalizedUserDetailAddress = normalize(userDetailAddress);
+        if (normalizedUserDetailAddress.isBlank()) {
+            return normalizedPostalAddress;
+        }
+        return normalizedPostalAddress + " " + normalizedUserDetailAddress;
+    }
+
+    private String formatPostalCode(String value) {
+        String normalizedValue = value == null ? "" : value.replaceAll("\\D", "");
+        if (normalizedValue.length() != 7) {
+            return normalizedValue;
+        }
+        return normalizedValue.substring(0, 3) + "-" + normalizedValue.substring(3);
+    }
+
+    private String normalize(String value) {
+        return value == null ? "" : value.trim();
+    }
+
     private void clearDefaultAddresses(long memberId) {
         deliveryAddressRepository.findUserAddresses(memberId)
                 .forEach(DeliveryAddress::clearDefaultAddress);
+    }
+
+    private record ResolvedAddress(String zipCode, String province, String detailAddress) {
     }
 }

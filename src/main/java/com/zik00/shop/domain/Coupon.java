@@ -66,31 +66,24 @@ public class Coupon {
     public long getCouponId() {
         return couponId == null ? 0L : couponId;
     }
-
     public long getMemberId() {
         return memberId;
     }
-
     public String getCouponName() {
         return couponName;
     }
-
     public String getDiscountType() {
         return discountType;
     }
-
     public int getDiscountValue() {
         return discountValue;
     }
-
     public int getMinimumOrderAmount() {
         return minimumOrderAmount;
     }
-
     public LocalDate getExpiredDate() {
         return expiredDate;
     }
-
     public boolean isUsed() {
         return used;
     }

@@ -4,8 +4,7 @@ public class AddressCreateRequest {
     private String addressName;
     private String receiverName;
     private String receiverPhone;
-    private String zipCode;
-    private String province;
+    private Long postalCodeId;
     private String detailAddress;
     private boolean defaultAddress;
 
@@ -30,18 +29,11 @@ public class AddressCreateRequest {
         this.receiverPhone = receiverPhone;
     }
 
-    public String getZipCode() {
-        return zipCode;
+    public Long getPostalCodeId() {
+        return postalCodeId;
     }
-    public void setZipCode(String zipCode) {
-        this.zipCode = zipCode;
-    }
-
-    public String getProvince() {
-        return province;
-    }
-    public void setProvince(String province) {
-        this.province = province;
+    public void setPostalCodeId(Long postalCodeId) {
+        this.postalCodeId = postalCodeId;
     }
 
     public String getDetailAddress() {

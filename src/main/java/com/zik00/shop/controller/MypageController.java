@@ -22,6 +22,7 @@ public class MypageController {
     private static final String REDIRECT_PROFILE = "redirect:/mypage/profile";
     private static final String REDIRECT_INQUIRIES = "redirect:/mypage/inquiries";
     private static final String SUCCESS_MESSAGE = "successMessage";
+    private static final String ERROR_MESSAGE = "errorMessage";
 
     private static final String PROFILE_UPDATED = "\uD68C\uC6D0\uC815\uBCF4\uAC00 \uC218\uC815\uB418\uC5C8\uC2B5\uB2C8\uB2E4.";
     private static final String ADDRESS_CREATED = "\uBC30\uC1A1\uC9C0\uAC00 \uB4F1\uB85D\uB418\uC5C8\uC2B5\uB2C8\uB2E4.";
@@ -104,8 +105,13 @@ public class MypageController {
             @ModelAttribute AddressCreateRequest addressCreateRequest,
             RedirectAttributes redirectAttributes
     ) {
-        mypageService.addDeliveryAddress(addressCreateRequest);
-        return redirectWithMessage(redirectAttributes, ADDRESS_CREATED, REDIRECT_PROFILE);
+        try {
+            mypageService.addDeliveryAddress(addressCreateRequest);
+            return redirectWithMessage(redirectAttributes, ADDRESS_CREATED, REDIRECT_PROFILE);
+        } catch (IllegalArgumentException exception) {
+            redirectAttributes.addFlashAttribute("addressCreateRequest", addressCreateRequest);
+            return redirectWithError(redirectAttributes, exception.getMessage(), REDIRECT_PROFILE);
+        }
     }
 
     @PostMapping("/profile/addresses/{addressId}/update")
@@ -114,8 +120,12 @@ public class MypageController {
             @ModelAttribute AddressCreateRequest addressCreateRequest,
             RedirectAttributes redirectAttributes
     ) {
-        mypageService.updateDeliveryAddress(addressId, addressCreateRequest);
-        return redirectWithMessage(redirectAttributes, ADDRESS_UPDATED, REDIRECT_PROFILE);
+        try {
+            mypageService.updateDeliveryAddress(addressId, addressCreateRequest);
+            return redirectWithMessage(redirectAttributes, ADDRESS_UPDATED, REDIRECT_PROFILE);
+        } catch (IllegalArgumentException exception) {
+            return redirectWithError(redirectAttributes, exception.getMessage(), REDIRECT_PROFILE);
+        }
     }
 
     @PostMapping("/profile/addresses/{addressId}/delete")
@@ -168,6 +178,11 @@ public class MypageController {
 
     private String redirectWithMessage(RedirectAttributes redirectAttributes, String message, String redirectUrl) {
         redirectAttributes.addFlashAttribute(SUCCESS_MESSAGE, message);
+        return redirectUrl;
+    }
+
+    private String redirectWithError(RedirectAttributes redirectAttributes, String message, String redirectUrl) {
+        redirectAttributes.addFlashAttribute(ERROR_MESSAGE, message);
         return redirectUrl;
     }
 }

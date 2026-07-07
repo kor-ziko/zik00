@@ -10,9 +10,6 @@ CREATE TABLE IF NOT EXISTS `user` (
   birth_date DATE,
   gender VARCHAR(20),
   nickname VARCHAR(100),
-  zip_code VARCHAR(20),
-  province VARCHAR(100),
-  detail_address VARCHAR(255),
   telephone VARCHAR(50),
   login_id VARCHAR(100),
   deposit_balance INT NOT NULL DEFAULT 0,
@@ -25,6 +22,39 @@ CREATE TABLE IF NOT EXISTS `user` (
   alarm_consent BOOLEAN NOT NULL DEFAULT FALSE,
   PRIMARY KEY (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+SET @drop_user_zip_code = (
+  SELECT IF(COUNT(*) > 0, 'ALTER TABLE `user` DROP COLUMN zip_code', 'DO 0')
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'user'
+    AND COLUMN_NAME = 'zip_code'
+);
+PREPARE drop_user_zip_code_stmt FROM @drop_user_zip_code;
+EXECUTE drop_user_zip_code_stmt;
+DEALLOCATE PREPARE drop_user_zip_code_stmt;
+
+SET @drop_user_province = (
+  SELECT IF(COUNT(*) > 0, 'ALTER TABLE `user` DROP COLUMN province', 'DO 0')
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'user'
+    AND COLUMN_NAME = 'province'
+);
+PREPARE drop_user_province_stmt FROM @drop_user_province;
+EXECUTE drop_user_province_stmt;
+DEALLOCATE PREPARE drop_user_province_stmt;
+
+SET @drop_user_detail_address = (
+  SELECT IF(COUNT(*) > 0, 'ALTER TABLE `user` DROP COLUMN detail_address', 'DO 0')
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'user'
+    AND COLUMN_NAME = 'detail_address'
+);
+PREPARE drop_user_detail_address_stmt FROM @drop_user_detail_address;
+EXECUTE drop_user_detail_address_stmt;
+DEALLOCATE PREPARE drop_user_detail_address_stmt;
 
 CREATE TABLE IF NOT EXISTS addresses (
   address_id BIGINT NOT NULL AUTO_INCREMENT,
@@ -88,15 +118,23 @@ CREATE TABLE IF NOT EXISTS inquiry_comments (
   KEY idx_inquiry_comments_inquiry_comment (inquiry_id, comment_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS japan_postal_codes (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  postal_code VARCHAR(7) NOT NULL,
+  prefecture VARCHAR(100) NOT NULL,
+  city VARCHAR(100) NOT NULL,
+  town VARCHAR(255) NOT NULL,
+  PRIMARY KEY (id),
+  KEY idx_japan_postal_codes_code (postal_code),
+  UNIQUE KEY uk_japan_postal_codes_address (postal_code, prefecture, city, town)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 INSERT INTO `user` (
   user_id,
   name,
   birth_date,
   gender,
   nickname,
-  zip_code,
-  province,
-  detail_address,
   telephone,
   login_id,
   deposit_balance,
@@ -113,9 +151,6 @@ INSERT INTO `user` (
   '1990-05-14',
   '남성',
   '테스터01',
-  '06236',
-  '서울특별시11',
-  '강남구 테헤란로 123, 101동 1001호',
   '02-1234-5678',
   'testuser01',
   50000,
@@ -124,16 +159,13 @@ INSERT INTO `user` (
   'testuser01@example.com',
   3,
   '2026-07-07',
-  '테스트용 일반회원, 주소/연락처/주문 이력 포함',
+  '테스트용 일반회원, 연락처/주문 이력 포함',
   FALSE
 ) ON DUPLICATE KEY UPDATE
   name = VALUES(name),
   birth_date = VALUES(birth_date),
   gender = VALUES(gender),
   nickname = VALUES(nickname),
-  zip_code = VALUES(zip_code),
-  province = VALUES(province),
-  detail_address = VALUES(detail_address),
   telephone = VALUES(telephone),
   login_id = VALUES(login_id),
   deposit_balance = VALUES(deposit_balance),
@@ -161,9 +193,9 @@ INSERT INTO addresses (
   '집',
   '김테스트',
   '010-1234-5678',
-  '06236',
-  '서울특별시',
-  '강남구 테헤란로 123, 101동 1001호',
+  '100-0005',
+  '東京都',
+  '千代田区丸の内',
   TRUE
 ) ON DUPLICATE KEY UPDATE
   user_id = VALUES(user_id),
@@ -252,3 +284,19 @@ ON DUPLICATE KEY UPDATE
   writer_name = VALUES(writer_name),
   content = VALUES(content),
   created_at = VALUES(created_at);
+
+INSERT INTO japan_postal_codes (
+  postal_code,
+  prefecture,
+  city,
+  town
+) VALUES
+  ('1000005', '東京都', '千代田区', '丸の内'),
+  ('1500001', '東京都', '渋谷区', '神宮前'),
+  ('1600022', '東京都', '新宿区', '新宿'),
+  ('5300001', '大阪府', '大阪市北区', '梅田'),
+  ('6008216', '京都府', '京都市下京区', '東塩小路町')
+ON DUPLICATE KEY UPDATE
+  prefecture = VALUES(prefecture),
+  city = VALUES(city),
+  town = VALUES(town);

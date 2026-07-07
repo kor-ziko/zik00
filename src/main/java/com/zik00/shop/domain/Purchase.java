@@ -66,31 +66,24 @@ public class Purchase {
     public long getPurchaseId() {
         return purchaseId == null ? 0L : purchaseId;
     }
-
     public long getMemberId() {
         return memberId;
     }
-
     public String getOrderNumber() {
         return orderNumber;
     }
-
     public String getProductName() {
         return productName;
     }
-
     public int getQuantity() {
         return quantity;
     }
-
     public int getPaymentAmount() {
         return paymentAmount;
     }
-
     public String getOrderStatus() {
         return orderStatus;
     }
-
     public LocalDate getOrderedDate() {
         return orderedDate;
     }

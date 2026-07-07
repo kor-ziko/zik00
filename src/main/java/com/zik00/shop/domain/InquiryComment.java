@@ -56,23 +56,18 @@ public class InquiryComment {
     public long getCommentId() {
         return commentId == null ? 0L : commentId;
     }
-
     public long getInquiryId() {
         return inquiryId;
     }
-
     public long getMemberId() {
         return memberId;
     }
-
     public String getWriterName() {
         return writerName;
     }
-
     public String getContent() {
         return content;
     }
-
     public String getCreatedAt() {
         return createdAt;
     }
