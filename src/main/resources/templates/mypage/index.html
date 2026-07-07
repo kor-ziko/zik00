@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${activeSection.title}">마이페이지</title>
+    <link rel="stylesheet" th:href="@{/css/mypage.css}">
+</head>
+<body>
+<main class="mypage">
+    <aside class="mypage-sidebar" aria-label="마이페이지 메뉴">
+        <a class="brand-link" th:href="@{/mypage}">SHOP</a>
+        <nav class="menu-list">
+            <a th:each="item : ${menuItems}"
+               th:href="@{${item.url}}"
+               th:classappend="${item.active} ? ' active'"
+               class="menu-item">
+                <strong th:text="${item.title}">메뉴명</strong>
+                <span th:text="${item.description}">메뉴 설명</span>
+            </a>
+        </nav>
+    </aside>
+
+    <section class="mypage-content">
+        <header class="page-header">
+            <p class="eyebrow" th:text="|${summary.memberNickname} 님|">테스터01 님</p>
+            <h1 th:text="${activeSection.title}">마이페이지</h1>
+            <p th:text="${activeSection.description}">쇼핑 활동을 한눈에 확인하세요.</p>
+        </header>
+
+        <section class="summary-grid" aria-label="마이페이지 요약">
+            <article>
+                <span>주문완료</span>
+                <strong th:text="|${summary.completedOrderCount}건|">3건</strong>
+            </article>
+            <article>
+                <span>배송조회</span>
+                <strong th:text="|${summary.deliveryTrackingCount}건|">1건</strong>
+            </article>
+            <article>
+                <span>1:1 문의</span>
+                <strong th:text="|${summary.inquiryCount}건|">2건</strong>
+            </article>
+            <article>
+                <span>쿠폰</span>
+                <strong th:text="|${summary.couponCount}장|">4장</strong>
+            </article>
+            <article>
+                <span>예치금</span>
+                <strong th:text="|${#numbers.formatInteger(summary.depositBalance, 1, 'COMMA')}원|">50,000원</strong>
+            </article>
+            <article>
+                <span>적립포인트</span>
+                <strong th:text="|${#numbers.formatInteger(summary.rewardPoint, 1, 'COMMA')}P|">1,200P</strong>
+            </article>
+        </section>
+
+        <section class="panel" th:if="${activeSectionName == 'HOME'}">
+            <h2>마이페이지 메뉴</h2>
+            <div class="quick-grid">
+                <a th:each="item : ${menuItems}" th:href="@{${item.url}}" class="quick-link">
+                    <strong th:text="${item.title}">메뉴명</strong>
+                    <span th:text="${item.description}">메뉴 설명</span>
+                </a>
+            </div>
+        </section>
+
+        <section class="panel" th:if="${activeSectionName != 'HOME' and activeSectionName != 'PROFILE' and activeSectionName != 'COUPONS' and activeSectionName != 'INQUIRIES' and activeSectionName != 'ORDERS'}">
+            <h2 th:text="${activeSection.title}">메뉴명</h2>
+            <p>해당 기능은 준비 중입니다.</p>
+        </section>
+
+        <section class="panel" th:if="${activeSectionName == 'ORDERS'}">
+            <h2>구매목록</h2>
+            <div class="purchase-list" th:if="${!purchases.isEmpty()}">
+                <article class="purchase-item" th:each="purchase : ${purchases}">
+                    <div class="purchase-title">
+                        <div>
+                            <strong th:text="${purchase.productName}">린넨 셔츠</strong>
+                            <span th:text="${purchase.orderNumber}">ORD-20260701-001</span>
+                        </div>
+                        <span class="badge" th:text="${purchase.orderStatus}">주문완료</span>
+                    </div>
+                    <dl>
+                        <div>
+                            <dt>주문일</dt>
+                            <dd th:text="${purchase.orderedDate}">2026-07-01</dd>
+                        </div>
+                        <div>
+                            <dt>수량</dt>
+                            <dd th:text="|${purchase.quantity}개|">2개</dd>
+                        </div>
+                        <div>
+                            <dt>결제금액</dt>
+                            <dd th:text="|${#numbers.formatInteger(purchase.paymentAmount, 1, 'COMMA')}원|">59,000원</dd>
+                        </div>
+                    </dl>
+                </article>
+            </div>
+            <p th:if="${purchases.isEmpty()}">구매내역이 없습니다.</p>
+        </section>
+
+        <section class="panel" th:if="${activeSectionName == 'INQUIRIES'}">
+            <h2>1:1 문의내역</h2>
+            <p class="success-message" th:if="${successMessage}" th:text="${successMessage}">문의가 등록되었습니다.</p>
+
+            <div class="inquiry-list" th:if="${!inquiryThreads.isEmpty()}">
+                <article class="inquiry-item" th:each="thread : ${inquiryThreads}">
+                    <div class="inquiry-header">
+                        <strong th:text="${thread.inquiry.title}">배송은 언제 시작되나요?</strong>
+                        <span class="badge" th:text="${thread.inquiry.status}">답변대기</span>
+                    </div>
+                    <p class="meta-text" th:text="${thread.inquiry.createdAt}">2026-07-07 16:20</p>
+                    <p th:text="${thread.inquiry.content}">문의 내용</p>
+
+                    <div class="comment-list" th:if="${!thread.comments.isEmpty()}">
+                        <article class="comment-item" th:each="comment : ${thread.comments}">
+                            <div>
+                                <strong th:text="${comment.writerName}">테스터01</strong>
+                                <span th:text="${comment.createdAt}">2026-07-07 16:22</span>
+                            </div>
+                            <p th:text="${comment.content}">댓글 내용</p>
+                        </article>
+                    </div>
+                    <p th:if="${thread.comments.isEmpty()}">등록된 댓글이 없습니다.</p>
+
+                    <form class="comment-form"
+                          th:action="@{/mypage/inquiries/{inquiryId}/comments(inquiryId=${thread.inquiry.inquiryId})}"
+                          method="post">
+                        <label>
+                            <span>댓글</span>
+                            <textarea name="content" rows="3" placeholder="댓글을 입력하세요"></textarea>
+                        </label>
+                        <button type="submit">댓글 등록</button>
+                    </form>
+                </article>
+            </div>
+            <p th:if="${inquiryThreads.isEmpty()}">등록한 문의가 없습니다.</p>
+
+            <form class="inquiry-form"
+                  th:action="@{/mypage/inquiries}"
+                  th:object="${inquiryCreateRequest}"
+                  method="post">
+                <label>
+                    <span>제목</span>
+                    <input type="text" th:field="*{title}" placeholder="문의 제목">
+                </label>
+                <label>
+                    <span>내용</span>
+                    <textarea th:field="*{content}" rows="5" placeholder="문의 내용을 입력하세요"></textarea>
+                </label>
+                <button type="submit">문의 등록</button>
+            </form>
+        </section>
+
+        <section class="panel" th:if="${activeSectionName == 'COUPONS'}">
+            <h2>쿠폰함</h2>
+            <div class="coupon-list" th:if="${!coupons.isEmpty()}">
+                <article class="coupon-item" th:each="coupon : ${coupons}">
+                    <div>
+                        <strong th:text="${coupon.couponName}">신규회원 10% 할인</strong>
+                        <span class="badge" th:text="${coupon.used} ? '사용완료' : '사용가능'">사용가능</span>
+                    </div>
+                    <dl>
+                        <div>
+                            <dt>할인유형</dt>
+                            <dd th:text="${coupon.discountType}">percent</dd>
+                        </div>
+                        <div>
+                            <dt>할인값</dt>
+                            <dd th:text="${#numbers.formatInteger(coupon.discountValue, 1, 'COMMA')}">10</dd>
+                        </div>
+                        <div>
+                            <dt>최소주문금액</dt>
+                            <dd th:text="|${#numbers.formatInteger(coupon.minimumOrderAmount, 1, 'COMMA')}원|">10,000원</dd>
+                        </div>
+                        <div>
+                            <dt>만료일</dt>
+                            <dd th:text="${coupon.expiredDate}">2026-12-31</dd>
+                        </div>
+                    </dl>
+                </article>
+            </div>
+            <p th:if="${coupons.isEmpty()}">보유한 쿠폰이 없습니다.</p>
+        </section>
+
+        <section class="panel" th:if="${activeSectionName == 'PROFILE'}">
+            <h2>회원정보</h2>
+            <p class="success-message" th:if="${successMessage}" th:text="${successMessage}">회원정보가 수정되었습니다.</p>
+            <dl class="info-list member-info-box">
+                <div>
+                    <dt>이름</dt>
+                    <dd th:text="${user.name}">김테스트</dd>
+                </div>
+                <div>
+                    <dt>주소</dt>
+                    <dd th:text="|(${user.zipCode}) ${user.province} ${user.detailAddress}|">(06236) 서울특별시 강남구 테헤란로 123</dd>
+                </div>
+                <div>
+                    <dt>전화번호</dt>
+                    <dd th:text="${user.mobilePhone}">010-1234-5678</dd>
+                </div>
+                <div>
+                    <dt>메일</dt>
+                    <dd th:text="${user.email}">testuser01@example.com</dd>
+                </div>
+                <div>
+                    <dt>닉네임</dt>
+                    <dd th:text="${user.nickname}">테스터01</dd>
+                </div>
+                <div>
+                    <dt>알람동의</dt>
+                    <dd th:text="${user.alarmConsent} ? '동의' : '미동의'">미동의</dd>
+                </div>
+            </dl>
+            <a class="action-link" th:if="${!profileEditMode}" th:href="@{/mypage/profile/edit}">회원수정</a>
+
+            <form class="profile-form"
+                  th:if="${profileEditMode}"
+                  th:action="@{/mypage/profile}"
+                  th:object="${profileUpdateRequest}"
+                  method="post">
+                <label>
+                    <span>이름</span>
+                    <input type="text" th:field="*{name}" placeholder="김테스트">
+                </label>
+                <label>
+                    <span>닉네임</span>
+                    <input type="text" th:field="*{nickname}" placeholder="테스터01">
+                </label>
+                <label>
+                    <span>우편번호</span>
+                    <input type="text" th:field="*{zipCode}" placeholder="06236">
+                </label>
+                <label>
+                    <span>도 선택</span>
+                    <input type="text" th:field="*{province}" placeholder="서울특별시">
+                </label>
+                <label>
+                    <span>상세 주소</span>
+                    <input type="text" th:field="*{detailAddress}" placeholder="강남구 테헤란로 123">
+                </label>
+                <label>
+                    <span>핸드폰번호</span>
+                    <input type="tel" th:field="*{mobilePhone}" placeholder="010-1234-5678">
+                </label>
+                <label>
+                    <span>메일</span>
+                    <input type="email" th:field="*{email}" placeholder="testuser01@example.com">
+                </label>
+                <label class="checkbox-field">
+                    <input type="checkbox" th:field="*{alarmConsent}">
+                    <span>알람 수신에 동의합니다</span>
+                </label>
+                <div class="form-actions">
+                    <button type="submit">저장</button>
+                    <a class="secondary-link" th:href="@{/mypage/profile}">취소</a>
+                </div>
+            </form>
+
+            <section class="address-section">
+                <h3>배송지 목록</h3>
+                <div class="address-list" th:if="${!deliveryAddresses.isEmpty()}">
+                    <article th:each="address : ${deliveryAddresses}" class="address-item">
+                        <div>
+                            <strong th:text="${address.addressName}">집</strong>
+                            <span th:if="${address.defaultAddress}" class="badge">기본</span>
+                        </div>
+                        <p th:text="|${address.receiverName} / ${address.receiverPhone}|">김테스트 / 010-1234-5678</p>
+                        <p th:text="|(${address.zipCode}) ${address.province} ${address.detailAddress}|">(06236) 서울특별시 강남구 테헤란로 123</p>
+                        <form class="address-edit-form"
+                              th:id="|address-update-${address.id}|"
+                              th:action="@{/mypage/profile/addresses/{addressId}/update(addressId=${address.id})}"
+                              method="post">
+                            <label>
+                                <span>배송지명</span>
+                                <input type="text" name="addressName" th:value="${address.addressName}">
+                            </label>
+                            <label>
+                                <span>수령인</span>
+                                <input type="text" name="receiverName" th:value="${address.receiverName}">
+                            </label>
+                            <label>
+                                <span>수령인 전화번호</span>
+                                <input type="tel" name="receiverPhone" th:value="${address.receiverPhone}">
+                            </label>
+                            <label>
+                                <span>우편번호</span>
+                                <input type="text" name="zipCode" th:value="${address.zipCode}">
+                            </label>
+                            <label>
+                                <span>도 선택</span>
+                                <input type="text" name="province" th:value="${address.province}">
+                            </label>
+                            <label>
+                                <span>상세 주소</span>
+                                <input type="text" name="detailAddress" th:value="${address.detailAddress}">
+                            </label>
+                            <label class="checkbox-field">
+                                <input type="checkbox" name="defaultAddress" value="true" th:checked="${address.defaultAddress}">
+                                <span>기본 배송지</span>
+                            </label>
+                        </form>
+                        <div class="address-actions">
+                            <button type="submit" th:attr="form=|address-update-${address.id}|">수정</button>
+                            <form th:action="@{/mypage/profile/addresses/{addressId}/delete(addressId=${address.id})}"
+                                  method="post">
+                                <button class="danger-button" type="submit">삭제</button>
+                            </form>
+                        </div>
+                    </article>
+                </div>
+                <p th:if="${deliveryAddresses.isEmpty()}">등록된 배송지가 없습니다.</p>
+
+                <form class="profile-form"
+                      th:action="@{/mypage/profile/addresses}"
+                      th:object="${addressCreateRequest}"
+                      method="post">
+                    <label>
+                        <span>배송지명</span>
+                        <input type="text" th:field="*{addressName}" placeholder="집">
+                    </label>
+                    <label>
+                        <span>수령인</span>
+                        <input type="text" th:field="*{receiverName}" placeholder="김테스트">
+                    </label>
+                    <label>
+                        <span>수령인 전화번호</span>
+                        <input type="tel" th:field="*{receiverPhone}" placeholder="010-1234-5678">
+                    </label>
+                    <label>
+                        <span>우편번호</span>
+                        <input type="text" th:field="*{zipCode}" placeholder="06236">
+                    </label>
+                    <label>
+                        <span>도 선택</span>
+                        <input type="text" th:field="*{province}" placeholder="서울특별시">
+                    </label>
+                    <label>
+                        <span>상세 주소</span>
+                        <input type="text" th:field="*{detailAddress}" placeholder="강남구 테헤란로 123">
+                    </label>
+                    <label class="checkbox-field">
+                        <input type="checkbox" th:field="*{defaultAddress}">
+                        <span>기본 배송지로 설정합니다</span>
+                    </label>
+                    <button type="submit">배송지 등록</button>
+                </form>
+            </section>
+        </section>
+    </section>
+</main>
+</body>
+</html>
