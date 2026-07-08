@@ -17,3 +17,7 @@ spring:
     properties:
       hibernate:
         format_sql: true
+
+shop:
+  upload:
+    inquiry-image-dir: ${SHOP_INQUIRY_IMAGE_DIR:uploads/inquiries_images}

@@ -42,3 +42,11 @@ https://ggobugi.tistory.com/269
 8.0.46
 https://dev.mysql.com/downloads/installer/
 
+# MYSQL 설정
+
+datasource:
+url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/shop?serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
+username: ${SPRING_DATASOURCE_USERNAME:root}
+password: ${SPRING_DATASOURCE_PASSWORD:1q2w3e}
+
+이거 너희들 서버에 맞춰서 바꿔 줘야함.

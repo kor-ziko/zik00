@@ -6,6 +6,13 @@ import com.zik00.shop.dto.InquiryCreateRequest;
 import com.zik00.shop.dto.MypageSection;
 import com.zik00.shop.dto.ProfileUpdateRequest;
 import com.zik00.shop.service.MypageService;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.CacheControl;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -68,6 +75,22 @@ public class MypageController {
     public String newInquiry(Model model) {
         addInquiriesModel(model, true);
         return VIEW;
+    }
+
+    @GetMapping("/inquiries/images/{imageUuid}")
+    public ResponseEntity<Resource> inquiryImage(@PathVariable String imageUuid) {
+        return mypageService.getInquiryImageDownload(imageUuid)
+                .map(image -> ResponseEntity.ok()
+                        .contentType(MediaType.parseMediaType(image.contentType()))
+                        .contentLength(image.contentLength())
+                        .cacheControl(CacheControl.noStore())
+                        .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.inline()
+                                .filename(image.fileName())
+                                .build()
+                                .toString())
+                        .header("X-Content-Type-Options", "nosniff")
+                        .body((Resource) new FileSystemResource(image.imagePath())))
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     private void addInquiriesModel(Model model, boolean inquiryCreateMode) {

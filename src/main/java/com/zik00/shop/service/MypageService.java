@@ -10,7 +10,9 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -40,6 +42,8 @@ import com.zik00.shop.repository.InquiryImageRepository;
 import com.zik00.shop.repository.InquiryRepository;
 import com.zik00.shop.repository.PurchaseRepository;
 import com.zik00.shop.repository.UserRepository;
+import com.zik00.shop.util.InquiryImagePaths;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -50,10 +54,6 @@ import org.springframework.web.multipart.MultipartFile;
 @Transactional(readOnly = true)
 public class MypageService {
     private static final DateTimeFormatter DISPLAY_DATE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-    private static final Path INQUIRY_IMAGE_DIR = Path.of(
-            "src", "main", "resources", "uploads", "inquiries_images"
-    ).toAbsolutePath().normalize();
-    private static final String INQUIRY_IMAGE_URL_PREFIX = "/uploads/inquiries_images/";
     private static final int MAX_INQUIRY_IMAGE_COUNT = 3;
     private static final long MAX_INQUIRY_IMAGE_SIZE = 5L * 1024L * 1024L;
     private static final Set<String> DECODE_REQUIRED_IMAGE_EXTENSIONS = Set.of("jpg", "png", "gif");
@@ -79,6 +79,7 @@ public class MypageService {
     private final InquiryRepository inquiryRepository;
     private final InquiryCommentRepository inquiryCommentRepository;
     private final InquiryImageRepository inquiryImageRepository;
+    private final Path inquiryImageDir;
 
     public MypageService(
             UserRepository userRepository,
@@ -87,7 +88,8 @@ public class MypageService {
             PurchaseRepository purchaseRepository,
             InquiryRepository inquiryRepository,
             InquiryCommentRepository inquiryCommentRepository,
-            InquiryImageRepository inquiryImageRepository
+            InquiryImageRepository inquiryImageRepository,
+            @Value("${shop.upload.inquiry-image-dir:uploads/inquiries_images}") String inquiryImageDir
     ) {
         this.userRepository = userRepository;
         this.deliveryAddressRepository = deliveryAddressRepository;
@@ -96,6 +98,7 @@ public class MypageService {
         this.inquiryRepository = inquiryRepository;
         this.inquiryCommentRepository = inquiryCommentRepository;
         this.inquiryImageRepository = inquiryImageRepository;
+        this.inquiryImageDir = Path.of(inquiryImageDir).toAbsolutePath().normalize();
     }
 
     public MypageSummary getSummary() {
@@ -127,7 +130,6 @@ public class MypageService {
         return request;
     }
 
-    //나중에 메일인증 한 번하고 수정할 수 있게 하기
     @Transactional
     public void updateProfile(ProfileUpdateRequest request) {
         User user = findCurrentUser();
@@ -249,6 +251,17 @@ public class MypageService {
                         imagesByInquiryId.getOrDefault(inquiry.getInquiryId(), List.of())
                 ))
                 .toList();
+    }
+
+    public Optional<InquiryImageDownload> getInquiryImageDownload(String imageUuid) {
+        String normalizedImageUuid = InquiryImagePaths.normalize(imageUuid);
+        if (!InquiryImagePaths.isSafeUuid(normalizedImageUuid)) {
+            return Optional.empty();
+        }
+
+        User user = findCurrentUser();
+        return inquiryImageRepository.findUserImageByUuid(normalizedImageUuid, user.getMemberId())
+                .flatMap(this::toInquiryImageDownload);
     }
 
     @Transactional
@@ -389,13 +402,13 @@ public class MypageService {
                 .toList();
 
         try {
-            Files.createDirectories(INQUIRY_IMAGE_DIR);
+            Files.createDirectories(inquiryImageDir);
             for (InquiryImageFile imageFile : imageFiles) {
                 saveImageFile(imageFile);
             }
             deleteImageFilesAfterRollback(imageFiles);
             inquiryImageRepository.saveAll(imageFiles.stream()
-                    .map(imageFile -> new InquiryImage(inquiryId, imageFile.imageUuid(), imageFile.imageUrl()))
+                    .map(imageFile -> new InquiryImage(inquiryId, imageFile.imageUuid(), imageFile.storedFileName()))
                     .toList());
         } catch (IOException exception) {
             deleteImageFiles(imageFiles);
@@ -410,12 +423,12 @@ public class MypageService {
         ValidatedImage validatedImage = validateImage(image);
         String imageUuid = UUID.randomUUID().toString();
         String fileName = imageUuid + "." + validatedImage.extension();
-        Path targetPath = INQUIRY_IMAGE_DIR.resolve(fileName).normalize();
-        if (!targetPath.startsWith(INQUIRY_IMAGE_DIR)) {
+        Path targetPath = inquiryImageDir.resolve(fileName).normalize();
+        if (!targetPath.startsWith(inquiryImageDir)) {
             throw new IllegalArgumentException(INQUIRY_IMAGE_INVALID);
         }
 
-        return new InquiryImageFile(validatedImage.content(), imageUuid, targetPath, INQUIRY_IMAGE_URL_PREFIX + fileName);
+        return new InquiryImageFile(validatedImage.content(), imageUuid, targetPath, fileName);
     }
 
     private void saveImageFile(InquiryImageFile imageFile) throws IOException {
@@ -442,9 +455,53 @@ public class MypageService {
             try {
                 Files.deleteIfExists(imageFile.targetPath());
             } catch (IOException | SecurityException ignored) {
-                // Keep the original failure visible; cleanup best-effort is logged later if logging is added.
+                // Preserve the original failure; cleanup is best-effort.
             }
         }
+    }
+
+    private Optional<InquiryImageDownload> toInquiryImageDownload(InquiryImage image) {
+        Optional<String> safeFileName = InquiryImagePaths.extractSafeStoredFileName(
+                image.getImageUuid(),
+                image.getStoredFileName()
+        );
+        if (safeFileName.isEmpty()) {
+            return Optional.empty();
+        }
+
+        String fileName = safeFileName.get();
+        Path imagePath = inquiryImageDir.resolve(fileName).normalize();
+        if (!imagePath.startsWith(inquiryImageDir) || !Files.isRegularFile(imagePath)) {
+            return Optional.empty();
+        }
+
+        try {
+            return Optional.of(new InquiryImageDownload(
+                    imagePath,
+                    fileName,
+                    contentTypeFor(fileName),
+                    Files.size(imagePath)
+            ));
+        } catch (IOException exception) {
+            return Optional.empty();
+        }
+    }
+
+    private String contentTypeFor(String fileName) {
+        String lowerFileName = fileName.toLowerCase(Locale.ROOT);
+        if (lowerFileName.endsWith(".jpg") || lowerFileName.endsWith(".jpeg")) {
+            return "image/jpeg";
+        }
+        if (lowerFileName.endsWith(".png")) {
+            return "image/png";
+        }
+        if (lowerFileName.endsWith(".gif")) {
+            return "image/gif";
+        }
+        if (lowerFileName.endsWith(".webp")) {
+            return "image/webp";
+        }
+        return "application/octet-stream";
     }
 
     private ValidatedImage validateImage(MultipartFile image) {
@@ -538,10 +595,18 @@ public class MypageService {
             byte[] content,
             String imageUuid,
             Path targetPath,
-            String imageUrl
+            String storedFileName
     ) {
     }
 
     private record ValidatedImage(String extension, byte[] content) {
+    }
+
+    public record InquiryImageDownload(
+            Path imagePath,
+            String fileName,
+            String contentType,
+            long contentLength
+    ) {
     }
 }

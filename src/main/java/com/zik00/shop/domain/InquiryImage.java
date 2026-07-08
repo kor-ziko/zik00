@@ -25,15 +25,15 @@ public class InquiryImage {
     private String imageUuid;
 
     @Column(name = "image_path", nullable = false)
-    private String imagePath;
+    private String storedFileName;
 
     protected InquiryImage() {
     }
 
-    public InquiryImage(long inquiryId, String imageUuid, String imagePath) {
+    public InquiryImage(long inquiryId, String imageUuid, String storedFileName) {
         this.inquiryId = inquiryId;
         this.imageUuid = imageUuid;
-        this.imagePath = imagePath;
+        this.storedFileName = storedFileName;
     }
 
     public long getImageId() {
@@ -45,7 +45,7 @@ public class InquiryImage {
     public String getImageUuid() {
         return imageUuid;
     }
-    public String getImagePath() {
-        return imagePath;
+    public String getStoredFileName() {
+        return storedFileName;
     }
 }
