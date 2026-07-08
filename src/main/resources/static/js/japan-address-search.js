@@ -3,6 +3,16 @@
     const addressCache = new Map();
 
     document.addEventListener("DOMContentLoaded", () => {
+        document.querySelectorAll('input[type="file"][data-max-files]').forEach((input) => {
+            input.addEventListener("change", () => {
+                const maxFiles = Number(input.dataset.maxFiles);
+                if (input.files.length > maxFiles) {
+                    input.value = "";
+                    alert(`이미지는 최대 ${maxFiles}개까지 첨부할 수 있습니다.`);
+                }
+            });
+        });
+
         document.querySelectorAll("[data-address-search]").forEach((widget) => {
             const input = widget.querySelector("[data-address-query]");
             const button = widget.querySelector("[data-address-search-button]");

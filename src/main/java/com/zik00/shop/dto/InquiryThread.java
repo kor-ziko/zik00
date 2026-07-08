@@ -8,10 +8,12 @@ import com.zik00.shop.domain.InquiryComment;
 public class InquiryThread {
     private final Inquiry inquiry;
     private final List<InquiryComment> comments;
+    private final List<InquiryImageView> images;
 
-    public InquiryThread(Inquiry inquiry, List<InquiryComment> comments) {
+    public InquiryThread(Inquiry inquiry, List<InquiryComment> comments, List<InquiryImageView> images) {
         this.inquiry = inquiry;
         this.comments = comments;
+        this.images = images;
     }
 
     public Inquiry getInquiry() {
@@ -19,5 +21,8 @@ public class InquiryThread {
     }
     public List<InquiryComment> getComments() {
         return comments;
+    }
+    public List<InquiryImageView> getImages() {
+        return images;
     }
 }

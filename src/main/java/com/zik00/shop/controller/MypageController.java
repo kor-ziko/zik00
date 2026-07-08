@@ -22,6 +22,7 @@ public class MypageController {
     private static final String REDIRECT_PROFILE = "redirect:/mypage/profile";
     private static final String REDIRECT_PROFILE_ADDRESSES_EDIT = "redirect:/mypage/profile/addresses/edit";
     private static final String REDIRECT_INQUIRIES = "redirect:/mypage/inquiries";
+    private static final String REDIRECT_INQUIRIES_NEW = "redirect:/mypage/inquiries/new";
     private static final String SUCCESS_MESSAGE = "successMessage";
     private static final String ERROR_MESSAGE = "errorMessage";
 
@@ -59,12 +60,23 @@ public class MypageController {
 
     @GetMapping("/inquiries")
     public String inquiries(Model model) {
+        addInquiriesModel(model, false);
+        return VIEW;
+    }
+
+    @GetMapping("/inquiries/new")
+    public String newInquiry(Model model) {
+        addInquiriesModel(model, true);
+        return VIEW;
+    }
+
+    private void addInquiriesModel(Model model, boolean inquiryCreateMode) {
         addMypageModel(model, MypageSection.INQUIRIES);
+        model.addAttribute("inquiryCreateMode", inquiryCreateMode);
         model.addAttribute("inquiryThreads", mypageService.getInquiryThreads());
         if (!model.containsAttribute("inquiryCreateRequest")) {
             model.addAttribute("inquiryCreateRequest", new InquiryCreateRequest());
         }
-        return VIEW;
     }
 
     @GetMapping("/coupons")
@@ -149,8 +161,13 @@ public class MypageController {
             @ModelAttribute InquiryCreateRequest inquiryCreateRequest,
             RedirectAttributes redirectAttributes
     ) {
-        mypageService.addInquiry(inquiryCreateRequest);
-        return redirectWithMessage(redirectAttributes, INQUIRY_CREATED, REDIRECT_INQUIRIES);
+        try {
+            mypageService.addInquiry(inquiryCreateRequest);
+            return redirectWithMessage(redirectAttributes, INQUIRY_CREATED, REDIRECT_INQUIRIES);
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            redirectAttributes.addFlashAttribute("inquiryCreateRequest", copyInquiryText(inquiryCreateRequest));
+            return redirectWithError(redirectAttributes, exception.getMessage(), REDIRECT_INQUIRIES_NEW);
+        }
     }
 
     @PostMapping("/inquiries/{inquiryId}/comments")
@@ -192,5 +209,12 @@ public class MypageController {
     private String redirectWithError(RedirectAttributes redirectAttributes, String message, String redirectUrl) {
         redirectAttributes.addFlashAttribute(ERROR_MESSAGE, message);
         return redirectUrl;
+    }
+
+    private InquiryCreateRequest copyInquiryText(InquiryCreateRequest source) {
+        InquiryCreateRequest copy = new InquiryCreateRequest();
+        copy.setTitle(source.getTitle());
+        copy.setContent(source.getContent());
+        return copy;
     }
 }

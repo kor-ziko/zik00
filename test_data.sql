@@ -118,6 +118,16 @@ CREATE TABLE IF NOT EXISTS inquiry_comments (
   KEY idx_inquiry_comments_inquiry_comment (inquiry_id, comment_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS inquiry_images (
+  image_id BIGINT NOT NULL AUTO_INCREMENT,
+  inquiry_id BIGINT NOT NULL,
+  image_uuid VARCHAR(36) NOT NULL,
+  image_path VARCHAR(255) NOT NULL,
+  PRIMARY KEY (image_id),
+  UNIQUE KEY uk_inquiry_images_uuid (image_uuid),
+  KEY idx_inquiry_images_inquiry_id (inquiry_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 INSERT INTO `user` (
   user_id,
   name,
@@ -273,3 +283,32 @@ ON DUPLICATE KEY UPDATE
   writer_name = VALUES(writer_name),
   content = VALUES(content),
   created_at = VALUES(created_at);
+
+INSERT INTO inquiry_images (
+  image_id,
+  inquiry_id,
+  image_uuid,
+  image_path
+) VALUES
+  (
+    1,
+    1,
+    '11111111-1111-1111-1111-111111111111',
+    '/uploads/inquiries_images/11111111-1111-1111-1111-111111111111.jpg'
+  ),
+  (
+    2,
+    2,
+    '22222222-2222-2222-2222-222222222222',
+    '/uploads/inquiries_images/22222222-2222-2222-2222-222222222222.png'
+  ),
+  (
+    3,
+    2,
+    '33333333-3333-3333-3333-333333333333',
+    '/uploads/inquiries_images/33333333-3333-3333-3333-333333333333.jpg'
+  )
+ON DUPLICATE KEY UPDATE
+  inquiry_id = VALUES(inquiry_id),
+  image_uuid = VALUES(image_uuid),
+  image_path = VALUES(image_path);

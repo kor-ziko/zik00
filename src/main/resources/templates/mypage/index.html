@@ -101,10 +101,21 @@
         </section>
 
         <section class="panel" th:if="${activeSectionName == 'INQUIRIES'}">
-            <h2>1:1 문의내역</h2>
+            <div class="section-header">
+                <h2>1:1 문의내역</h2>
+                <div class="section-actions">
+                    <a class="action-link"
+                       th:if="${!inquiryCreateMode}"
+                       th:href="@{/mypage/inquiries/new}">문의 등록</a>
+                    <a class="secondary-link"
+                       th:if="${inquiryCreateMode}"
+                       th:href="@{/mypage/inquiries}">목록으로</a>
+                </div>
+            </div>
             <p class="success-message" th:if="${successMessage}" th:text="${successMessage}">문의가 등록되었습니다.</p>
+            <p class="error-message" th:if="${errorMessage}" th:text="${errorMessage}">입력값을 확인해주세요.</p>
 
-            <div class="inquiry-list" th:if="${!inquiryThreads.isEmpty()}">
+            <div class="inquiry-list" th:if="${!inquiryCreateMode and !inquiryThreads.isEmpty()}">
                 <article class="inquiry-item" th:each="thread : ${inquiryThreads}">
                     <div class="inquiry-header">
                         <strong th:text="${thread.inquiry.title}">배송은 언제 시작되나요?</strong>
@@ -112,6 +123,14 @@
                     </div>
                     <p class="meta-text" th:text="${thread.inquiry.createdAt}">2026-07-07 16:20</p>
                     <p th:text="${thread.inquiry.content}">문의 내용</p>
+                    <div class="inquiry-images" th:if="${!thread.images.isEmpty()}">
+                        <a th:each="image : ${thread.images}"
+                           th:href="${image.imagePath}"
+                           target="_blank"
+                           rel="noopener">
+                            <img th:src="${image.imagePath}" th:alt="|문의 이미지 ${image.imageUuid}|">
+                        </a>
+                    </div>
 
                     <div class="comment-list" th:if="${!thread.comments.isEmpty()}">
                         <article class="comment-item" th:each="comment : ${thread.comments}">
@@ -127,6 +146,7 @@
                     <form class="comment-form"
                           th:action="@{/mypage/inquiries/{inquiryId}/comments(inquiryId=${thread.inquiry.inquiryId})}"
                           method="post">
+                        <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                         <label>
                             <span>댓글</span>
                             <textarea name="content" rows="3" placeholder="댓글을 입력하세요"></textarea>
@@ -135,12 +155,15 @@
                     </form>
                 </article>
             </div>
-            <p th:if="${inquiryThreads.isEmpty()}">등록한 문의가 없습니다.</p>
+            <p th:if="${!inquiryCreateMode and inquiryThreads.isEmpty()}">등록한 문의가 없습니다.</p>
 
             <form class="inquiry-form"
+                  th:if="${inquiryCreateMode}"
                   th:action="@{/mypage/inquiries}"
                   th:object="${inquiryCreateRequest}"
-                  method="post">
+                  method="post"
+                  enctype="multipart/form-data">
+                <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                 <label>
                     <span>제목</span>
                     <input type="text" th:field="*{title}" placeholder="문의 제목">
@@ -148,6 +171,14 @@
                 <label>
                     <span>내용</span>
                     <textarea th:field="*{content}" rows="5" placeholder="문의 내용을 입력하세요"></textarea>
+                </label>
+                <label>
+                    <span>이미지</span>
+                    <input type="file"
+                           th:field="*{images}"
+                           accept="image/png,image/jpeg,image/gif,image/webp"
+                           multiple
+                           data-max-files="3">
                 </label>
                 <button type="submit">문의 등록</button>
             </form>
@@ -217,6 +248,7 @@
                   th:action="@{/mypage/profile}"
                   th:object="${profileUpdateRequest}"
                   method="post">
+                <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                 <label>
                     <span>이름</span>
                     <input type="text" th:field="*{name}" placeholder="김테스트">
@@ -268,6 +300,7 @@
                               th:id="|address-update-${address.id}|"
                               th:action="@{/mypage/profile/addresses/{addressId}/update(addressId=${address.id})}"
                               method="post">
+                            <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                             <label>
                                 <span>배송지명</span>
                                 <input type="text" name="addressName" th:value="${address.addressName}" required>
@@ -314,6 +347,7 @@
                             <button type="submit" th:attr="form=|address-update-${address.id}|">수정</button>
                             <form th:action="@{/mypage/profile/addresses/{addressId}/delete(addressId=${address.id})}"
                                   method="post">
+                                <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                                 <button class="danger-button" type="submit">삭제</button>
                             </form>
                         </div>
@@ -326,6 +360,7 @@
                       th:action="@{/mypage/profile/addresses}"
                       th:object="${addressCreateRequest}"
                       method="post">
+                    <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                     <label>
                         <span>배송지명</span>
                         <input type="text" th:field="*{addressName}" placeholder="집" required>

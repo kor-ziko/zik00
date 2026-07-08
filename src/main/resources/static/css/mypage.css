@@ -196,6 +196,7 @@ h1 {
 .address-edit-form input[type="search"],
 .address-edit-form input[type="tel"],
 .inquiry-form input[type="text"],
+.inquiry-form input[type="file"],
 .inquiry-form textarea,
 .comment-form textarea {
     width: 100%;
@@ -265,6 +266,24 @@ h1 {
     align-items: center;
     display: flex;
     gap: 10px;
+}
+
+.section-header {
+    align-items: center;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.section-header h2 {
+    margin: 0;
+}
+
+.section-actions {
+    align-items: center;
+    display: flex;
+    gap: 8px;
 }
 
 .member-info-box {
@@ -510,6 +529,28 @@ h1 {
 
 .comment-item span {
     color: #657184;
+}
+
+.inquiry-images {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 12px 0;
+}
+
+.inquiry-images a {
+    border: 1px solid #dfe4ee;
+    border-radius: 8px;
+    display: block;
+    overflow: hidden;
+}
+
+.inquiry-images img {
+    aspect-ratio: 1;
+    display: block;
+    height: 96px;
+    object-fit: cover;
+    width: 96px;
 }
 
 .inquiry-form,
