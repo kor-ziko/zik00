@@ -1,6 +1,10 @@
 spring:
   application:
     name: shop
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 15MB
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/shop?serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
     username: ${SPRING_DATASOURCE_USERNAME:root}
