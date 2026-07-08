@@ -6,6 +6,7 @@ import com.zik00.shop.dto.InquiryCreateRequest;
 import com.zik00.shop.dto.MypageSection;
 import com.zik00.shop.dto.ProfileUpdateRequest;
 import com.zik00.shop.service.MypageService;
+import jakarta.validation.Valid;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.CacheControl;
@@ -15,6 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -135,18 +137,30 @@ public class MypageController {
 
     @PostMapping("/profile")
     public String updateProfile(
-            @ModelAttribute ProfileUpdateRequest profileUpdateRequest,
+            @Valid @ModelAttribute ProfileUpdateRequest profileUpdateRequest,
+            BindingResult bindingResult,
             RedirectAttributes redirectAttributes
     ) {
+        if (bindingResult.hasErrors()) {
+            redirectAttributes.addFlashAttribute("profileUpdateRequest", profileUpdateRequest);
+            return redirectWithError(redirectAttributes, firstErrorMessage(bindingResult), "redirect:/mypage/profile/edit");
+        }
+
         mypageService.updateProfile(profileUpdateRequest);
         return redirectWithMessage(redirectAttributes, PROFILE_UPDATED, REDIRECT_PROFILE);
     }
 
     @PostMapping("/profile/addresses")
     public String addDeliveryAddress(
-            @ModelAttribute AddressCreateRequest addressCreateRequest,
+            @Valid @ModelAttribute AddressCreateRequest addressCreateRequest,
+            BindingResult bindingResult,
             RedirectAttributes redirectAttributes
     ) {
+        if (bindingResult.hasErrors()) {
+            redirectAttributes.addFlashAttribute("addressCreateRequest", addressCreateRequest);
+            return redirectWithError(redirectAttributes, firstErrorMessage(bindingResult), REDIRECT_PROFILE_ADDRESSES_EDIT);
+        }
+
         try {
             mypageService.addDeliveryAddress(addressCreateRequest);
             return redirectWithMessage(redirectAttributes, ADDRESS_CREATED, REDIRECT_PROFILE);
@@ -159,9 +173,14 @@ public class MypageController {
     @PostMapping("/profile/addresses/{addressId}/update")
     public String updateDeliveryAddress(
             @PathVariable long addressId,
-            @ModelAttribute AddressCreateRequest addressCreateRequest,
+            @Valid @ModelAttribute AddressCreateRequest addressCreateRequest,
+            BindingResult bindingResult,
             RedirectAttributes redirectAttributes
     ) {
+        if (bindingResult.hasErrors()) {
+            return redirectWithError(redirectAttributes, firstErrorMessage(bindingResult), REDIRECT_PROFILE_ADDRESSES_EDIT);
+        }
+
         try {
             mypageService.updateDeliveryAddress(addressId, addressCreateRequest);
             return redirectWithMessage(redirectAttributes, ADDRESS_UPDATED, REDIRECT_PROFILE);
@@ -181,9 +200,15 @@ public class MypageController {
 
     @PostMapping("/inquiries")
     public String addInquiry(
-            @ModelAttribute InquiryCreateRequest inquiryCreateRequest,
+            @Valid @ModelAttribute InquiryCreateRequest inquiryCreateRequest,
+            BindingResult bindingResult,
             RedirectAttributes redirectAttributes
     ) {
+        if (bindingResult.hasErrors()) {
+            redirectAttributes.addFlashAttribute("inquiryCreateRequest", copyInquiryText(inquiryCreateRequest));
+            return redirectWithError(redirectAttributes, firstErrorMessage(bindingResult), REDIRECT_INQUIRIES_NEW);
+        }
+
         try {
             mypageService.addInquiry(inquiryCreateRequest);
             return redirectWithMessage(redirectAttributes, INQUIRY_CREATED, REDIRECT_INQUIRIES);
@@ -196,9 +221,14 @@ public class MypageController {
     @PostMapping("/inquiries/{inquiryId}/comments")
     public String addInquiryComment(
             @PathVariable long inquiryId,
-            @ModelAttribute InquiryCommentCreateRequest inquiryCommentCreateRequest,
+            @Valid @ModelAttribute InquiryCommentCreateRequest inquiryCommentCreateRequest,
+            BindingResult bindingResult,
             RedirectAttributes redirectAttributes
     ) {
+        if (bindingResult.hasErrors()) {
+            return redirectWithError(redirectAttributes, firstErrorMessage(bindingResult), REDIRECT_INQUIRIES);
+        }
+
         mypageService.addInquiryComment(inquiryId, inquiryCommentCreateRequest);
         return redirectWithMessage(redirectAttributes, COMMENT_CREATED, REDIRECT_INQUIRIES);
     }
@@ -232,6 +262,13 @@ public class MypageController {
     private String redirectWithError(RedirectAttributes redirectAttributes, String message, String redirectUrl) {
         redirectAttributes.addFlashAttribute(ERROR_MESSAGE, message);
         return redirectUrl;
+    }
+
+    private String firstErrorMessage(BindingResult bindingResult) {
+        if (!bindingResult.hasErrors()) {
+            return "\uC785\uB825\uAC12\uC744 \uD655\uC778\uD574\uC8FC\uC138\uC694.";
+        }
+        return bindingResult.getAllErrors().getFirst().getDefaultMessage();
     }
 
     private InquiryCreateRequest copyInquiryText(InquiryCreateRequest source) {

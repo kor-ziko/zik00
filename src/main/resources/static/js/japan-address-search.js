@@ -8,8 +8,22 @@
                 const maxFiles = Number(input.dataset.maxFiles);
                 if (input.files.length > maxFiles) {
                     input.value = "";
-                    alert(`이미지는 최대 ${maxFiles}개까지 첨부할 수 있습니다.`);
+                    alert(`Images can be attached up to ${maxFiles} files.`);
                 }
+            });
+        });
+
+        document.querySelectorAll("form").forEach((form) => {
+            form.noValidate = true;
+            form.addEventListener("submit", (event) => {
+                const error = validateForm(form);
+                if (!error) {
+                    return;
+                }
+
+                event.preventDefault();
+                alert(error.message);
+                error.field?.focus();
             });
         });
 
@@ -29,34 +43,34 @@
                 clearResults(results);
 
                 if (!POSTAL_CODE_PATTERN.test(postalCode)) {
-                    setStatus(status, "일본 우편번호 7자리를 입력하세요. 예: 1000005", true);
+                    setStatus(status, "Enter a 7-digit Japanese postal code. Example: 1000005", true);
                     return;
                 }
 
                 button.disabled = true;
-                setStatus(status, "검색 중입니다.", false);
+                setStatus(status, "Searching.", false);
 
                 try {
                     const addresses = await fetchPostalCode(postalCode);
                     if (addresses.length === 0) {
-                        setStatus(status, "해당 우편번호의 주소가 없습니다.", true);
+                        setStatus(status, "No address was found for this postal code.", true);
                         return;
                     }
 
                     if (addresses.length === 1) {
                         fillAddress(form, addresses[0]);
-                        setStatus(status, "주소를 입력칸에 채웠습니다.", false);
+                        setStatus(status, "Address filled.", false);
                         return;
                     }
 
                     renderResults(results, addresses, (address) => {
                         fillAddress(form, address);
                         clearResults(results);
-                        setStatus(status, "선택한 주소를 입력칸에 채웠습니다.", false);
+                        setStatus(status, "Selected address filled.", false);
                     });
-                    setStatus(status, "여러 주소가 있습니다. 사용할 주소를 선택하세요.", false);
+                    setStatus(status, "Multiple addresses found. Select one.", false);
                 } catch (error) {
-                    setStatus(status, "주소 검색 중 문제가 발생했습니다.", true);
+                    setStatus(status, "Address search failed.", true);
                 } finally {
                     button.disabled = false;
                 }
@@ -70,6 +84,64 @@
             });
         });
     });
+
+    function validateForm(form) {
+        const fields = form.querySelectorAll("input, textarea");
+        for (const field of fields) {
+            if (shouldSkipField(field)) {
+                continue;
+            }
+
+            const label = field.dataset.label || field.name || "Input";
+            const value = field.value || "";
+            if (field.required && value.trim().length === 0) {
+                return { field, message: `${label} is required.` };
+            }
+
+            if (field.maxLength > -1 && value.length > field.maxLength) {
+                return { field, message: `${label} must be ${field.maxLength} characters or less.` };
+            }
+
+            if (field.pattern && value.length > 0 && !matchesPattern(value, field.pattern)) {
+                return { field, message: `${label} format is invalid.` };
+            }
+
+            if (field.type === "email" && value.length > 0 && !isValidEmail(value)) {
+                return { field, message: `${label} format is invalid.` };
+            }
+        }
+
+        const fileInput = form.querySelector('input[type="file"][data-max-files]');
+        if (fileInput && fileInput.files.length > Number(fileInput.dataset.maxFiles)) {
+            return {
+                field: fileInput,
+                message: `Images can be attached up to ${fileInput.dataset.maxFiles} files.`
+            };
+        }
+
+        return null;
+    }
+
+    function shouldSkipField(field) {
+        return field.disabled
+            || field.type === "hidden"
+            || field.type === "checkbox"
+            || field.type === "submit"
+            || field.type === "button"
+            || field.type === "file";
+    }
+
+    function matchesPattern(value, pattern) {
+        try {
+            return new RegExp(`^(?:${pattern})$`).test(value);
+        } catch (error) {
+            return false;
+        }
+    }
+
+    function isValidEmail(value) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+    }
 
     async function fetchPostalCode(postalCode) {
         const normalizedPostalCode = normalizePostalCode(postalCode);

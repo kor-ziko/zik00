@@ -145,7 +145,7 @@
                         <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                         <label>
                             <span>Comment</span>
-                            <textarea name="content" rows="3" placeholder="Enter comment"></textarea>
+                            <textarea name="content" rows="3" placeholder="Enter comment" required maxlength="2000" data-label="Comment"></textarea>
                         </label>
                         <button type="submit">Add comment</button>
                     </form>
@@ -162,11 +162,11 @@
                 <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                 <label>
                     <span>Title</span>
-                    <input type="text" th:field="*{title}" placeholder="Inquiry title">
+                    <input type="text" th:field="*{title}" placeholder="Inquiry title" required maxlength="255" data-label="Inquiry title">
                 </label>
                 <label>
                     <span>Content</span>
-                    <textarea th:field="*{content}" rows="5" placeholder="Enter inquiry content"></textarea>
+                    <textarea th:field="*{content}" rows="5" placeholder="Enter inquiry content" required maxlength="5000" data-label="Inquiry content"></textarea>
                 </label>
                 <label>
                     <span>Images</span>
@@ -247,19 +247,19 @@
                 <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                 <label>
                     <span>Name</span>
-                    <input type="text" th:field="*{name}" placeholder="Name">
+                    <input type="text" th:field="*{name}" placeholder="Name" required maxlength="100" data-label="Name">
                 </label>
                 <label>
                     <span>Nickname</span>
-                    <input type="text" th:field="*{nickname}" placeholder="Nickname">
+                    <input type="text" th:field="*{nickname}" placeholder="Nickname" required maxlength="100" data-label="Nickname">
                 </label>
                 <label>
                     <span>Mobile phone</span>
-                    <input type="tel" th:field="*{mobilePhone}" placeholder="010-1234-5678">
+                    <input type="tel" th:field="*{mobilePhone}" placeholder="010-1234-5678" required maxlength="50" pattern="[0-9+()\- ]+" data-label="Mobile phone">
                 </label>
                 <label>
                     <span>Email</span>
-                    <input type="email" th:field="*{email}" placeholder="test@example.com">
+                    <input type="email" th:field="*{email}" placeholder="test@example.com" required maxlength="255" data-label="Email">
                 </label>
                 <label class="checkbox-field">
                     <input type="checkbox" th:field="*{alarmConsent}">
@@ -295,20 +295,20 @@
                             <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                             <label>
                                 <span>Address name</span>
-                                <input type="text" name="addressName" th:value="${address.addressName}" required>
+                                <input type="text" name="addressName" th:value="${address.addressName}" required maxlength="100" data-label="Address name">
                             </label>
                             <label>
                                 <span>Receiver</span>
-                                <input type="text" name="receiverName" th:value="${address.receiverName}" required>
+                                <input type="text" name="receiverName" th:value="${address.receiverName}" required maxlength="100" data-label="Receiver">
                             </label>
                             <label>
                                 <span>Receiver phone</span>
-                                <input type="tel" name="receiverPhone" th:value="${address.receiverPhone}" required>
+                                <input type="tel" name="receiverPhone" th:value="${address.receiverPhone}" required maxlength="50" pattern="[0-9+()\- ]+" data-label="Receiver phone">
                             </label>
                             <div class="address-search" data-address-search>
                                 <label>
                                     <span>Japanese postal code search</span>
-                                    <input type="search" inputmode="numeric" data-address-query placeholder="1000005 or 100-0005">
+                                    <input type="search" inputmode="numeric" data-address-query placeholder="1000005 or 100-0005" maxlength="8" data-label="Postal code search">
                                 </label>
                                 <button type="button" data-address-search-button>Search postal code</button>
                                 <p class="address-search-status" data-address-search-status>Search with zipcloud API.</p>
@@ -316,19 +316,19 @@
                             </div>
                             <label>
                                 <span>Postal code</span>
-                                <input type="text" name="zipCode" data-address-field="zipCode" th:value="${address.zipCode}" readonly>
+                                <input type="text" name="zipCode" data-address-field="zipCode" th:value="${address.zipCode}" readonly maxlength="20" data-label="Postal code">
                             </label>
                             <label>
                                 <span>Province</span>
-                                <input type="text" name="province" data-address-field="province" th:value="${address.province}" readonly>
+                                <input type="text" name="province" data-address-field="province" th:value="${address.province}" readonly maxlength="100" data-label="Province">
                             </label>
                             <label>
                                 <span>Searched address</span>
-                                <input type="text" name="baseAddress" data-address-field="baseAddress" readonly>
+                                <input type="text" name="baseAddress" data-address-field="baseAddress" readonly maxlength="255" data-label="Searched address">
                             </label>
                             <label>
                                 <span>Detail address</span>
-                                <input type="text" name="detailAddress" th:value="${address.detailAddress}" placeholder="Building, room number">
+                                <input type="text" name="detailAddress" th:value="${address.detailAddress}" placeholder="Building, room number" maxlength="255" data-label="Detail address">
                             </label>
                             <label class="checkbox-field">
                                 <input type="checkbox" name="defaultAddress" value="true" th:checked="${address.defaultAddress}">
@@ -354,20 +354,20 @@
                     <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                     <label>
                         <span>Address name</span>
-                        <input type="text" th:field="*{addressName}" placeholder="Home" required>
+                        <input type="text" th:field="*{addressName}" placeholder="Home" required maxlength="100" data-label="Address name">
                     </label>
                     <label>
                         <span>Receiver</span>
-                        <input type="text" th:field="*{receiverName}" placeholder="Receiver name" required>
+                        <input type="text" th:field="*{receiverName}" placeholder="Receiver name" required maxlength="100" data-label="Receiver">
                     </label>
                     <label>
                         <span>Receiver phone</span>
-                        <input type="tel" th:field="*{receiverPhone}" placeholder="010-1234-5678" required>
+                        <input type="tel" th:field="*{receiverPhone}" placeholder="010-1234-5678" required maxlength="50" pattern="[0-9+()\- ]+" data-label="Receiver phone">
                     </label>
                     <div class="address-search" data-address-search>
                         <label>
                             <span>Japanese postal code search</span>
-                            <input type="search" inputmode="numeric" data-address-query placeholder="1000005 or 100-0005">
+                            <input type="search" inputmode="numeric" data-address-query placeholder="1000005 or 100-0005" maxlength="8" data-label="Postal code search">
                         </label>
                         <button type="button" data-address-search-button>Search postal code</button>
                         <p class="address-search-status" data-address-search-status>Search with zipcloud API.</p>
@@ -375,19 +375,19 @@
                     </div>
                     <label>
                         <span>Postal code</span>
-                        <input type="text" th:field="*{zipCode}" data-address-field="zipCode" placeholder="100-0005" readonly>
+                        <input type="text" th:field="*{zipCode}" data-address-field="zipCode" placeholder="100-0005" readonly maxlength="20" data-label="Postal code">
                     </label>
                     <label>
                         <span>Province</span>
-                        <input type="text" th:field="*{province}" data-address-field="province" placeholder="Tokyo" readonly>
+                        <input type="text" th:field="*{province}" data-address-field="province" placeholder="Tokyo" readonly maxlength="100" data-label="Province">
                     </label>
                     <label>
                         <span>Searched address</span>
-                        <input type="text" th:field="*{baseAddress}" data-address-field="baseAddress" placeholder="Chiyoda" readonly>
+                        <input type="text" th:field="*{baseAddress}" data-address-field="baseAddress" placeholder="Chiyoda" readonly maxlength="255" data-label="Searched address">
                     </label>
                     <label>
                         <span>Detail address</span>
-                        <input type="text" th:field="*{detailAddress}" placeholder="Building, room number">
+                        <input type="text" th:field="*{detailAddress}" placeholder="Building, room number" maxlength="255" data-label="Detail address">
                     </label>
                     <label class="checkbox-field">
                         <input type="checkbox" th:field="*{defaultAddress}">
