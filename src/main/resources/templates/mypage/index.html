@@ -244,7 +244,17 @@
             </form>
 
             <section class="address-section">
-                <h3>배송지 목록</h3>
+                <div class="address-section-header">
+                    <h3>배송지 목록</h3>
+                    <div class="address-section-actions">
+                        <a class="action-link"
+                           th:if="${!addressEditMode}"
+                           th:href="@{/mypage/profile/addresses/edit}">배송지수정</a>
+                        <a class="secondary-link"
+                           th:if="${addressEditMode}"
+                           th:href="@{/mypage/profile}">완료</a>
+                    </div>
+                </div>
                 <div class="address-list" th:if="${!deliveryAddresses.isEmpty()}">
                     <article th:each="address : ${deliveryAddresses}" class="address-item">
                         <div>
@@ -254,6 +264,7 @@
                         <p th:text="|${address.receiverName} / ${address.receiverPhone}|">김테스트 / 010-1234-5678</p>
                         <p th:text="|(${address.zipCode}) ${address.province} ${address.detailAddress}|">(100-0005) 東京都 千代田区丸の内1丁目</p>
                         <form class="address-edit-form"
+                              th:if="${addressEditMode}"
                               th:id="|address-update-${address.id}|"
                               th:action="@{/mypage/profile/addresses/{addressId}/update(addressId=${address.id})}"
                               method="post">
@@ -270,26 +281,25 @@
                                 <input type="tel" name="receiverPhone" th:value="${address.receiverPhone}" required>
                             </label>
                             <div class="address-search" data-address-search>
-                                <input type="hidden" name="postalCodeId" data-address-postal-code-id>
                                 <label>
                                     <span>일본 우편번호 찾기</span>
                                     <input type="search" inputmode="numeric" data-address-query placeholder="예: 1000005 또는 100-0005">
                                 </label>
                                 <button type="button" data-address-search-button>우편번호 찾기</button>
-                                <p class="address-search-status" data-address-search-status>일본우편 CSV 데이터에서 조회합니다.</p>
+                                <p class="address-search-status" data-address-search-status>zipcloud API에서 조회합니다.</p>
                                 <div class="address-search-results" data-address-search-results></div>
                             </div>
                             <label>
                                 <span>우편번호</span>
-                                <input type="text" data-address-field="zipCode" th:value="${address.zipCode}" readonly>
+                                <input type="text" name="zipCode" data-address-field="zipCode" th:value="${address.zipCode}" readonly>
                             </label>
                             <label>
                                 <span>도도부현</span>
-                                <input type="text" data-address-field="province" th:value="${address.province}" readonly>
+                                <input type="text" name="province" data-address-field="province" th:value="${address.province}" readonly>
                             </label>
                             <label>
                                 <span>조회 주소</span>
-                                <input type="text" data-address-field="baseAddress" readonly>
+                                <input type="text" name="baseAddress" data-address-field="baseAddress" readonly>
                             </label>
                             <label>
                                 <span>상세 주소</span>
@@ -300,7 +310,7 @@
                                 <span>기본 배송지</span>
                             </label>
                         </form>
-                        <div class="address-actions">
+                        <div class="address-actions" th:if="${addressEditMode}">
                             <button type="submit" th:attr="form=|address-update-${address.id}|">수정</button>
                             <form th:action="@{/mypage/profile/addresses/{addressId}/delete(addressId=${address.id})}"
                                   method="post">
@@ -312,6 +322,7 @@
                 <p th:if="${deliveryAddresses.isEmpty()}">등록된 배송지가 없습니다.</p>
 
                 <form class="profile-form"
+                      th:if="${addressEditMode}"
                       th:action="@{/mypage/profile/addresses}"
                       th:object="${addressCreateRequest}"
                       method="post">
@@ -328,26 +339,25 @@
                         <input type="tel" th:field="*{receiverPhone}" placeholder="010-1234-5678" required>
                     </label>
                     <div class="address-search" data-address-search>
-                        <input type="hidden" th:field="*{postalCodeId}" data-address-postal-code-id>
                         <label>
                             <span>일본 우편번호 찾기</span>
                             <input type="search" inputmode="numeric" data-address-query placeholder="예: 1000005 또는 100-0005">
                         </label>
                         <button type="button" data-address-search-button>우편번호 찾기</button>
-                        <p class="address-search-status" data-address-search-status>일본우편 CSV 데이터에서 조회합니다.</p>
+                        <p class="address-search-status" data-address-search-status>zipcloud API에서 조회합니다.</p>
                         <div class="address-search-results" data-address-search-results></div>
                     </div>
                     <label>
                         <span>우편번호</span>
-                        <input type="text" data-address-field="zipCode" placeholder="100-0005" readonly>
+                        <input type="text" th:field="*{zipCode}" data-address-field="zipCode" placeholder="100-0005" readonly>
                     </label>
                     <label>
                         <span>도도부현</span>
-                        <input type="text" data-address-field="province" placeholder="東京都" readonly>
+                        <input type="text" th:field="*{province}" data-address-field="province" placeholder="東京都" readonly>
                     </label>
                     <label>
                         <span>조회 주소</span>
-                        <input type="text" data-address-field="baseAddress" placeholder="千代田区丸の内" readonly>
+                        <input type="text" th:field="*{baseAddress}" data-address-field="baseAddress" placeholder="千代田区丸の内" readonly>
                     </label>
                     <label>
                         <span>상세 주소</span>

@@ -17,7 +17,6 @@ public class InquiryThread {
     public Inquiry getInquiry() {
         return inquiry;
     }
-
     public List<InquiryComment> getComments() {
         return comments;
     }

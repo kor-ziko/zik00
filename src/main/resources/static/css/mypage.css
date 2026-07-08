@@ -278,7 +278,21 @@ h1 {
 }
 
 .address-section h3 {
-    margin: 0 0 14px;
+    margin: 0;
+}
+
+.address-section-header {
+    align-items: center;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.address-section-actions {
+    align-items: center;
+    display: flex;
+    gap: 8px;
 }
 
 .address-list {

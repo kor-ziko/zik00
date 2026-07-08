@@ -1,5 +1,6 @@
 (() => {
     const POSTAL_CODE_PATTERN = /^\d{3}-?\d{4}$/;
+    const addressCache = new Map();
 
     document.addEventListener("DOMContentLoaded", () => {
         document.querySelectorAll("[data-address-search]").forEach((widget) => {
@@ -14,7 +15,7 @@
             }
 
             button.addEventListener("click", async () => {
-                const postalCode = input.value.trim();
+                const postalCode = normalizePostalCode(input.value);
                 clearResults(results);
 
                 if (!POSTAL_CODE_PATTERN.test(postalCode)) {
@@ -61,12 +62,23 @@
     });
 
     async function fetchPostalCode(postalCode) {
-        const params = new URLSearchParams({ postalCode });
+        const normalizedPostalCode = normalizePostalCode(postalCode);
+        if (addressCache.has(normalizedPostalCode)) {
+            return addressCache.get(normalizedPostalCode);
+        }
+
+        const params = new URLSearchParams({ postalCode: normalizedPostalCode });
         const response = await fetch(`/api/japan-postal-codes?${params.toString()}`);
         if (!response.ok) {
             throw new Error("Postal code lookup failed.");
         }
-        return response.json();
+        const addresses = await response.json();
+        addressCache.set(normalizedPostalCode, addresses);
+        return addresses;
+    }
+
+    function normalizePostalCode(value) {
+        return value.trim().replace(/[^\d-]/g, "");
     }
 
     function renderResults(container, addresses, onSelect) {
@@ -91,27 +103,19 @@
     }
 
     function fillAddress(form, address) {
-        setPostalCodeId(form, address.id);
-        setDisplayValue(form, "zipCode", address.zipCode);
-        setDisplayValue(form, "province", address.province);
-        setDisplayValue(form, "baseAddress", address.detailAddress);
+        setAddressValue(form, "zipCode", address.zipCode);
+        setAddressValue(form, "province", address.province);
+        setAddressValue(form, "baseAddress", address.detailAddress);
         setFieldValue(form, "detailAddress", "");
         form.querySelector('[name="detailAddress"]')?.focus();
     }
 
-    function setPostalCodeId(form, value) {
-        const field = form.querySelector("[data-address-postal-code-id]");
-        if (field && value) {
-            field.value = value;
+    function setAddressValue(form, name, value) {
+        const field = form.querySelector(`[data-address-field="${name}"]`);
+        if (field) {
+            field.value = value || "";
             field.dispatchEvent(new Event("input", { bubbles: true }));
             field.dispatchEvent(new Event("change", { bubbles: true }));
-        }
-    }
-
-    function setDisplayValue(form, name, value) {
-        const field = form.querySelector(`[data-address-field="${name}"]`);
-        if (field && value) {
-            field.value = value;
         }
     }
 

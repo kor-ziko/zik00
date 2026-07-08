@@ -20,6 +20,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class MypageController {
     private static final String VIEW = "mypage/index";
     private static final String REDIRECT_PROFILE = "redirect:/mypage/profile";
+    private static final String REDIRECT_PROFILE_ADDRESSES_EDIT = "redirect:/mypage/profile/addresses/edit";
     private static final String REDIRECT_INQUIRIES = "redirect:/mypage/inquiries";
     private static final String SUCCESS_MESSAGE = "successMessage";
     private static final String ERROR_MESSAGE = "errorMessage";
@@ -81,13 +82,19 @@ public class MypageController {
 
     @GetMapping("/profile")
     public String profile(Model model) {
-        addProfileModel(model, false);
+        addProfileModel(model, false, false);
         return VIEW;
     }
 
     @GetMapping("/profile/edit")
     public String editProfile(Model model) {
-        addProfileModel(model, true);
+        addProfileModel(model, true, false);
+        return VIEW;
+    }
+
+    @GetMapping("/profile/addresses/edit")
+    public String editDeliveryAddresses(Model model) {
+        addProfileModel(model, false, true);
         return VIEW;
     }
 
@@ -110,7 +117,7 @@ public class MypageController {
             return redirectWithMessage(redirectAttributes, ADDRESS_CREATED, REDIRECT_PROFILE);
         } catch (IllegalArgumentException exception) {
             redirectAttributes.addFlashAttribute("addressCreateRequest", addressCreateRequest);
-            return redirectWithError(redirectAttributes, exception.getMessage(), REDIRECT_PROFILE);
+            return redirectWithError(redirectAttributes, exception.getMessage(), REDIRECT_PROFILE_ADDRESSES_EDIT);
         }
     }
 
@@ -124,7 +131,7 @@ public class MypageController {
             mypageService.updateDeliveryAddress(addressId, addressCreateRequest);
             return redirectWithMessage(redirectAttributes, ADDRESS_UPDATED, REDIRECT_PROFILE);
         } catch (IllegalArgumentException exception) {
-            return redirectWithError(redirectAttributes, exception.getMessage(), REDIRECT_PROFILE);
+            return redirectWithError(redirectAttributes, exception.getMessage(), REDIRECT_PROFILE_ADDRESSES_EDIT);
         }
     }
 
@@ -156,9 +163,10 @@ public class MypageController {
         return redirectWithMessage(redirectAttributes, COMMENT_CREATED, REDIRECT_INQUIRIES);
     }
 
-    private void addProfileModel(Model model, boolean profileEditMode) {
+    private void addProfileModel(Model model, boolean profileEditMode, boolean addressEditMode) {
         addMypageModel(model, MypageSection.PROFILE);
         model.addAttribute("profileEditMode", profileEditMode);
+        model.addAttribute("addressEditMode", addressEditMode);
         model.addAttribute("deliveryAddresses", mypageService.getDeliveryAddresses());
         if (!model.containsAttribute("profileUpdateRequest")) {
             model.addAttribute("profileUpdateRequest", mypageService.getProfileUpdateRequest());

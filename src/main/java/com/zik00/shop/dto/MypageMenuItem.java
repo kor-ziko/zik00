@@ -16,12 +16,8 @@ public class MypageMenuItem {
     public String getTitle() {
         return title;
     }
-    public String getDescription() {
-        return description;
-    }
-    public String getUrl() {
-        return url;
-    }
+    public String getDescription() { return description; }
+    public String getUrl() { return url; }
     public boolean isActive() {
         return active;
     }

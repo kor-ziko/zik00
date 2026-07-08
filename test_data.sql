@@ -118,17 +118,6 @@ CREATE TABLE IF NOT EXISTS inquiry_comments (
   KEY idx_inquiry_comments_inquiry_comment (inquiry_id, comment_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS japan_postal_codes (
-  id BIGINT NOT NULL AUTO_INCREMENT,
-  postal_code VARCHAR(7) NOT NULL,
-  prefecture VARCHAR(100) NOT NULL,
-  city VARCHAR(100) NOT NULL,
-  town VARCHAR(255) NOT NULL,
-  PRIMARY KEY (id),
-  KEY idx_japan_postal_codes_code (postal_code),
-  UNIQUE KEY uk_japan_postal_codes_address (postal_code, prefecture, city, town)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 INSERT INTO `user` (
   user_id,
   name,
@@ -284,19 +273,3 @@ ON DUPLICATE KEY UPDATE
   writer_name = VALUES(writer_name),
   content = VALUES(content),
   created_at = VALUES(created_at);
-
-INSERT INTO japan_postal_codes (
-  postal_code,
-  prefecture,
-  city,
-  town
-) VALUES
-  ('1000005', '東京都', '千代田区', '丸の内'),
-  ('1500001', '東京都', '渋谷区', '神宮前'),
-  ('1600022', '東京都', '新宿区', '新宿'),
-  ('5300001', '大阪府', '大阪市北区', '梅田'),
-  ('6008216', '京都府', '京都市下京区', '東塩小路町')
-ON DUPLICATE KEY UPDATE
-  prefecture = VALUES(prefecture),
-  city = VALUES(city),
-  town = VALUES(town);

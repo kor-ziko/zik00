@@ -11,7 +11,6 @@ import com.zik00.shop.domain.Coupon;
 import com.zik00.shop.domain.DeliveryAddress;
 import com.zik00.shop.domain.Inquiry;
 import com.zik00.shop.domain.InquiryComment;
-import com.zik00.shop.domain.JapanPostalCode;
 import com.zik00.shop.domain.Purchase;
 import com.zik00.shop.domain.User;
 import com.zik00.shop.dto.AddressCreateRequest;
@@ -26,7 +25,6 @@ import com.zik00.shop.repository.CouponRepository;
 import com.zik00.shop.repository.DeliveryAddressRepository;
 import com.zik00.shop.repository.InquiryCommentRepository;
 import com.zik00.shop.repository.InquiryRepository;
-import com.zik00.shop.repository.JapanPostalCodeRepository;
 import com.zik00.shop.repository.PurchaseRepository;
 import com.zik00.shop.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -44,7 +42,6 @@ public class MypageService {
     private static final String RECEIVER_NAME_REQUIRED = "\uC218\uB839\uC778\uC744 \uC785\uB825\uD574\uC8FC\uC138\uC694.";
     private static final String RECEIVER_PHONE_REQUIRED = "\uC218\uB839\uC778 \uC804\uD654\uBC88\uD638\uB97C \uC785\uB825\uD574\uC8FC\uC138\uC694.";
     private static final String POSTAL_CODE_REQUIRED = "\uC6B0\uD3B8\uBC88\uD638\uB97C \uC870\uD68C\uD574\uC11C \uC8FC\uC18C\uB97C \uC120\uD0DD\uD574\uC8FC\uC138\uC694.";
-    private static final String POSTAL_CODE_NOT_FOUND = "\uC120\uD0DD\uD55C \uC6B0\uD3B8\uBC88\uD638 \uC8FC\uC18C\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.";
     private static final String INQUIRY_NOT_FOUND = "\uBB38\uC758\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.";
     private static final String USER_NOT_FOUND = "\uD68C\uC6D0 \uB370\uC774\uD130\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.";
 
@@ -54,7 +51,6 @@ public class MypageService {
     private final PurchaseRepository purchaseRepository;
     private final InquiryRepository inquiryRepository;
     private final InquiryCommentRepository inquiryCommentRepository;
-    private final JapanPostalCodeRepository japanPostalCodeRepository;
 
     public MypageService(
             UserRepository userRepository,
@@ -62,8 +58,7 @@ public class MypageService {
             CouponRepository couponRepository,
             PurchaseRepository purchaseRepository,
             InquiryRepository inquiryRepository,
-            InquiryCommentRepository inquiryCommentRepository,
-            JapanPostalCodeRepository japanPostalCodeRepository
+            InquiryCommentRepository inquiryCommentRepository
     ) {
         this.userRepository = userRepository;
         this.deliveryAddressRepository = deliveryAddressRepository;
@@ -71,7 +66,6 @@ public class MypageService {
         this.purchaseRepository = purchaseRepository;
         this.inquiryRepository = inquiryRepository;
         this.inquiryCommentRepository = inquiryCommentRepository;
-        this.japanPostalCodeRepository = japanPostalCodeRepository;
     }
 
     public MypageSummary getSummary() {
@@ -283,12 +277,20 @@ public class MypageService {
     }
 
     private ResolvedAddress resolveAddress(AddressCreateRequest request, DeliveryAddress currentAddress) {
-        JapanPostalCode postalCode = findSelectedPostalCode(request);
-        if (postalCode != null) {
+        String zipCode = normalize(request.getZipCode());
+        String province = normalize(request.getProvince());
+        String baseAddress = normalize(request.getBaseAddress());
+        if (!zipCode.isBlank() || !province.isBlank() || !baseAddress.isBlank()) {
+            String normalizedZipCode = zipCode.replaceAll("\\D", "");
+            if (normalizedZipCode.length() != 7
+                    || province.isBlank()
+                    || (currentAddress == null && baseAddress.isBlank())) {
+                throw new IllegalArgumentException(POSTAL_CODE_REQUIRED);
+            }
             return new ResolvedAddress(
-                    formatPostalCode(postalCode.getPostalCode()),
-                    postalCode.getPrefecture(),
-                    joinAddress(postalCode.getDetailAddress(), request.getDetailAddress())
+                    formatPostalCode(normalizedZipCode),
+                    province,
+                    joinAddress(baseAddress, request.getDetailAddress())
             );
         }
 
@@ -301,15 +303,6 @@ public class MypageService {
         }
 
         throw new IllegalArgumentException(POSTAL_CODE_REQUIRED);
-    }
-
-    private JapanPostalCode findSelectedPostalCode(AddressCreateRequest request) {
-        Long postalCodeId = request.getPostalCodeId();
-        if (postalCodeId == null || postalCodeId <= 0) {
-            return null;
-        }
-        return japanPostalCodeRepository.findById(postalCodeId)
-                .orElseThrow(() -> new IllegalArgumentException(POSTAL_CODE_NOT_FOUND));
     }
 
     private String joinAddress(String postalAddress, String userDetailAddress) {
