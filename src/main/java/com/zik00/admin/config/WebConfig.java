@@ -1,6 +1,5 @@
 package com.zik00.admin.config;
 
-import com.zik00.admin.auth.AdminAuthInterceptor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;

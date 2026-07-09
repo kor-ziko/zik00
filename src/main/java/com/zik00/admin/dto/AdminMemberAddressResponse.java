@@ -1,4 +1,4 @@
-package com.zik00.admin.member;
+package com.zik00.admin.dto;
 
 import com.zik00.shop.domain.DeliveryAddress;
 

@@ -1,24 +1,24 @@
-package com.zik00.admin.member;
+package com.zik00.admin.service;
 
+import com.zik00.admin.dto.AdminMemberDetailResponse;
+import com.zik00.admin.dto.AdminMemberSummaryResponse;
 import com.zik00.shop.domain.User;
 import com.zik00.shop.repository.DeliveryAddressRepository;
 import com.zik00.shop.repository.UserRepository;
 import java.util.List;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-@RestController
-@RequestMapping("/api/admin/members")
-public class AdminMemberApiController {
+@Service
+@Transactional(readOnly = true)
+public class AdminMemberService {
     private final UserRepository userRepository;
     private final DeliveryAddressRepository deliveryAddressRepository;
 
-    public AdminMemberApiController(
+    public AdminMemberService(
             UserRepository userRepository,
             DeliveryAddressRepository deliveryAddressRepository
     ) {
@@ -26,7 +26,6 @@ public class AdminMemberApiController {
         this.deliveryAddressRepository = deliveryAddressRepository;
     }
 
-    @GetMapping
     public List<AdminMemberSummaryResponse> findMembers() {
         return userRepository.findAll(Sort.by(Sort.Direction.ASC, "memberId"))
                 .stream()
@@ -34,8 +33,7 @@ public class AdminMemberApiController {
                 .toList();
     }
 
-    @GetMapping("/{memberId}")
-    public AdminMemberDetailResponse findMember(@PathVariable Long memberId) {
+    public AdminMemberDetailResponse findMember(Long memberId) {
         User user = findUser(memberId);
         return AdminMemberDetailResponse.from(user, deliveryAddressRepository.findUserAddresses(user.getMemberId()));
     }

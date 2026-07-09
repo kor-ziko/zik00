@@ -1,4 +1,4 @@
-package com.zik00.admin.auth;
+package com.zik00.admin.domain;
 
 import java.time.LocalDateTime;
 

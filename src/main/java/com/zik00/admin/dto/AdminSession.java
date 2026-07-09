@@ -1,4 +1,4 @@
-package com.zik00.admin.auth;
+package com.zik00.admin.dto;
 
 import java.io.Serializable;
 

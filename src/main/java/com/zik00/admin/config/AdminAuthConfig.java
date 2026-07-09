@@ -1,4 +1,4 @@
-package com.zik00.admin.auth;
+package com.zik00.admin.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
