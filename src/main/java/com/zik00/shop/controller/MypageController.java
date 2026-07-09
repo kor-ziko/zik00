@@ -268,7 +268,7 @@ public class MypageController {
         if (!bindingResult.hasErrors()) {
             return "\uC785\uB825\uAC12\uC744 \uD655\uC778\uD574\uC8FC\uC138\uC694.";
         }
-        return bindingResult.getAllErrors().getFirst().getDefaultMessage();
+        return bindingResult.getAllErrors().get(0).getDefaultMessage();
     }
 
     private InquiryCreateRequest copyInquiryText(InquiryCreateRequest source) {

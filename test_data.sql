@@ -4,6 +4,11 @@ CREATE DATABASE IF NOT EXISTS shop
 
 USE shop;
 
+SET @demo_user_id = 1;
+SET @tester1_user_id = 2;
+SET @tester2_user_id = 3;
+SET @tester3_user_id = 4;
+
 CREATE TABLE IF NOT EXISTS `user` (
   user_id BIGINT NOT NULL AUTO_INCREMENT,
   name VARCHAR(100),
@@ -100,7 +105,7 @@ CREATE TABLE IF NOT EXISTS inquiries (
   inquiry_id BIGINT NOT NULL AUTO_INCREMENT,
   user_id BIGINT NOT NULL,
   title VARCHAR(255),
-  content TEXT,
+  content LONGTEXT,
   status VARCHAR(50),
   created_at VARCHAR(50),
   PRIMARY KEY (inquiry_id),
@@ -112,7 +117,7 @@ CREATE TABLE IF NOT EXISTS inquiry_comments (
   inquiry_id BIGINT NOT NULL,
   user_id BIGINT NOT NULL,
   writer_name VARCHAR(100),
-  content TEXT,
+  content LONGTEXT,
   created_at VARCHAR(50),
   PRIMARY KEY (comment_id),
   KEY idx_inquiry_comments_inquiry_comment (inquiry_id, comment_id)
@@ -127,6 +132,35 @@ CREATE TABLE IF NOT EXISTS inquiry_images (
   UNIQUE KEY uk_inquiry_images_uuid (image_uuid),
   KEY idx_inquiry_images_inquiry_id (inquiry_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS admin_users (
+  admin_id BIGINT NOT NULL AUTO_INCREMENT,
+  login_id VARCHAR(100) NOT NULL,
+  password_hash VARCHAR(100) NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (admin_id),
+  UNIQUE KEY uk_admin_users_login_id (login_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO admin_users (
+  admin_id,
+  login_id,
+  password_hash,
+  name,
+  active
+) VALUES (
+  1,
+  'admin',
+  '$2b$10$l1oG8xMjNpmKTDQeyZYLFeGvXUuBheTR1I4020kgO9nNkcQXz9Hq.',
+  '관리자',
+  TRUE
+) ON DUPLICATE KEY UPDATE
+  login_id = VALUES(login_id),
+  password_hash = VALUES(password_hash),
+  name = VALUES(name),
+  active = VALUES(active);
 
 INSERT INTO `user` (
   user_id,
@@ -145,7 +179,7 @@ INSERT INTO `user` (
   member_detail,
   alarm_consent
 ) VALUES (
-  1,
+  @demo_user_id,
   '김테스트',
   '1990-05-14',
   '남성',
@@ -176,6 +210,90 @@ INSERT INTO `user` (
   member_detail = VALUES(member_detail),
   alarm_consent = VALUES(alarm_consent);
 
+INSERT INTO `user` (
+  user_id,
+  name,
+  birth_date,
+  gender,
+  nickname,
+  telephone,
+  login_id,
+  deposit_balance,
+  reward_point,
+  mobile_phone,
+  email,
+  completed_order_count,
+  joined_date,
+  member_detail,
+  alarm_consent
+) VALUES
+  (
+    @tester1_user_id,
+    '테스터1',
+    '1995-01-01',
+    '남성',
+    '테스터1',
+    '02-1000-0001',
+    'tester1',
+    10000,
+    100,
+    '010-1000-0001',
+    'tester1@example.com',
+    1,
+    '2026-07-08',
+    '관리자 회원관리 테스트용 회원 1',
+    TRUE
+  ),
+  (
+    @tester2_user_id,
+    '테스터2',
+    '1996-02-02',
+    '여성',
+    '테스터2',
+    '02-1000-0002',
+    'tester2',
+    20000,
+    200,
+    '010-1000-0002',
+    'tester2@example.com',
+    2,
+    '2026-07-08',
+    '관리자 회원관리 테스트용 회원 2',
+    FALSE
+  ),
+  (
+    @tester3_user_id,
+    '테스터3',
+    '1997-03-03',
+    '기타',
+    '테스터3',
+    '02-1000-0003',
+    'tester3',
+    30000,
+    300,
+    '010-1000-0003',
+    'tester3@example.com',
+    3,
+    '2026-07-08',
+    '관리자 회원관리 테스트용 회원 3',
+    TRUE
+  )
+ON DUPLICATE KEY UPDATE
+  name = VALUES(name),
+  birth_date = VALUES(birth_date),
+  gender = VALUES(gender),
+  nickname = VALUES(nickname),
+  telephone = VALUES(telephone),
+  login_id = VALUES(login_id),
+  deposit_balance = VALUES(deposit_balance),
+  reward_point = VALUES(reward_point),
+  mobile_phone = VALUES(mobile_phone),
+  email = VALUES(email),
+  completed_order_count = VALUES(completed_order_count),
+  joined_date = VALUES(joined_date),
+  member_detail = VALUES(member_detail),
+  alarm_consent = VALUES(alarm_consent);
+
 INSERT INTO addresses (
   address_id,
   user_id,
@@ -188,7 +306,7 @@ INSERT INTO addresses (
   default_address
 ) VALUES (
   1,
-  1,
+  @demo_user_id,
   '집',
   '김테스트',
   '010-1234-5678',
@@ -216,9 +334,9 @@ INSERT INTO coupon (
   expired_date,
   used
 ) VALUES
-  (1, 1, '신규회원 10% 할인', 'percent', 10, 10000, '2026-12-31', FALSE),
-  (2, 1, '무료배송 쿠폰', 'shipping', 3000, 0, '2026-09-30', FALSE),
-  (3, 2, '다른회원 쿠폰', 'amount', 5000, 30000, '2026-08-31', FALSE)
+  (1, @demo_user_id, '신규회원 10% 할인', 'percent', 10, 10000, '2026-12-31', FALSE),
+  (2, @demo_user_id, '무료배송 쿠폰', 'shipping', 3000, 0, '2026-09-30', FALSE),
+  (3, @tester1_user_id, '테스터1 쿠폰', 'amount', 5000, 30000, '2026-08-31', FALSE)
 ON DUPLICATE KEY UPDATE
   user_id = VALUES(user_id),
   coupon_name = VALUES(coupon_name),
@@ -238,9 +356,9 @@ INSERT INTO buylist (
   order_status,
   ordered_date
 ) VALUES
-  (1, 1, 'ORD-20260701-001', '린넨 셔츠', 2, 59000, '주문완료', '2026-07-01'),
-  (2, 1, 'ORD-20260703-002', '데님 팬츠', 1, 79000, '배송중', '2026-07-03'),
-  (3, 2, 'ORD-20260704-003', '다른회원 테스트상품', 1, 30000, '주문완료', '2026-07-04')
+  (1, @demo_user_id, 'ORD-20260701-001', '린넨 셔츠', 2, 59000, '주문완료', '2026-07-01'),
+  (2, @demo_user_id, 'ORD-20260703-002', '데님 팬츠', 1, 79000, '배송중', '2026-07-03'),
+  (3, @tester1_user_id, 'ORD-20260704-003', '테스터1 테스트상품', 1, 30000, '주문완료', '2026-07-04')
 ON DUPLICATE KEY UPDATE
   user_id = VALUES(user_id),
   order_number = VALUES(order_number),
@@ -258,8 +376,8 @@ INSERT INTO inquiries (
   status,
   created_at
 ) VALUES
-  (1, 1, '배송은 언제 시작되나요?', '어제 주문했는데 배송 상태가 궁금합니다.', '답변대기', '2026-07-07 16:20'),
-  (2, 1, '1', '1', '답변대기', '2026-07-07 18:55')
+  (1, @demo_user_id, '배송은 언제 시작되나요?', '어제 주문했는데 배송 상태가 궁금합니다.', '답변대기', '2026-07-07 16:20'),
+  (2, @demo_user_id, '1', '1', '답변대기', '2026-07-07 18:55')
 ON DUPLICATE KEY UPDATE
   user_id = VALUES(user_id),
   title = VALUES(title),
@@ -275,8 +393,8 @@ INSERT INTO inquiry_comments (
   content,
   created_at
 ) VALUES
-  (1, 1, 1, '테스터01', '확인 부탁드립니다.', '2026-07-07 16:22'),
-  (2, 1, 1, '테스터01', '11', '2026-07-07 18:55')
+  (1, 1, @demo_user_id, '테스터01', '확인 부탁드립니다.', '2026-07-07 16:22'),
+  (2, 1, @demo_user_id, '테스터01', '11', '2026-07-07 18:55')
 ON DUPLICATE KEY UPDATE
   inquiry_id = VALUES(inquiry_id),
   user_id = VALUES(user_id),

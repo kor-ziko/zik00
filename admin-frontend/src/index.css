@@ -1,0 +1,18 @@
+@import '@owczar/dashboard-style--airframe/scss/style.scss';
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: #f4f6f8;
+  color: #1f2937;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
