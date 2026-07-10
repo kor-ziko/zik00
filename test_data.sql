@@ -77,15 +77,39 @@ CREATE TABLE IF NOT EXISTS addresses (
 
 CREATE TABLE IF NOT EXISTS coupon (
   coupon_id BIGINT NOT NULL AUTO_INCREMENT,
-  user_id BIGINT NOT NULL,
+  coupon_template_id BIGINT NULL,
+  user_id BIGINT NULL,
   coupon_name VARCHAR(100),
   discount_type VARCHAR(50),
   discount_value INT NOT NULL DEFAULT 0,
   minimum_order_amount INT NOT NULL DEFAULT 0,
+  started_date DATE,
   expired_date DATE,
+  issued_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   used BOOLEAN NOT NULL DEFAULT FALSE,
+  used_at DATETIME NULL,
+  coupon_code VARCHAR(100) NULL,
+  guest_identifier VARCHAR(255) NULL,
   PRIMARY KEY (coupon_id),
-  KEY idx_coupon_member_expired (user_id, expired_date, coupon_id)
+  KEY idx_coupon_template_id (coupon_template_id),
+  KEY idx_coupon_member_period (user_id, started_date, expired_date, coupon_id),
+  KEY idx_coupon_code (coupon_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS coupon_template (
+  coupon_template_id BIGINT NOT NULL AUTO_INCREMENT,
+  coupon_name VARCHAR(100) NOT NULL,
+  discount_type VARCHAR(50) NOT NULL,
+  discount_value INT NOT NULL DEFAULT 0,
+  minimum_order_amount INT NOT NULL DEFAULT 0,
+  started_date DATE,
+  expired_date DATE,
+  target_type VARCHAR(30) NOT NULL DEFAULT 'ALL',
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (coupon_template_id),
+  KEY idx_coupon_template_active_period (active, started_date, expired_date, coupon_template_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS buylist (
@@ -324,25 +348,53 @@ INSERT INTO addresses (
   detail_address = VALUES(detail_address),
   default_address = VALUES(default_address);
 
+INSERT INTO coupon_template (
+  coupon_template_id,
+  coupon_name,
+  discount_type,
+  discount_value,
+  minimum_order_amount,
+  started_date,
+  expired_date,
+  target_type,
+  active
+) VALUES
+  (1, '신규회원 10% 할인', 'percent', 10, 10000, '2026-12-01', '2026-12-31', 'MEMBER', TRUE),
+  (2, '무료배송 쿠폰', 'shipping', 3000, 0, '2026-09-01', '2026-09-30', 'ALL', TRUE),
+  (3, '테스터1 쿠폰', 'amount', 5000, 30000, '2026-08-01', '2026-08-31', 'MEMBER', TRUE)
+ON DUPLICATE KEY UPDATE
+  coupon_name = VALUES(coupon_name),
+  discount_type = VALUES(discount_type),
+  discount_value = VALUES(discount_value),
+  minimum_order_amount = VALUES(minimum_order_amount),
+  started_date = VALUES(started_date),
+  expired_date = VALUES(expired_date),
+  target_type = VALUES(target_type),
+  active = VALUES(active);
+
 INSERT INTO coupon (
   coupon_id,
+  coupon_template_id,
   user_id,
   coupon_name,
   discount_type,
   discount_value,
   minimum_order_amount,
+  started_date,
   expired_date,
   used
 ) VALUES
-  (1, @demo_user_id, '신규회원 10% 할인', 'percent', 10, 10000, '2026-12-31', FALSE),
-  (2, @demo_user_id, '무료배송 쿠폰', 'shipping', 3000, 0, '2026-09-30', FALSE),
-  (3, @tester1_user_id, '테스터1 쿠폰', 'amount', 5000, 30000, '2026-08-31', FALSE)
+  (1, 1, @demo_user_id, '신규회원 10% 할인', 'percent', 10, 10000, '2026-12-01', '2026-12-31', FALSE),
+  (2, 2, @demo_user_id, '무료배송 쿠폰', 'shipping', 3000, 0, '2026-09-01', '2026-09-30', FALSE),
+  (3, 3, @tester1_user_id, '테스터1 쿠폰', 'amount', 5000, 30000, '2026-08-01', '2026-08-31', FALSE)
 ON DUPLICATE KEY UPDATE
+  coupon_template_id = VALUES(coupon_template_id),
   user_id = VALUES(user_id),
   coupon_name = VALUES(coupon_name),
   discount_type = VALUES(discount_type),
   discount_value = VALUES(discount_value),
   minimum_order_amount = VALUES(minimum_order_amount),
+  started_date = VALUES(started_date),
   expired_date = VALUES(expired_date),
   used = VALUES(used);
 

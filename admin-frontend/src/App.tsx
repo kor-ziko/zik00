@@ -7,11 +7,14 @@ import {
   MapPin,
   MessageSquareText,
   PanelTop,
+  Plus,
   RefreshCw,
   Search,
+  Send,
   Settings,
   SlidersHorizontal,
   TicketPercent,
+  Trash2,
   UserRound,
   UsersRound,
 } from 'lucide-react';
@@ -75,6 +78,47 @@ type AdminSession = {
   name: string;
 };
 
+type CouponTemplate = {
+  id: number;
+  couponName: string;
+  discountType: string;
+  discountValue: number;
+  minimumOrderAmount: number;
+  startedDate: string | null;
+  expiredDate: string | null;
+  targetType: string;
+  active: boolean;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
+type IssuedCoupon = {
+  id: number;
+  couponTemplateId: number;
+  memberId: number;
+  couponName: string;
+  discountType: string;
+  discountValue: number;
+  minimumOrderAmount: number;
+  startedDate: string | null;
+  expiredDate: string | null;
+  used: boolean;
+  issuedAt: string | null;
+  usedAt: string | null;
+  couponCode: string | null;
+  guestIdentifier: string | null;
+};
+
+type CouponIssueForm = {
+  couponTemplateId: string;
+  couponName: string;
+  discountType: string;
+  discountValue: string;
+  minimumOrderAmount: string;
+  startedDate: string;
+  expiredDate: string;
+};
+
 const adminNavItems = [
   { path: '/admin/agency', label: '대행관리', icon: Briefcase },
   { path: '/admin/members', label: '회원관리', icon: UsersRound },
@@ -119,13 +163,13 @@ function App() {
           </ProtectedAdminRoute>
         }
       >
-        <Route index element={<Navigate to="/admin/members" replace />} />
-        <Route path="/admin" element={<Navigate to="/admin/members" replace />} />
+        <Route index element={<Navigate to="/admin/agency" replace />} />
+        <Route path="/admin" element={<Navigate to="/admin/agency" replace />} />
         <Route path="/admin/members" element={<MemberManagementPage />} />
         <Route path="/admin/agency" element={<PlaceholderPage title="대행관리" />} />
         <Route path="/admin/boards" element={<PlaceholderPage title="게시판관리" />} />
         <Route path="/admin/homepage" element={<PlaceholderPage title="홈페이지 관리" />} />
-        <Route path="/admin/coupons" element={<PlaceholderPage title="쿠폰관리" />} />
+        <Route path="/admin/coupons" element={<CouponManagementPage />} />
         <Route path="/admin/settings" element={<PlaceholderPage title="환경설정" />} />
       </Route>
       <Route path="*" element={<Navigate to={adminSession ? '/admin/members' : '/admin/login'} replace />} />
@@ -526,6 +570,718 @@ function MemberDetailPanel({ member, isLoading }: { member: MemberDetail | null;
   );
 }
 
+function CouponManagementPage() {
+  const [templates, setTemplates] = useState<CouponTemplate[]>([]);
+  const [issuedCoupons, setIssuedCoupons] = useState<IssuedCoupon[]>([]);
+  const [members, setMembers] = useState<MemberSummary[]>([]);
+  const [activeTab, setActiveTab] = useState<'history' | 'member' | 'guest' | 'event'>('history');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const [templateForm, setTemplateForm] = useState({
+    couponName: '',
+    discountType: 'percent',
+    discountValue: '10',
+    minimumOrderAmount: '0',
+    startedDate: '',
+    expiredDate: '',
+    targetType: 'ALL',
+    active: true,
+  });
+  const [memberIssueForm, setMemberIssueForm] = useState<CouponIssueForm>({
+    couponTemplateId: '',
+    couponName: '',
+    discountType: 'percent',
+    discountValue: '10',
+    minimumOrderAmount: '0',
+    startedDate: '',
+    expiredDate: '',
+  });
+  const [memberQuery, setMemberQuery] = useState('');
+  const [selectedMemberIds, setSelectedMemberIds] = useState<number[]>([]);
+  const [guestIssueForm, setGuestIssueForm] = useState<CouponIssueForm & { guestIdentifier: string; couponCode: string }>({
+    couponTemplateId: '',
+    couponName: '',
+    discountType: 'percent',
+    discountValue: '10',
+    minimumOrderAmount: '0',
+    startedDate: '',
+    expiredDate: '',
+    guestIdentifier: '',
+    couponCode: '',
+  });
+
+  const loadCoupons = useCallback(async () => {
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const [templateData, issuedData, memberData] = await Promise.all([
+        request<CouponTemplate[]>('/api/admin/coupons/templates'),
+        request<IssuedCoupon[]>('/api/admin/coupons/issued'),
+        request<MemberSummary[]>('/api/admin/members'),
+      ]);
+      setTemplates(templateData);
+      setIssuedCoupons(issuedData);
+      setMembers(memberData);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : '쿠폰 정보를 불러오지 못했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadCoupons();
+  }, [loadCoupons]);
+
+  const handleCreateTemplate = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    try {
+      await request<CouponTemplate>('/api/admin/coupons/templates', {
+        method: 'POST',
+        body: JSON.stringify({
+          couponName: templateForm.couponName,
+          discountType: templateForm.discountType,
+          discountValue: Number(templateForm.discountValue),
+          minimumOrderAmount: Number(templateForm.minimumOrderAmount),
+          startedDate: templateForm.startedDate || null,
+          expiredDate: templateForm.expiredDate || null,
+          targetType: templateForm.targetType,
+          active: templateForm.active,
+        }),
+      });
+      setTemplateForm({
+        couponName: '',
+        discountType: 'percent',
+        discountValue: '10',
+        minimumOrderAmount: '0',
+        startedDate: '',
+        expiredDate: '',
+        targetType: 'ALL',
+        active: true,
+      });
+      setSuccessMessage('쿠폰 발급 이벤트가 저장되었습니다.');
+      await loadCoupons();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : '쿠폰 발급 이벤트를 저장하지 못했습니다.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleIssueMemberCoupon = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    try {
+      await request<IssuedCoupon[]>('/api/admin/coupons/issued/members', {
+        method: 'POST',
+        body: JSON.stringify({
+          couponTemplateId: memberIssueForm.couponTemplateId ? Number(memberIssueForm.couponTemplateId) : null,
+          memberIds: selectedMemberIds,
+          couponName: memberIssueForm.couponName,
+          discountType: memberIssueForm.discountType,
+          discountValue: Number(memberIssueForm.discountValue),
+          minimumOrderAmount: Number(memberIssueForm.minimumOrderAmount),
+          startedDate: memberIssueForm.startedDate || null,
+          expiredDate: memberIssueForm.expiredDate || null,
+        }),
+      });
+      setMemberIssueForm({
+        couponTemplateId: '',
+        couponName: '',
+        discountType: 'percent',
+        discountValue: '10',
+        minimumOrderAmount: '0',
+        startedDate: '',
+        expiredDate: '',
+      });
+      setSelectedMemberIds([]);
+      setSuccessMessage('회원 쿠폰이 발급되었습니다.');
+      await loadCoupons();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : '회원 쿠폰을 발급하지 못했습니다.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleIssueGuestCoupon = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    try {
+      await request<IssuedCoupon>('/api/admin/coupons/issued/guests', {
+        method: 'POST',
+        body: JSON.stringify({
+          couponTemplateId: guestIssueForm.couponTemplateId ? Number(guestIssueForm.couponTemplateId) : null,
+          guestIdentifier: guestIssueForm.guestIdentifier,
+          couponCode: guestIssueForm.couponCode || null,
+          couponName: guestIssueForm.couponName,
+          discountType: guestIssueForm.discountType,
+          discountValue: Number(guestIssueForm.discountValue),
+          minimumOrderAmount: Number(guestIssueForm.minimumOrderAmount),
+          startedDate: guestIssueForm.startedDate || null,
+          expiredDate: guestIssueForm.expiredDate || null,
+        }),
+      });
+      setGuestIssueForm({
+        couponTemplateId: '',
+        couponName: '',
+        discountType: 'percent',
+        discountValue: '10',
+        minimumOrderAmount: '0',
+        startedDate: '',
+        expiredDate: '',
+        guestIdentifier: '',
+        couponCode: '',
+      });
+      setSuccessMessage('비회원 쿠폰이 발급되었습니다.');
+      await loadCoupons();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : '비회원 쿠폰을 발급하지 못했습니다.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteIssuedCoupon = async (couponId: number) => {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    try {
+      await request<void>(`/api/admin/coupons/issued/${couponId}`, { method: 'DELETE' });
+      setSuccessMessage('발급된 쿠폰이 삭제되었습니다.');
+      await loadCoupons();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : '쿠폰을 삭제하지 못했습니다.');
+    }
+  };
+
+  return (
+    <section className="admin-page">
+      <PageHeader
+        title="쿠폰관리"
+        eyebrow="관리자"
+        actions={
+          <button className="admin-icon-button" type="button" onClick={loadCoupons} aria-label="새로고침">
+            <RefreshCw size={18} />
+          </button>
+        }
+      />
+
+      {errorMessage && (
+        <div className="admin-alert-line" role="alert">
+          <CircleAlert size={18} />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+      {successMessage && <div className="admin-success-line">{successMessage}</div>}
+
+      <div className="admin-coupon-tabs" role="tablist" aria-label="쿠폰관리 메뉴">
+        <button className={activeTab === 'history' ? 'is-active' : ''} type="button" onClick={() => setActiveTab('history')}>
+          쿠폰발급내역
+        </button>
+        <button className={activeTab === 'member' ? 'is-active' : ''} type="button" onClick={() => setActiveTab('member')}>
+          회원쿠폰발급
+        </button>
+        <button className={activeTab === 'guest' ? 'is-active' : ''} type="button" onClick={() => setActiveTab('guest')}>
+          비회원쿠폰발급
+        </button>
+        <button className={activeTab === 'event' ? 'is-active' : ''} type="button" onClick={() => setActiveTab('event')}>
+          쿠폰발급이벤트설정
+        </button>
+      </div>
+
+      {activeTab === 'history' && (
+        <CouponHistoryPanel issuedCoupons={issuedCoupons} isLoading={isLoading} onDelete={handleDeleteIssuedCoupon} />
+      )}
+      {activeTab === 'member' && (
+        <CouponIssuePanel
+          mode="member"
+          templates={templates}
+          members={members}
+          isSubmitting={isSubmitting}
+          memberIssueForm={memberIssueForm}
+          memberQuery={memberQuery}
+          selectedMemberIds={selectedMemberIds}
+          onMemberIssueFormChange={setMemberIssueForm}
+          onMemberQueryChange={setMemberQuery}
+          onSelectedMemberIdsChange={setSelectedMemberIds}
+          onSubmit={handleIssueMemberCoupon}
+        />
+      )}
+      {activeTab === 'guest' && (
+        <CouponIssuePanel
+          mode="guest"
+          templates={templates}
+          members={members}
+          isSubmitting={isSubmitting}
+          guestIssueForm={guestIssueForm}
+          onGuestIssueFormChange={setGuestIssueForm}
+          onSubmit={handleIssueGuestCoupon}
+        />
+      )}
+      {activeTab === 'event' && (
+        <CouponEventPanel
+          templates={templates}
+          templateForm={templateForm}
+          isSubmitting={isSubmitting}
+          onTemplateFormChange={setTemplateForm}
+          onSubmit={handleCreateTemplate}
+        />
+      )}
+    </section>
+  );
+}
+
+function CouponHistoryPanel({
+  issuedCoupons,
+  isLoading,
+  onDelete,
+}: {
+  issuedCoupons: IssuedCoupon[];
+  isLoading: boolean;
+  onDelete: (couponId: number) => void;
+}) {
+  return (
+    <div className="admin-member-list-panel">
+      <div className="admin-table-wrap">
+        <table className="admin-member-table admin-coupon-table">
+          <thead>
+            <tr>
+              <th>쿠폰</th>
+              <th>대상</th>
+              <th>혜택</th>
+              <th>기간</th>
+              <th>상태</th>
+              <th>발급일</th>
+              <th>관리</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading && (
+              <tr>
+                <td colSpan={7} className="admin-table-state">
+                  불러오는 중
+                </td>
+              </tr>
+            )}
+            {!isLoading &&
+              issuedCoupons.map((coupon) => (
+                <tr key={coupon.id}>
+                  <td>
+                    <strong>{coupon.couponName}</strong>
+                    <span>{coupon.couponCode || `#${coupon.id}`}</span>
+                  </td>
+                  <td>{coupon.memberId ? `회원 #${coupon.memberId}` : coupon.guestIdentifier || '비회원'}</td>
+                  <td>{formatDiscount(coupon)}</td>
+                  <td>
+                    {formatDate(coupon.startedDate)} ~ {formatDate(coupon.expiredDate)}
+                  </td>
+                  <td>{coupon.used ? '사용완료' : '사용가능'}</td>
+                  <td>{formatDate(coupon.issuedAt)}</td>
+                  <td>
+                    <button
+                      className="admin-row-action-button"
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm('이 발급 쿠폰을 삭제할까요?')) {
+                          onDelete(coupon.id);
+                        }
+                      }}
+                      aria-label="쿠폰 삭제"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            {!isLoading && issuedCoupons.length === 0 && (
+              <tr>
+                <td colSpan={7} className="admin-table-state">
+                  발급 내역 없음
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function CouponIssuePanel({
+  mode,
+  templates,
+  members,
+  isSubmitting,
+  memberIssueForm,
+  guestIssueForm,
+  memberQuery,
+  selectedMemberIds,
+  onMemberIssueFormChange,
+  onGuestIssueFormChange,
+  onMemberQueryChange,
+  onSelectedMemberIdsChange,
+  onSubmit,
+}: {
+  mode: 'member' | 'guest';
+  templates: CouponTemplate[];
+  members: MemberSummary[];
+  isSubmitting: boolean;
+  memberIssueForm?: CouponIssueForm;
+  guestIssueForm?: CouponIssueForm & { guestIdentifier: string; couponCode: string };
+  memberQuery?: string;
+  selectedMemberIds?: number[];
+  onMemberIssueFormChange?: (value: CouponIssueForm) => void;
+  onGuestIssueFormChange?: (value: CouponIssueForm & { guestIdentifier: string; couponCode: string }) => void;
+  onMemberQueryChange?: (value: string) => void;
+  onSelectedMemberIdsChange?: (value: number[]) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  const templateId = mode === 'member' ? memberIssueForm?.couponTemplateId || '' : guestIssueForm?.couponTemplateId || '';
+  const showCustomCouponFields = !templateId;
+  const filteredMembers = members.filter((member) => {
+    const normalizedQuery = normalize(memberQuery || '');
+    if (!normalizedQuery) {
+      return false;
+    }
+    return [member.loginId, member.nickname, member.name, member.email]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+      .includes(normalizedQuery);
+  });
+
+  return (
+    <div className="admin-coupon-form-panel">
+      <form className="admin-coupon-form" onSubmit={onSubmit}>
+        <label>
+          <span>쿠폰 종류</span>
+          <select
+            value={templateId}
+            onChange={(event) => {
+              if (mode === 'member' && memberIssueForm && onMemberIssueFormChange) {
+                onMemberIssueFormChange({ ...memberIssueForm, couponTemplateId: event.target.value });
+              }
+              if (mode === 'guest' && guestIssueForm && onGuestIssueFormChange) {
+                onGuestIssueFormChange({ ...guestIssueForm, couponTemplateId: event.target.value });
+              }
+            }}
+          >
+            <option value="">임의 쿠폰 직접 입력</option>
+            {templates.map((template) => (
+              <option value={template.id} key={template.id}>
+                {template.couponName}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {showCustomCouponFields && (
+          <CustomCouponFields
+            form={mode === 'member' ? memberIssueForm : guestIssueForm}
+            onChange={(nextForm) => {
+              if (mode === 'member') {
+                onMemberIssueFormChange?.(nextForm);
+              }
+              if (mode === 'guest' && guestIssueForm) {
+                onGuestIssueFormChange?.({ ...guestIssueForm, ...nextForm });
+              }
+            }}
+          />
+        )}
+
+        {mode === 'member' && memberIssueForm && onMemberIssueFormChange && (
+          <div className="admin-member-picker">
+            <label>
+              <span>회원 검색</span>
+              <input
+                value={memberQuery || ''}
+                onChange={(event) => onMemberQueryChange?.(event.target.value)}
+                placeholder="회원 아이디 또는 닉네임"
+              />
+            </label>
+            <div className="admin-member-check-list">
+              {filteredMembers.map((member) => {
+                const checked = selectedMemberIds?.includes(member.id) ?? false;
+                return (
+                  <label key={member.id}>
+                    <input
+                      checked={checked}
+                      onChange={(event) => {
+                        const currentIds = selectedMemberIds || [];
+                        const nextIds = event.target.checked
+                          ? [...currentIds, member.id]
+                          : currentIds.filter((memberId) => memberId !== member.id);
+                        onSelectedMemberIdsChange?.(nextIds);
+                      }}
+                      type="checkbox"
+                    />
+                    <span>
+                      {member.nickname || member.name} / {member.loginId || member.email || `#${member.id}`}
+                    </span>
+                  </label>
+                );
+              })}
+              {(memberQuery || '').trim() && filteredMembers.length === 0 && <p>검색 결과 없음</p>}
+              {!memberQuery?.trim() && <p>회원 아이디나 닉네임을 입력해주세요.</p>}
+            </div>
+            <div className="admin-selected-count">선택 {selectedMemberIds?.length || 0}명</div>
+          </div>
+        )}
+
+        {mode === 'guest' && guestIssueForm && onGuestIssueFormChange && (
+          <>
+            <label>
+              <span>비회원 식별값</span>
+              <input
+                value={guestIssueForm.guestIdentifier}
+                onChange={(event) => onGuestIssueFormChange({ ...guestIssueForm, guestIdentifier: event.target.value })}
+                placeholder="이메일, 전화번호, 주문번호"
+                required
+              />
+            </label>
+            <label>
+              <span>쿠폰코드</span>
+              <input
+                value={guestIssueForm.couponCode}
+                onChange={(event) => onGuestIssueFormChange({ ...guestIssueForm, couponCode: event.target.value })}
+                placeholder="비워두면 자동 생성"
+              />
+            </label>
+          </>
+        )}
+
+        <button type="submit" disabled={isSubmitting}>
+          <Send size={17} />
+          {isSubmitting ? '발급 중' : '쿠폰 발급'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+function CustomCouponFields({
+  form,
+  onChange,
+}: {
+  form?: CouponIssueForm;
+  onChange?: (value: CouponIssueForm) => void;
+}) {
+  if (!form || !onChange) {
+    return null;
+  }
+
+  return (
+    <>
+      <label>
+        <span>쿠폰명</span>
+        <input value={form.couponName} onChange={(event) => onChange({ ...form, couponName: event.target.value })} required />
+      </label>
+      <label>
+        <span>할인 타입</span>
+        <select value={form.discountType} onChange={(event) => onChange({ ...form, discountType: event.target.value })}>
+          <option value="percent">percent</option>
+          <option value="amount">amount</option>
+          <option value="shipping">shipping</option>
+        </select>
+      </label>
+      <label>
+        <span>할인값</span>
+        <input
+          value={form.discountValue}
+          onChange={(event) => onChange({ ...form, discountValue: event.target.value })}
+          min="0"
+          type="number"
+        />
+      </label>
+      <label>
+        <span>최소 주문 금액</span>
+        <input
+          value={form.minimumOrderAmount}
+          onChange={(event) => onChange({ ...form, minimumOrderAmount: event.target.value })}
+          min="0"
+          type="number"
+        />
+      </label>
+      <label>
+        <span>시작일</span>
+        <input value={form.startedDate} onChange={(event) => onChange({ ...form, startedDate: event.target.value })} type="date" />
+      </label>
+      <label>
+        <span>만료일</span>
+        <input value={form.expiredDate} onChange={(event) => onChange({ ...form, expiredDate: event.target.value })} type="date" />
+      </label>
+    </>
+  );
+}
+
+function CouponEventPanel({
+  templates,
+  templateForm,
+  isSubmitting,
+  onTemplateFormChange,
+  onSubmit,
+}: {
+  templates: CouponTemplate[];
+  templateForm: {
+    couponName: string;
+    discountType: string;
+    discountValue: string;
+    minimumOrderAmount: string;
+    startedDate: string;
+    expiredDate: string;
+    targetType: string;
+    active: boolean;
+  };
+  isSubmitting: boolean;
+  onTemplateFormChange: (value: {
+    couponName: string;
+    discountType: string;
+    discountValue: string;
+    minimumOrderAmount: string;
+    startedDate: string;
+    expiredDate: string;
+    targetType: string;
+    active: boolean;
+  }) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  return (
+    <div className="admin-coupon-event-layout">
+      <div className="admin-coupon-form-panel">
+        <form className="admin-coupon-form" onSubmit={onSubmit}>
+          <label>
+            <span>쿠폰명</span>
+            <input
+              value={templateForm.couponName}
+              onChange={(event) => onTemplateFormChange({ ...templateForm, couponName: event.target.value })}
+              required
+            />
+          </label>
+          <label>
+            <span>할인 타입</span>
+            <select
+              value={templateForm.discountType}
+              onChange={(event) => onTemplateFormChange({ ...templateForm, discountType: event.target.value })}
+            >
+              <option value="percent">percent</option>
+              <option value="amount">amount</option>
+              <option value="shipping">shipping</option>
+            </select>
+          </label>
+          <label>
+            <span>할인값</span>
+            <input
+              value={templateForm.discountValue}
+              onChange={(event) => onTemplateFormChange({ ...templateForm, discountValue: event.target.value })}
+              min="0"
+              type="number"
+            />
+          </label>
+          <label>
+            <span>최소 주문 금액</span>
+            <input
+              value={templateForm.minimumOrderAmount}
+              onChange={(event) => onTemplateFormChange({ ...templateForm, minimumOrderAmount: event.target.value })}
+              min="0"
+              type="number"
+            />
+          </label>
+          <label>
+            <span>시작일</span>
+            <input
+              value={templateForm.startedDate}
+              onChange={(event) => onTemplateFormChange({ ...templateForm, startedDate: event.target.value })}
+              type="date"
+            />
+          </label>
+          <label>
+            <span>만료일</span>
+            <input
+              value={templateForm.expiredDate}
+              onChange={(event) => onTemplateFormChange({ ...templateForm, expiredDate: event.target.value })}
+              type="date"
+            />
+          </label>
+          <label>
+            <span>발급 대상</span>
+            <select value={templateForm.targetType} onChange={(event) => onTemplateFormChange({ ...templateForm, targetType: event.target.value })}>
+              <option value="ALL">전체</option>
+              <option value="MEMBER">회원</option>
+              <option value="GUEST">비회원</option>
+            </select>
+          </label>
+          <label className="admin-checkbox-line">
+            <input
+              checked={templateForm.active}
+              onChange={(event) => onTemplateFormChange({ ...templateForm, active: event.target.checked })}
+              type="checkbox"
+            />
+            <span>활성화</span>
+          </label>
+          <button type="submit" disabled={isSubmitting}>
+            <Plus size={17} />
+            {isSubmitting ? '저장 중' : '이벤트 저장'}
+          </button>
+        </form>
+      </div>
+
+      <div className="admin-member-list-panel">
+        <div className="admin-table-wrap">
+          <table className="admin-member-table admin-coupon-table">
+            <thead>
+              <tr>
+                <th>쿠폰명</th>
+                <th>혜택</th>
+                <th>대상</th>
+                <th>기간</th>
+                <th>상태</th>
+              </tr>
+            </thead>
+            <tbody>
+              {templates.map((template) => (
+                <tr key={template.id}>
+                  <td>
+                    <strong>{template.couponName}</strong>
+                    <span>#{template.id}</span>
+                  </td>
+                  <td>{formatTemplateDiscount(template)}</td>
+                  <td>{template.targetType}</td>
+                  <td>
+                    {formatDate(template.startedDate)} ~ {formatDate(template.expiredDate)}
+                  </td>
+                  <td>{template.active ? '활성' : '비활성'}</td>
+                </tr>
+              ))}
+              {templates.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="admin-table-state">
+                    등록된 이벤트 없음
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PageHeader({ title, eyebrow, actions }: { title: string; eyebrow: string; actions?: ReactNode }) {
   return (
     <header className="admin-page-header">
@@ -592,6 +1348,26 @@ function formatDate(value: string | null) {
   }
 
   return value.slice(0, 10);
+}
+
+function formatDiscount(coupon: IssuedCoupon) {
+  if (coupon.discountType === 'percent') {
+    return `${coupon.discountValue}%`;
+  }
+  if (coupon.discountType === 'shipping') {
+    return `배송 ${coupon.discountValue.toLocaleString()}원`;
+  }
+  return `${coupon.discountValue.toLocaleString()}원`;
+}
+
+function formatTemplateDiscount(template: CouponTemplate) {
+  if (template.discountType === 'percent') {
+    return `${template.discountValue}%`;
+  }
+  if (template.discountType === 'shipping') {
+    return `배송 ${template.discountValue.toLocaleString()}원`;
+  }
+  return `${template.discountValue.toLocaleString()}원`;
 }
 
 export default App;
