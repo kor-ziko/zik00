@@ -50,3 +50,13 @@ username: ${SPRING_DATASOURCE_USERNAME:root}
 password: ${SPRING_DATASOURCE_PASSWORD:1q2w3e}
 
 이거 너희들 서버에 맞춰서 바꿔 줘야함.
+
+# 관리자 페이지 아이디 비번
+admin / admin1234!
+
+# 7/8 - 7/13 작업내용
+1. 관리자 로그인 구현
+2. 관리자 회원조회 기능 구현
+3. 관리자 1대1문의 처리 기능 구현 (여기 피드백좀 더 주면 좋을듯)
+
+Java 버전 26 통일/v1, v2 sql 지우고 test_date.sql로 통합

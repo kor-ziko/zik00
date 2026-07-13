@@ -1,3 +1,4 @@
+<!--@Suil- line 118의 pending 지우고 답변처리로 수정-->
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
@@ -115,7 +116,8 @@
                 <article class="inquiry-item" th:each="thread : ${inquiryThreads}">
                     <div class="inquiry-header">
                         <strong th:text="${thread.inquiry.title}">Inquiry title</strong>
-                        <span class="badge" th:text="${thread.inquiry.status}">Pending</span>
+                            <span class="badge" th:text="${thread.inquiry.status ? '답변완료' : '답변대기'}">
+                            </span>
                     </div>
                     <p class="meta-text" th:text="${thread.inquiry.createdAt}">2026-07-07 16:20</p>
                     <p th:text="${thread.inquiry.content}">Inquiry content</p>
@@ -129,12 +131,25 @@
                     </div>
 
                     <div class="comment-list" th:if="${!thread.comments.isEmpty()}">
-                        <article class="comment-item" th:each="comment : ${thread.comments}">
+                        <article class="comment-item"
+                                 th:each="comment : ${thread.comments}"
+                                 th:classappend="${comment.admin} ? ' is-admin' : ''">
                             <div>
                                 <strong th:text="${comment.writerName}">Writer</strong>
+                                <span class="comment-writer-type"
+                                      th:text="${comment.admin ? '관리자 답변' : '사용자'}">Writer type</span>
                                 <span th:text="${comment.createdAt}">2026-07-07 16:22</span>
                             </div>
                             <p th:text="${comment.content}">Comment</p>
+                            <!-- @Suil - 관리자 답변에 첨부한 사진을 댓글 아래에 표시 -->
+                            <div class="comment-images" th:if="${!comment.images.isEmpty()}">
+                                <a th:each="image : ${comment.images}"
+                                   th:href="${image.imageUrl}"
+                                   target="_blank"
+                                   rel="noopener">
+                                    <img th:src="${image.imageUrl}" th:alt="|reply image ${image.imageUuid}|">
+                                </a>
+                            </div>
                         </article>
                     </div>
                     <p th:if="${thread.comments.isEmpty()}">No comments.</p>
