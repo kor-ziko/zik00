@@ -1,3 +1,6 @@
+-- @Suil -
+-- 1. v1, v2 sql 지우고 여기에 통합
+-- 2. 1대1 답변처리 로직 수정 line 112
 CREATE DATABASE IF NOT EXISTS shop
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_unicode_ci;
@@ -106,7 +109,7 @@ CREATE TABLE IF NOT EXISTS inquiries (
   user_id BIGINT NOT NULL,
   title VARCHAR(255),
   content LONGTEXT,
-  status VARCHAR(50),
+  status BOOLEAN NOT NULL DEFAULT FALSE,
   created_at VARCHAR(50),
   PRIMARY KEY (inquiry_id),
   KEY idx_inquiries_member_id (user_id, inquiry_id)
@@ -115,12 +118,59 @@ CREATE TABLE IF NOT EXISTS inquiries (
 CREATE TABLE IF NOT EXISTS inquiry_comments (
   comment_id BIGINT NOT NULL AUTO_INCREMENT,
   inquiry_id BIGINT NOT NULL,
-  user_id BIGINT NOT NULL,
+  user_id BIGINT,
+  admin_id BIGINT,
+  writer_type VARCHAR(20) NOT NULL DEFAULT 'USER',
   writer_name VARCHAR(100),
   content LONGTEXT,
   created_at VARCHAR(50),
   PRIMARY KEY (comment_id),
   KEY idx_inquiry_comments_inquiry_comment (inquiry_id, comment_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- @Suil - 기존 DB에도 관리자 문의 답변 작성자 컬럼을 추가
+SET @add_inquiry_comment_admin_id = (
+  SELECT IF(
+    COUNT(*) = 0,
+    'ALTER TABLE inquiry_comments ADD COLUMN admin_id BIGINT NULL AFTER user_id',
+    'DO 0'
+  )
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'inquiry_comments'
+    AND COLUMN_NAME = 'admin_id'
+);
+PREPARE add_inquiry_comment_admin_id_stmt FROM @add_inquiry_comment_admin_id;
+EXECUTE add_inquiry_comment_admin_id_stmt;
+DEALLOCATE PREPARE add_inquiry_comment_admin_id_stmt;
+
+SET @add_inquiry_comment_writer_type = (
+  SELECT IF(
+    COUNT(*) = 0,
+    'ALTER TABLE inquiry_comments ADD COLUMN writer_type VARCHAR(20) NOT NULL DEFAULT ''USER'' AFTER admin_id',
+    'DO 0'
+  )
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'inquiry_comments'
+    AND COLUMN_NAME = 'writer_type'
+);
+PREPARE add_inquiry_comment_writer_type_stmt FROM @add_inquiry_comment_writer_type;
+EXECUTE add_inquiry_comment_writer_type_stmt;
+DEALLOCATE PREPARE add_inquiry_comment_writer_type_stmt;
+
+ALTER TABLE inquiry_comments MODIFY COLUMN user_id BIGINT NULL;
+UPDATE inquiry_comments SET writer_type = 'USER' WHERE writer_type IS NULL OR writer_type = '';
+
+-- @Suil - 관리자 문의 답변에 첨부한 사진을 댓글과 연결
+CREATE TABLE IF NOT EXISTS inquiry_comment_images (
+  comment_image_id BIGINT NOT NULL AUTO_INCREMENT,
+  comment_id BIGINT NOT NULL,
+  image_uuid VARCHAR(36) NOT NULL,
+  image_path VARCHAR(255) NOT NULL,
+  PRIMARY KEY (comment_image_id),
+  UNIQUE KEY uk_inquiry_comment_images_uuid (image_uuid),
+  KEY idx_inquiry_comment_images_comment_id (comment_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS inquiry_images (
@@ -376,8 +426,8 @@ INSERT INTO inquiries (
   status,
   created_at
 ) VALUES
-  (1, @demo_user_id, '배송은 언제 시작되나요?', '어제 주문했는데 배송 상태가 궁금합니다.', '답변대기', '2026-07-07 16:20'),
-  (2, @demo_user_id, '1', '1', '답변대기', '2026-07-07 18:55')
+  (1, @demo_user_id, '배송은 언제 시작되나요?', '어제 주문했는데 배송 상태가 궁금합니다.', TRUE, '2026-07-07 16:20'),
+  (2, @demo_user_id, '1', '1', FALSE, '2026-07-07 18:55')
 ON DUPLICATE KEY UPDATE
   user_id = VALUES(user_id),
   title = VALUES(title),
@@ -389,18 +439,40 @@ INSERT INTO inquiry_comments (
   comment_id,
   inquiry_id,
   user_id,
+  admin_id,
+  writer_type,
   writer_name,
   content,
   created_at
 ) VALUES
-  (1, 1, @demo_user_id, '테스터01', '확인 부탁드립니다.', '2026-07-07 16:22'),
-  (2, 1, @demo_user_id, '테스터01', '11', '2026-07-07 18:55')
+  (1, 1, @demo_user_id, NULL, 'USER', '테스터01', '확인 부탁드립니다.', '2026-07-07 16:22'),
+  (2, 1, @demo_user_id, NULL, 'USER', '테스터01', '11', '2026-07-07 18:55'),
+  (1001, 1, NULL, 1, 'ADMIN', '관리자', '배송 완료하였습니다.', '2026-07-13 15:55')
 ON DUPLICATE KEY UPDATE
   inquiry_id = VALUES(inquiry_id),
   user_id = VALUES(user_id),
+  admin_id = VALUES(admin_id),
+  writer_type = VALUES(writer_type),
   writer_name = VALUES(writer_name),
   content = VALUES(content),
   created_at = VALUES(created_at);
+
+-- @Suil - 관리자 답변 테스트 사진을 답변 댓글과 연결
+INSERT INTO inquiry_comment_images (
+  comment_image_id,
+  comment_id,
+  image_uuid,
+  image_path
+) VALUES (
+  1001,
+  1001,
+  'a79f2835-b7c0-4995-8b49-426bd35ebb17',
+  'a79f2835-b7c0-4995-8b49-426bd35ebb17.webp'
+)
+ON DUPLICATE KEY UPDATE
+  comment_id = VALUES(comment_id),
+  image_uuid = VALUES(image_uuid),
+  image_path = VALUES(image_path);
 
 INSERT INTO inquiry_images (
   image_id,

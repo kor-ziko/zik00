@@ -8,6 +8,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 public interface InquiryCommentRepository extends JpaRepository<InquiryComment, Long> {
+    // @Suil - 관리자 문의 목록에 댓글 개수를 표시
+    long countByInquiryId(long inquiryId);
+
     @Query("""
             select c
             from InquiryComment c

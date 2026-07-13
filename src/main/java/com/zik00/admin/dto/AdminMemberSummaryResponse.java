@@ -4,6 +4,7 @@ import com.zik00.shop.domain.User;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+// @dev 유저 간락 정보 보이기
 public record AdminMemberSummaryResponse(
         Long id,
         String email,

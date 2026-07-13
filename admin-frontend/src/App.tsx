@@ -1,6 +1,8 @@
 import {
   Briefcase,
   CircleAlert,
+  ImagePlus,
+  Inbox,
   LayoutDashboard,
   LockKeyhole,
   LogOut,
@@ -9,13 +11,15 @@ import {
   PanelTop,
   RefreshCw,
   Search,
+  Send,
   Settings,
   SlidersHorizontal,
   TicketPercent,
   UserRound,
   UsersRound,
+  X,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { NavLink, Navigate, Outlet, Route, Routes } from 'react-router-dom';
 import './App.css';
@@ -75,6 +79,47 @@ type AdminSession = {
   name: string;
 };
 
+type InquiryStatusFilter = typeof ALL | 'PENDING' | 'ANSWERED';
+
+type InquirySummary = {
+  inquiryId: number;
+  memberId: number;
+  memberName: string;
+  title: string;
+  answered: boolean;
+  createdAt: string;
+  commentCount: number;
+  imageCount: number;
+};
+
+type InquiryImage = {
+  imageUuid: string;
+  imageUrl: string;
+};
+
+type InquiryComment = {
+  commentId: number;
+  writerType: 'USER' | 'ADMIN';
+  writerName: string;
+  content: string;
+  createdAt: string;
+  images: InquiryImage[];
+};
+
+type InquiryDetail = {
+  inquiryId: number;
+  memberId: number;
+  memberName: string;
+  memberNickname: string | null;
+  memberEmail: string | null;
+  title: string;
+  content: string;
+  answered: boolean;
+  createdAt: string;
+  images: InquiryImage[];
+  comments: InquiryComment[];
+};
+
 const adminNavItems = [
   { path: '/admin/agency', label: '대행관리', icon: Briefcase },
   { path: '/admin/members', label: '회원관리', icon: UsersRound },
@@ -123,7 +168,7 @@ function App() {
         <Route path="/admin" element={<Navigate to="/admin/members" replace />} />
         <Route path="/admin/members" element={<MemberManagementPage />} />
         <Route path="/admin/agency" element={<PlaceholderPage title="대행관리" />} />
-        <Route path="/admin/boards" element={<PlaceholderPage title="게시판관리" />} />
+        <Route path="/admin/boards" element={<InquiryManagementPage />} />
         <Route path="/admin/homepage" element={<PlaceholderPage title="홈페이지 관리" />} />
         <Route path="/admin/coupons" element={<PlaceholderPage title="쿠폰관리" />} />
         <Route path="/admin/settings" element={<PlaceholderPage title="환경설정" />} />
@@ -526,6 +571,336 @@ function MemberDetailPanel({ member, isLoading }: { member: MemberDetail | null;
   );
 }
 
+function InquiryManagementPage() {
+  const [inquiries, setInquiries] = useState<InquirySummary[]>([]);
+  const [selectedInquiryId, setSelectedInquiryId] = useState<number | null>(null);
+  const [inquiryDetail, setInquiryDetail] = useState<InquiryDetail | null>(null);
+  const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<InquiryStatusFilter>(ALL);
+  const [replyContent, setReplyContent] = useState('');
+  const [replyImages, setReplyImages] = useState<File[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const [isReplying, setIsReplying] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const imagePreviews = useMemo(
+    () => replyImages.map((file) => ({ file, url: URL.createObjectURL(file) })),
+    [replyImages],
+  );
+
+  useEffect(() => {
+    return () => imagePreviews.forEach((preview) => URL.revokeObjectURL(preview.url));
+  }, [imagePreviews]);
+
+  const loadInquiryDetail = useCallback(async (inquiryId: number) => {
+    setSelectedInquiryId(inquiryId);
+    setIsDetailLoading(true);
+    setErrorMessage(null);
+    setReplyContent('');
+    setReplyImages([]);
+
+    try {
+      setInquiryDetail(await request<InquiryDetail>(`/api/admin/inquiries/${inquiryId}`));
+    } catch (error) {
+      setInquiryDetail(null);
+      setErrorMessage(error instanceof Error ? error.message : '문의 상세를 불러오지 못했습니다.');
+    } finally {
+      setIsDetailLoading(false);
+    }
+  }, []);
+
+  const loadInquiries = useCallback(async () => {
+    setIsLoading(true);
+    setErrorMessage(null);
+    try {
+      const data = await request<InquirySummary[]>('/api/admin/inquiries');
+      setInquiries(data);
+      return data;
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : '문의 목록을 불러오지 못했습니다.');
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadInquiries();
+  }, [loadInquiries]);
+
+  const filteredInquiries = useMemo(() => {
+    const normalizedQuery = normalize(query);
+    return inquiries.filter((inquiry) => {
+      const matchesQuery = !normalizedQuery || `${inquiry.title} ${inquiry.memberName}`.toLowerCase().includes(normalizedQuery);
+      const matchesStatus =
+        statusFilter === ALL ||
+        (statusFilter === 'ANSWERED' && inquiry.answered) ||
+        (statusFilter === 'PENDING' && !inquiry.answered);
+      return matchesQuery && matchesStatus;
+    });
+  }, [inquiries, query, statusFilter]);
+
+  const handleRefresh = async () => {
+    const data = await loadInquiries();
+    if (selectedInquiryId && data.some((inquiry) => inquiry.inquiryId === selectedInquiryId)) {
+      await loadInquiryDetail(selectedInquiryId);
+    }
+  };
+
+  const handleImageSelection = (files: FileList | null) => {
+    if (!files) {
+      return;
+    }
+    const nextImages = [...replyImages, ...Array.from(files)];
+    if (nextImages.length > 3) {
+      setErrorMessage('답변 사진은 최대 3장까지 첨부할 수 있습니다.');
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+    setReplyImages(nextImages);
+    setErrorMessage(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleReply = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selectedInquiryId || !replyContent.trim()) {
+      setErrorMessage('답변 내용을 입력해주세요.');
+      return;
+    }
+
+    const body = new FormData();
+    body.append('content', replyContent.trim());
+    replyImages.forEach((image) => body.append('images', image));
+
+    setIsReplying(true);
+    setErrorMessage(null);
+    try {
+      const detail = await request<InquiryDetail>(`/api/admin/inquiries/${selectedInquiryId}/replies`, {
+        method: 'POST',
+        body,
+      });
+      setInquiryDetail(detail);
+      setReplyContent('');
+      setReplyImages([]);
+      await loadInquiries();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : '답변을 등록하지 못했습니다.');
+    } finally {
+      setIsReplying(false);
+    }
+  };
+
+  return (
+    <section className="admin-page">
+      <PageHeader
+        title="1:1 문의 관리"
+        eyebrow="게시판관리"
+        actions={
+          <button className="admin-icon-button" type="button" onClick={() => void handleRefresh()} aria-label="새로고침" title="새로고침">
+            <RefreshCw size={18} />
+          </button>
+        }
+      />
+
+      {errorMessage && (
+        <div className="admin-alert-line" role="alert">
+          <CircleAlert size={18} />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
+      <div className="admin-inquiry-layout">
+        <section className="admin-inquiry-list-panel">
+          <div className="admin-inquiry-tools">
+            <label className="admin-search-box">
+              <Search size={17} />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="제목 또는 회원명 검색" />
+            </label>
+            <div className="admin-status-segments" aria-label="문의 상태 필터">
+              {([
+                [ALL, '전체'],
+                ['PENDING', '답변대기'],
+                ['ANSWERED', '답변완료'],
+              ] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={statusFilter === value ? 'is-active' : ''}
+                  onClick={() => setStatusFilter(value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="admin-inquiry-list">
+            {isLoading && <p className="admin-inquiry-state">불러오는 중</p>}
+            {!isLoading && filteredInquiries.length === 0 && (
+              <div className="admin-inquiry-state">
+                <Inbox size={22} />
+                <span>문의 없음</span>
+              </div>
+            )}
+            {!isLoading &&
+              filteredInquiries.map((inquiry) => (
+                <button
+                  type="button"
+                  key={inquiry.inquiryId}
+                  className={`admin-inquiry-row ${selectedInquiryId === inquiry.inquiryId ? 'is-selected' : ''}`}
+                  onClick={() => void loadInquiryDetail(inquiry.inquiryId)}
+                >
+                  <div>
+                    <strong>{inquiry.title}</strong>
+                    <span>{inquiry.memberName}</span>
+                  </div>
+                  <div className="admin-inquiry-row-meta">
+                    <span className={`admin-inquiry-status ${inquiry.answered ? 'is-answered' : 'is-pending'}`}>
+                      {inquiry.answered ? '답변완료' : '답변대기'}
+                    </span>
+                    <time>{inquiry.createdAt}</time>
+                    <span>댓글 {inquiry.commentCount} · 사진 {inquiry.imageCount}</span>
+                  </div>
+                </button>
+              ))}
+          </div>
+        </section>
+
+        <section className="admin-inquiry-detail-panel">
+          {isDetailLoading && <div className="admin-inquiry-detail-state">불러오는 중</div>}
+          {!isDetailLoading && !inquiryDetail && (
+            <div className="admin-inquiry-detail-state">
+              <MessageSquareText size={24} />
+              <span>처리할 문의를 선택해주세요.</span>
+            </div>
+          )}
+          {!isDetailLoading && inquiryDetail && (
+            <>
+              <header className="admin-inquiry-detail-head">
+                <div>
+                  <span className="admin-eyebrow">문의 #{inquiryDetail.inquiryId}</span>
+                  <h2>{inquiryDetail.title}</h2>
+                  <p>
+                    {inquiryDetail.memberName}
+                    {inquiryDetail.memberNickname ? ` (${inquiryDetail.memberNickname})` : ''}
+                    {inquiryDetail.memberEmail ? ` · ${inquiryDetail.memberEmail}` : ''}
+                  </p>
+                </div>
+                <span className={`admin-inquiry-status ${inquiryDetail.answered ? 'is-answered' : 'is-pending'}`}>
+                  {inquiryDetail.answered ? '답변완료' : '답변대기'}
+                </span>
+              </header>
+
+              <article className="admin-inquiry-original">
+                <div>
+                  <strong>사용자 문의</strong>
+                  <time>{inquiryDetail.createdAt}</time>
+                </div>
+                <p>{inquiryDetail.content}</p>
+                {inquiryDetail.images.length > 0 && <InquiryImageGrid images={inquiryDetail.images} />}
+              </article>
+
+              <div className="admin-inquiry-conversation">
+                {inquiryDetail.comments.length === 0 && <p className="admin-empty-text">등록된 댓글이 없습니다.</p>}
+                {inquiryDetail.comments.map((comment) => (
+                  <article
+                    className={`admin-inquiry-comment ${comment.writerType === 'ADMIN' ? 'is-admin' : 'is-user'}`}
+                    key={comment.commentId}
+                  >
+                    <div>
+                      <strong>{comment.writerName}</strong>
+                      <span>{comment.writerType === 'ADMIN' ? '관리자 답변' : '사용자'}</span>
+                      <time>{comment.createdAt}</time>
+                    </div>
+                    <p>{comment.content}</p>
+                    {comment.images.length > 0 && <InquiryImageGrid images={comment.images} />}
+                  </article>
+                ))}
+              </div>
+
+              <form className="admin-inquiry-reply" onSubmit={handleReply}>
+                <label>
+                  <span>관리자 답변</span>
+                  <textarea
+                    value={replyContent}
+                    onChange={(event) => setReplyContent(event.target.value)}
+                    placeholder="답변 내용을 입력하세요."
+                    maxLength={2000}
+                    rows={5}
+                    required
+                  />
+                </label>
+
+                {imagePreviews.length > 0 && (
+                  <div className="admin-reply-previews">
+                    {imagePreviews.map((preview, index) => (
+                      <div key={`${preview.file.name}-${index}`}>
+                        <img src={preview.url} alt={preview.file.name} />
+                        <button
+                          type="button"
+                          onClick={() => setReplyImages((images) => images.filter((_, imageIndex) => imageIndex !== index))}
+                          aria-label={`${preview.file.name} 삭제`}
+                          title="첨부 삭제"
+                        >
+                          <X size={15} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="admin-reply-actions">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/gif,image/webp"
+                    multiple
+                    hidden
+                    onChange={(event) => handleImageSelection(event.target.files)}
+                  />
+                  <button
+                    className="admin-attach-button"
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={replyImages.length >= 3}
+                    title="사진 첨부"
+                  >
+                    <ImagePlus size={17} />
+                    사진 {replyImages.length}/3
+                  </button>
+                  <button className="admin-reply-button" type="submit" disabled={isReplying}>
+                    <Send size={17} />
+                    {isReplying ? '등록 중' : '답변 등록'}
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
+        </section>
+      </div>
+    </section>
+  );
+}
+
+function InquiryImageGrid({ images }: { images: InquiryImage[] }) {
+  return (
+    <div className="admin-inquiry-images">
+      {images.map((image) => (
+        <a key={image.imageUuid} href={image.imageUrl} target="_blank" rel="noreferrer">
+          <img src={image.imageUrl} alt="문의 첨부사진" />
+        </a>
+      ))}
+    </div>
+  );
+}
+
 function PageHeader({ title, eyebrow, actions }: { title: string; eyebrow: string; actions?: ReactNode }) {
   return (
     <header className="admin-page-header">
@@ -549,7 +924,7 @@ function Field({ label, value, wide = false }: { label: string; value: ReactNode
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
-  if (init.body && !headers.has('Content-Type')) {
+  if (init.body && !(init.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
 
@@ -575,8 +950,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 async function errorMessage(response: Response) {
   try {
-    const body = (await response.json()) as { message?: string; error?: string };
-    return body.message || body.error || `요청 실패 (${response.status})`;
+    const body = (await response.json()) as { message?: string; error?: string; detail?: string };
+    return body.message || body.detail || body.error || `요청 실패 (${response.status})`;
   } catch {
     return `요청 실패 (${response.status})`;
   }

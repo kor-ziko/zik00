@@ -27,7 +27,8 @@ public class Inquiry {
     @Lob
     private String content;
 
-    private String status;
+    // @Suil - 문의의 답변 전후 상태를 boolean으로 관리
+    private boolean status;
     @Column(name = "created_at")
     private String createdAt;
 
@@ -39,7 +40,7 @@ public class Inquiry {
             long memberId,
             String title,
             String content,
-            String status,
+            boolean status,
             String createdAt
     ) {
         this.inquiryId = inquiryId > 0 ? inquiryId : null;
@@ -48,6 +49,19 @@ public class Inquiry {
         this.content = content;
         this.status = status;
         this.createdAt = createdAt;
+    }
+
+    public boolean isStatus() {
+        return status;
+    }
+
+    public void markAnswered() {
+        this.status = true;
+    }
+
+    // @Suil - 사용자가 추가 댓글을 남기면 다시 답변대기로 변경
+    public void markPending() {
+        this.status = false;
     }
 
     public long getInquiryId() {
@@ -61,9 +75,6 @@ public class Inquiry {
     }
     public String getContent() {
         return content;
-    }
-    public String getStatus() {
-        return status;
     }
     public String getCreatedAt() {
         return createdAt;

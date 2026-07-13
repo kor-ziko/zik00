@@ -2,6 +2,7 @@ package com.zik00.admin.dto;
 
 import com.zik00.shop.domain.DeliveryAddress;
 
+// @dev - 관리자 로그인 성공/실패 처리
 public record AdminMemberAddressResponse(
         Long id,
         String receiverName,

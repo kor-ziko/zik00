@@ -521,6 +521,25 @@ h1 {
     padding: 10px 12px;
 }
 
+/* @Suil - 관리자 답변과 답변 첨부사진을 사용자 화면에서 구분 */
+.comment-item.is-admin {
+    border-left-color: #16805b;
+    background: #f1faf6;
+}
+
+.comment-writer-type {
+    border-radius: 999px;
+    background: #e8edf5;
+    padding: 2px 6px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.comment-item.is-admin .comment-writer-type {
+    background: #d8f3e7;
+    color: #126847;
+}
+
 .comment-item div {
     display: flex;
     gap: 8px;
@@ -551,6 +570,28 @@ h1 {
     height: 96px;
     object-fit: cover;
     width: 96px;
+}
+
+.comment-images {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 10px 0 0 !important;
+}
+
+.comment-images a {
+    border: 1px solid #dfe4ee;
+    border-radius: 8px;
+    display: block;
+    overflow: hidden;
+}
+
+.comment-images img {
+    aspect-ratio: 1;
+    display: block;
+    height: 80px;
+    object-fit: cover;
+    width: 80px;
 }
 
 .inquiry-form,

@@ -1,23 +1,13 @@
 package com.zik00.shop.service;
 
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
-
-import javax.imageio.ImageIO;
 
 import com.zik00.shop.domain.Coupon;
 import com.zik00.shop.domain.DeliveryAddress;
@@ -28,6 +18,7 @@ import com.zik00.shop.domain.Purchase;
 import com.zik00.shop.domain.User;
 import com.zik00.shop.dto.AddressCreateRequest;
 import com.zik00.shop.dto.InquiryCommentCreateRequest;
+import com.zik00.shop.dto.InquiryCommentView;
 import com.zik00.shop.dto.InquiryCreateRequest;
 import com.zik00.shop.dto.InquiryImageView;
 import com.zik00.shop.dto.InquiryThread;
@@ -37,39 +28,29 @@ import com.zik00.shop.dto.MypageSummary;
 import com.zik00.shop.dto.ProfileUpdateRequest;
 import com.zik00.shop.repository.CouponRepository;
 import com.zik00.shop.repository.DeliveryAddressRepository;
+import com.zik00.shop.repository.InquiryCommentImageRepository;
 import com.zik00.shop.repository.InquiryCommentRepository;
 import com.zik00.shop.repository.InquiryImageRepository;
 import com.zik00.shop.repository.InquiryRepository;
 import com.zik00.shop.repository.PurchaseRepository;
 import com.zik00.shop.repository.UserRepository;
 import com.zik00.shop.util.InquiryImagePaths;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @Transactional(readOnly = true)
 public class MypageService {
     private static final DateTimeFormatter DISPLAY_DATE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-    private static final int MAX_INQUIRY_IMAGE_COUNT = 3;
-    private static final long MAX_INQUIRY_IMAGE_SIZE = 5L * 1024L * 1024L;
-    private static final Set<String> DECODE_REQUIRED_IMAGE_EXTENSIONS = Set.of("jpg", "png", "gif");
     private static final String ORDER_COMPLETED = "\uC8FC\uBB38\uC644\uB8CC";
     private static final String DELIVERY = "\uBC30\uC1A1";
-    private static final String INQUIRY_PENDING = "\uB2F5\uBCC0\uB300\uAE30";
     private static final String ADDRESS_NOT_FOUND = "\uBC30\uC1A1\uC9C0\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.";
     private static final String ADDRESS_NAME_REQUIRED = "\uBC30\uC1A1\uC9C0\uBA85\uC744 \uC785\uB825\uD574\uC8FC\uC138\uC694.";
     private static final String RECEIVER_NAME_REQUIRED = "\uC218\uB839\uC778\uC744 \uC785\uB825\uD574\uC8FC\uC138\uC694.";
     private static final String RECEIVER_PHONE_REQUIRED = "\uC218\uB839\uC778 \uC804\uD654\uBC88\uD638\uB97C \uC785\uB825\uD574\uC8FC\uC138\uC694.";
     private static final String POSTAL_CODE_REQUIRED = "\uC6B0\uD3B8\uBC88\uD638\uB97C \uC870\uD68C\uD574\uC11C \uC8FC\uC18C\uB97C \uC120\uD0DD\uD574\uC8FC\uC138\uC694.";
     private static final String INQUIRY_NOT_FOUND = "\uBB38\uC758\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.";
-    private static final String INQUIRY_IMAGE_COUNT_EXCEEDED = "\uBB38\uC758 \uC774\uBBF8\uC9C0\uB294 \uCD5C\uB300 3\uAC1C\uAE4C\uC9C0 \uCCA8\uBD80\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.";
-    private static final String INQUIRY_IMAGE_SIZE_EXCEEDED = "\uBB38\uC758 \uC774\uBBF8\uC9C0\uB294 5MB \uC774\uD558\uB9CC \uCCA8\uBD80\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.";
-    private static final String INQUIRY_IMAGE_INVALID = "\uBB38\uC758 \uC774\uBBF8\uC9C0\uB294 jpg, jpeg, png, gif, webp \uD615\uC2DD\uB9CC \uCCA8\uBD80\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.";
-    private static final String INQUIRY_IMAGE_SAVE_FAILED = "\uBB38\uC758 \uC774\uBBF8\uC9C0\uB97C \uC800\uC7A5\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.";
     private static final String USER_NOT_FOUND = "\uD68C\uC6D0 \uB370\uC774\uD130\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.";
 
     private final UserRepository userRepository;
@@ -78,8 +59,9 @@ public class MypageService {
     private final PurchaseRepository purchaseRepository;
     private final InquiryRepository inquiryRepository;
     private final InquiryCommentRepository inquiryCommentRepository;
+    private final InquiryCommentImageRepository inquiryCommentImageRepository;
     private final InquiryImageRepository inquiryImageRepository;
-    private final Path inquiryImageDir;
+    private final InquiryImageStorageService inquiryImageStorageService;
 
     public MypageService(
             UserRepository userRepository,
@@ -88,8 +70,9 @@ public class MypageService {
             PurchaseRepository purchaseRepository,
             InquiryRepository inquiryRepository,
             InquiryCommentRepository inquiryCommentRepository,
+            InquiryCommentImageRepository inquiryCommentImageRepository,
             InquiryImageRepository inquiryImageRepository,
-            @Value("${shop.upload.inquiry-image-dir:uploads/inquiries_images}") String inquiryImageDir
+            InquiryImageStorageService inquiryImageStorageService
     ) {
         this.userRepository = userRepository;
         this.deliveryAddressRepository = deliveryAddressRepository;
@@ -97,8 +80,9 @@ public class MypageService {
         this.purchaseRepository = purchaseRepository;
         this.inquiryRepository = inquiryRepository;
         this.inquiryCommentRepository = inquiryCommentRepository;
+        this.inquiryCommentImageRepository = inquiryCommentImageRepository;
         this.inquiryImageRepository = inquiryImageRepository;
-        this.inquiryImageDir = Path.of(inquiryImageDir).toAbsolutePath().normalize();
+        this.inquiryImageStorageService = inquiryImageStorageService;
     }
 
     public MypageSummary getSummary() {
@@ -229,10 +213,34 @@ public class MypageService {
         List<Long> inquiryIds = inquiries.stream()
                 .map(Inquiry::getInquiryId)
                 .toList();
-        Map<Long, List<InquiryComment>> commentsByInquiryId = inquiryCommentRepository
-                .findByInquiryIds(inquiryIds)
-                .stream()
-                .collect(Collectors.groupingBy(InquiryComment::getInquiryId));
+        // @Suil - 관리자 답변 사진을 댓글별로 묶어 사용자 화면에 전달
+        List<InquiryComment> comments = inquiryCommentRepository.findByInquiryIds(inquiryIds);
+        List<Long> commentIds = comments.stream()
+                .map(InquiryComment::getCommentId)
+                .toList();
+        Map<Long, List<InquiryImageView>> commentImagesByCommentId = commentIds.isEmpty()
+                ? Map.of()
+                : inquiryCommentImageRepository.findByCommentIds(commentIds)
+                        .stream()
+                        .flatMap(image -> InquiryImageView.from(image)
+                                .stream()
+                                .map(view -> new InquiryImageEntry(image.getCommentId(), view)))
+                        .collect(Collectors.groupingBy(
+                                InquiryImageEntry::ownerId,
+                                Collectors.mapping(InquiryImageEntry::image, Collectors.toList())
+                        ));
+        Map<Long, List<InquiryCommentView>> commentsByInquiryId = comments.stream()
+                .map(comment -> new InquiryCommentEntry(
+                        comment.getInquiryId(),
+                        new InquiryCommentView(
+                                comment,
+                                commentImagesByCommentId.getOrDefault(comment.getCommentId(), List.of())
+                        )
+                ))
+                .collect(Collectors.groupingBy(
+                        InquiryCommentEntry::inquiryId,
+                        Collectors.mapping(InquiryCommentEntry::comment, Collectors.toList())
+                ));
         Map<Long, List<InquiryImageView>> imagesByInquiryId = inquiryImageRepository
                 .findByInquiryIds(inquiryIds)
                 .stream()
@@ -240,7 +248,7 @@ public class MypageService {
                         .stream()
                         .map(view -> new InquiryImageEntry(image.getInquiryId(), view)))
                 .collect(Collectors.groupingBy(
-                        InquiryImageEntry::inquiryId,
+                        InquiryImageEntry::ownerId,
                         Collectors.mapping(InquiryImageEntry::image, Collectors.toList())
                 ));
 
@@ -254,16 +262,24 @@ public class MypageService {
     }
 
     public Optional<InquiryImageDownload> getInquiryImageDownload(String imageUuid) {
+        // @Suil - 사용자 문의 원본 사진과 관리자 답변 사진을 함께 조회
         String normalizedImageUuid = InquiryImagePaths.normalize(imageUuid);
         if (!InquiryImagePaths.isSafeUuid(normalizedImageUuid)) {
             return Optional.empty();
         }
 
         User user = findCurrentUser();
-        return inquiryImageRepository.findUserImageByUuid(normalizedImageUuid, user.getMemberId())
-                .flatMap(this::toInquiryImageDownload);
+        Optional<InquiryImageDownload> inquiryImage = inquiryImageRepository
+                .findUserImageByUuid(normalizedImageUuid, user.getMemberId())
+                .flatMap(image -> toInquiryImageDownload(image.getImageUuid(), image.getStoredFileName()));
+        if (inquiryImage.isPresent()) {
+            return inquiryImage;
+        }
+        return inquiryCommentImageRepository.findUserImageByUuid(normalizedImageUuid, user.getMemberId())
+                .flatMap(image -> toInquiryImageDownload(image.getImageUuid(), image.getStoredFileName()));
     }
 
+    // @Suil - 새 문의를 답변대기 상태로 등록
     @Transactional
     public void addInquiry(InquiryCreateRequest request) {
         User user = findCurrentUser();
@@ -272,7 +288,7 @@ public class MypageService {
                 user.getMemberId(),
                 request.getTitle(),
                 request.getContent(),
-                INQUIRY_PENDING,
+                false,
                 LocalDateTime.now().format(DISPLAY_DATE_TIME)
         );
         inquiryRepository.save(inquiry);
@@ -282,10 +298,8 @@ public class MypageService {
     @Transactional
     public void addInquiryComment(long inquiryId, InquiryCommentCreateRequest request) {
         User user = findCurrentUser();
-        boolean ownedInquiry = inquiryRepository.existsUserInquiry(inquiryId, user.getMemberId());
-        if (!ownedInquiry) {
-            throw new IllegalArgumentException(INQUIRY_NOT_FOUND);
-        }
+        Inquiry inquiry = inquiryRepository.findUserInquiry(inquiryId, user.getMemberId())
+                .orElseThrow(() -> new IllegalArgumentException(INQUIRY_NOT_FOUND));
 
         InquiryComment comment = new InquiryComment(
                 0L,
@@ -296,6 +310,8 @@ public class MypageService {
                 LocalDateTime.now().format(DISPLAY_DATE_TIME)
         );
         inquiryCommentRepository.save(comment);
+        // @Suil - 사용자의 추가 댓글 등록 시 문의를 다시 답변대기로 변경
+        inquiry.markPending();
     }
 
     public List<MypageMenuItem> getMenuItems(MypageSection activeSection) {
@@ -387,219 +403,30 @@ public class MypageService {
     }
 
     private void saveInquiryImages(long inquiryId, List<MultipartFile> images) {
-        List<MultipartFile> uploadedImages = images == null ? List.of() : images.stream()
-                .filter(image -> image != null && !image.isEmpty())
-                .toList();
-        if (uploadedImages.isEmpty()) {
-            return;
-        }
-        if (uploadedImages.size() > MAX_INQUIRY_IMAGE_COUNT) {
-            throw new IllegalArgumentException(INQUIRY_IMAGE_COUNT_EXCEEDED);
-        }
-
-        List<InquiryImageFile> imageFiles = uploadedImages.stream()
-                .map(this::prepareInquiryImageFile)
-                .toList();
-
-        try {
-            Files.createDirectories(inquiryImageDir);
-            for (InquiryImageFile imageFile : imageFiles) {
-                saveImageFile(imageFile);
-            }
-            deleteImageFilesAfterRollback(imageFiles);
-            inquiryImageRepository.saveAll(imageFiles.stream()
-                    .map(imageFile -> new InquiryImage(inquiryId, imageFile.imageUuid(), imageFile.storedFileName()))
-                    .toList());
-        } catch (IOException exception) {
-            deleteImageFiles(imageFiles);
-            throw new IllegalStateException(INQUIRY_IMAGE_SAVE_FAILED, exception);
-        } catch (RuntimeException exception) {
-            deleteImageFiles(imageFiles);
-            throw exception;
-        }
+        // @Suil - 공용 문의 이미지 저장 기능을 사용
+        inquiryImageRepository.saveAll(inquiryImageStorageService.store(images)
+                .stream()
+                .map(image -> new InquiryImage(inquiryId, image.imageUuid(), image.storedFileName()))
+                .toList());
     }
 
-    private InquiryImageFile prepareInquiryImageFile(MultipartFile image) {
-        ValidatedImage validatedImage = validateImage(image);
-        String imageUuid = UUID.randomUUID().toString();
-        String fileName = imageUuid + "." + validatedImage.extension();
-        Path targetPath = inquiryImageDir.resolve(fileName).normalize();
-        if (!targetPath.startsWith(inquiryImageDir)) {
-            throw new IllegalArgumentException(INQUIRY_IMAGE_INVALID);
-        }
-
-        return new InquiryImageFile(validatedImage.content(), imageUuid, targetPath, fileName);
-    }
-
-    private void saveImageFile(InquiryImageFile imageFile) throws IOException {
-        Files.copy(new ByteArrayInputStream(imageFile.content()), imageFile.targetPath(), StandardCopyOption.REPLACE_EXISTING);
-    }
-
-    private void deleteImageFilesAfterRollback(List<InquiryImageFile> imageFiles) {
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            return;
-        }
-
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCompletion(int status) {
-                if (status == STATUS_ROLLED_BACK) {
-                    deleteImageFiles(imageFiles);
-                }
-            }
-        });
-    }
-
-    private void deleteImageFiles(List<InquiryImageFile> imageFiles) {
-        for (InquiryImageFile imageFile : imageFiles) {
-            try {
-                Files.deleteIfExists(imageFile.targetPath());
-            } catch (IOException | SecurityException ignored) {
-                // Preserve the original failure; cleanup is best-effort.
-            }
-        }
-    }
-
-    private Optional<InquiryImageDownload> toInquiryImageDownload(InquiryImage image) {
-        Optional<String> safeFileName = InquiryImagePaths.extractSafeStoredFileName(
-                image.getImageUuid(),
-                image.getStoredFileName()
-        );
-        if (safeFileName.isEmpty()) {
-            return Optional.empty();
-        }
-
-        String fileName = safeFileName.get();
-        Path imagePath = inquiryImageDir.resolve(fileName).normalize();
-        if (!imagePath.startsWith(inquiryImageDir) || !Files.isRegularFile(imagePath)) {
-            return Optional.empty();
-        }
-
-        try {
-            return Optional.of(new InquiryImageDownload(
-                    imagePath,
-                    fileName,
-                    contentTypeFor(fileName),
-                    Files.size(imagePath)
-            ));
-        } catch (IOException exception) {
-            return Optional.empty();
-        }
-    }
-
-    private String contentTypeFor(String fileName) {
-        String lowerFileName = fileName.toLowerCase(Locale.ROOT);
-        if (lowerFileName.endsWith(".jpg") || lowerFileName.endsWith(".jpeg")) {
-            return "image/jpeg";
-        }
-        if (lowerFileName.endsWith(".png")) {
-            return "image/png";
-        }
-        if (lowerFileName.endsWith(".gif")) {
-            return "image/gif";
-        }
-        if (lowerFileName.endsWith(".webp")) {
-            return "image/webp";
-        }
-        return "application/octet-stream";
-    }
-
-    private ValidatedImage validateImage(MultipartFile image) {
-        if (image.getSize() > MAX_INQUIRY_IMAGE_SIZE) {
-            throw new IllegalArgumentException(INQUIRY_IMAGE_SIZE_EXCEEDED);
-        }
-
-        byte[] content = readImageContent(image);
-        String extension = detectImageExtension(content);
-        if (extension.isBlank()) {
-            throw new IllegalArgumentException(INQUIRY_IMAGE_INVALID);
-        }
-
-        if (DECODE_REQUIRED_IMAGE_EXTENSIONS.contains(extension)) {
-            requireDecodableImage(content);
-        }
-
-        return new ValidatedImage(extension, content);
-    }
-
-    private byte[] readImageContent(MultipartFile image) {
-        try {
-            return image.getBytes();
-        } catch (IOException exception) {
-            throw new IllegalStateException(INQUIRY_IMAGE_SAVE_FAILED, exception);
-        }
-    }
-
-    private String detectImageExtension(byte[] content) {
-        if (startsWith(content, 0xFF, 0xD8, 0xFF)) {
-            return "jpg";
-        }
-        if (startsWith(content, 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)) {
-            return "png";
-        }
-        if (startsWithAscii(content, "GIF87a") || startsWithAscii(content, "GIF89a")) {
-            return "gif";
-        }
-        if (content.length >= 12 && startsWithAscii(content, "RIFF") && asciiEquals(content, 8, "WEBP")) {
-            return "webp";
-        }
-        return "";
-    }
-
-    private boolean startsWith(byte[] content, int... signature) {
-        if (content.length < signature.length) {
-            return false;
-        }
-        for (int index = 0; index < signature.length; index++) {
-            if ((content[index] & 0xFF) != signature[index]) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private boolean startsWithAscii(byte[] content, String signature) {
-        return asciiEquals(content, 0, signature);
-    }
-
-    private boolean asciiEquals(byte[] content, int offset, String expected) {
-        if (content.length < offset + expected.length()) {
-            return false;
-        }
-        for (int index = 0; index < expected.length(); index++) {
-            if (content[offset + index] != (byte) expected.charAt(index)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private void requireDecodableImage(byte[] content) {
-        try {
-            BufferedImage decodedImage = ImageIO.read(new ByteArrayInputStream(content));
-            if (decodedImage == null || decodedImage.getWidth() <= 0 || decodedImage.getHeight() <= 0) {
-                throw new IllegalArgumentException(INQUIRY_IMAGE_INVALID);
-            }
-        } catch (IOException exception) {
-            throw new IllegalArgumentException(INQUIRY_IMAGE_INVALID, exception);
-        }
+    private Optional<InquiryImageDownload> toInquiryImageDownload(String imageUuid, String storedFileName) {
+        return inquiryImageStorageService.load(imageUuid, storedFileName)
+                .map(download -> new InquiryImageDownload(
+                        download.imagePath(),
+                        download.fileName(),
+                        download.contentType(),
+                        download.contentLength()
+                ));
     }
 
     private record ResolvedAddress(String zipCode, String province, String detailAddress) {
     }
 
-    private record InquiryImageEntry(long inquiryId, InquiryImageView image) {
+    private record InquiryImageEntry(long ownerId, InquiryImageView image) {
     }
 
-    private record InquiryImageFile(
-            byte[] content,
-            String imageUuid,
-            Path targetPath,
-            String storedFileName
-    ) {
-    }
-
-    private record ValidatedImage(String extension, byte[] content) {
+    private record InquiryCommentEntry(long inquiryId, InquiryCommentView comment) {
     }
 
     public record InquiryImageDownload(

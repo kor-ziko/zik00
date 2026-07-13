@@ -6,6 +6,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+// @dev - 유저 목록 클릭 시 전부 보이게 하는 것
+// 현재 여기는 차라리 유저 더블클릭 시 새 창으로 보이게끔 하는건 어떤가 싶음. 가독성 떨어짐
 public record AdminMemberDetailResponse(
         Long id,
         String email,
