@@ -217,6 +217,10 @@
                             <dd th:text="|${#numbers.formatInteger(coupon.minimumOrderAmount, 1, 'COMMA')} JPY|">0 JPY</dd>
                         </div>
                         <div>
+                            <dt>Starts</dt>
+                            <dd th:text="${coupon.startedDate}">2026-12-01</dd>
+                        </div>
+                        <div>
                             <dt>Expires</dt>
                             <dd th:text="${coupon.expiredDate}">2026-12-31</dd>
                         </div>

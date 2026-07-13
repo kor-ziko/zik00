@@ -1,6 +1,7 @@
 package com.zik00.shop.domain;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -12,7 +13,7 @@ import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "coupon", indexes = {
-        @Index(name = "idx_coupon_member_expired", columnList = "user_id, expired_date, coupon_id")
+        @Index(name = "idx_coupon_member_period", columnList = "user_id, started_date, expired_date, coupon_id")
 })
 public class Coupon {
     @Id
@@ -20,8 +21,11 @@ public class Coupon {
     @Column(name = "coupon_id")
     private Long couponId;
 
+    @Column(name = "coupon_template_id")
+    private Long couponTemplateId;
+
     @Column(name = "user_id")
-    private long memberId;
+    private Long memberId;
 
     @Column(name = "coupon_name")
     private String couponName;
@@ -35,10 +39,25 @@ public class Coupon {
     @Column(name = "minimum_order_amount")
     private int minimumOrderAmount;
 
+    @Column(name = "started_date")
+    private LocalDate startedDate;
+
     @Column(name = "expired_date")
     private LocalDate expiredDate;
 
+    @Column(name = "issued_at")
+    private LocalDateTime issuedAt;
+
     private boolean used;
+
+    @Column(name = "used_at")
+    private LocalDateTime usedAt;
+
+    @Column(name = "coupon_code")
+    private String couponCode;
+
+    @Column(name = "guest_identifier")
+    private String guestIdentifier;
 
     protected Coupon() {
     }
@@ -50,6 +69,7 @@ public class Coupon {
             String discountType,
             int discountValue,
             int minimumOrderAmount,
+            LocalDate startedDate,
             LocalDate expiredDate,
             boolean used
     ) {
@@ -59,15 +79,73 @@ public class Coupon {
         this.discountType = discountType;
         this.discountValue = discountValue;
         this.minimumOrderAmount = minimumOrderAmount;
+        this.startedDate = startedDate;
         this.expiredDate = expiredDate;
         this.used = used;
+    }
+
+    public static Coupon issueToMember(
+            Long couponTemplateId,
+            long memberId,
+            String couponName,
+            String discountType,
+            int discountValue,
+            int minimumOrderAmount,
+            LocalDate startedDate,
+            LocalDate expiredDate
+    ) {
+        Coupon coupon = new Coupon();
+        coupon.couponTemplateId = couponTemplateId;
+        coupon.memberId = memberId;
+        coupon.couponName = normalize(couponName);
+        coupon.discountType = normalize(discountType);
+        coupon.discountValue = discountValue;
+        coupon.minimumOrderAmount = minimumOrderAmount;
+        coupon.startedDate = startedDate;
+        coupon.expiredDate = expiredDate;
+        coupon.issuedAt = LocalDateTime.now();
+        coupon.used = false;
+        return coupon;
+    }
+
+    public static Coupon issueToGuest(
+            Long couponTemplateId,
+            String guestIdentifier,
+            String couponCode,
+            String couponName,
+            String discountType,
+            int discountValue,
+            int minimumOrderAmount,
+            LocalDate startedDate,
+            LocalDate expiredDate
+    ) {
+        Coupon coupon = new Coupon();
+        coupon.couponTemplateId = couponTemplateId;
+        coupon.guestIdentifier = normalize(guestIdentifier);
+        coupon.couponCode = normalize(couponCode);
+        coupon.couponName = normalize(couponName);
+        coupon.discountType = normalize(discountType);
+        coupon.discountValue = discountValue;
+        coupon.minimumOrderAmount = minimumOrderAmount;
+        coupon.startedDate = startedDate;
+        coupon.expiredDate = expiredDate;
+        coupon.issuedAt = LocalDateTime.now();
+        coupon.used = false;
+        return coupon;
+    }
+
+    private static String normalize(String value) {
+        return value == null ? "" : value.trim();
     }
 
     public long getCouponId() {
         return couponId == null ? 0L : couponId;
     }
+    public long getCouponTemplateId() {
+        return couponTemplateId == null ? 0L : couponTemplateId;
+    }
     public long getMemberId() {
-        return memberId;
+        return memberId == null ? 0L : memberId;
     }
     public String getCouponName() {
         return couponName;
@@ -81,10 +159,25 @@ public class Coupon {
     public int getMinimumOrderAmount() {
         return minimumOrderAmount;
     }
+    public LocalDate getStartedDate() {
+        return startedDate;
+    }
     public LocalDate getExpiredDate() {
         return expiredDate;
     }
     public boolean isUsed() {
         return used;
+    }
+    public LocalDateTime getIssuedAt() {
+        return issuedAt;
+    }
+    public LocalDateTime getUsedAt() {
+        return usedAt;
+    }
+    public String getCouponCode() {
+        return couponCode;
+    }
+    public String getGuestIdentifier() {
+        return guestIdentifier;
     }
 }

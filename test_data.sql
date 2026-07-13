@@ -31,38 +31,28 @@ CREATE TABLE IF NOT EXISTS `user` (
   PRIMARY KEY (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-SET @drop_user_zip_code = (
-  SELECT IF(COUNT(*) > 0, 'ALTER TABLE `user` DROP COLUMN zip_code', 'DO 0')
-  FROM information_schema.COLUMNS
-  WHERE TABLE_SCHEMA = DATABASE()
-    AND TABLE_NAME = 'user'
-    AND COLUMN_NAME = 'zip_code'
-);
-PREPARE drop_user_zip_code_stmt FROM @drop_user_zip_code;
-EXECUTE drop_user_zip_code_stmt;
-DEALLOCATE PREPARE drop_user_zip_code_stmt;
+DELIMITER //
+CREATE PROCEDURE drop_legacy_user_address_columns()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+  SET @drop_legacy_column_sql = 'ALTER TABLE `user` DROP COLUMN zip_code';
+  PREPARE drop_legacy_column_stmt FROM @drop_legacy_column_sql;
+  EXECUTE drop_legacy_column_stmt;
+  DEALLOCATE PREPARE drop_legacy_column_stmt;
 
-SET @drop_user_province = (
-  SELECT IF(COUNT(*) > 0, 'ALTER TABLE `user` DROP COLUMN province', 'DO 0')
-  FROM information_schema.COLUMNS
-  WHERE TABLE_SCHEMA = DATABASE()
-    AND TABLE_NAME = 'user'
-    AND COLUMN_NAME = 'province'
-);
-PREPARE drop_user_province_stmt FROM @drop_user_province;
-EXECUTE drop_user_province_stmt;
-DEALLOCATE PREPARE drop_user_province_stmt;
+  SET @drop_legacy_column_sql = 'ALTER TABLE `user` DROP COLUMN province';
+  PREPARE drop_legacy_column_stmt FROM @drop_legacy_column_sql;
+  EXECUTE drop_legacy_column_stmt;
+  DEALLOCATE PREPARE drop_legacy_column_stmt;
 
-SET @drop_user_detail_address = (
-  SELECT IF(COUNT(*) > 0, 'ALTER TABLE `user` DROP COLUMN detail_address', 'DO 0')
-  FROM information_schema.COLUMNS
-  WHERE TABLE_SCHEMA = DATABASE()
-    AND TABLE_NAME = 'user'
-    AND COLUMN_NAME = 'detail_address'
-);
-PREPARE drop_user_detail_address_stmt FROM @drop_user_detail_address;
-EXECUTE drop_user_detail_address_stmt;
-DEALLOCATE PREPARE drop_user_detail_address_stmt;
+  SET @drop_legacy_column_sql = 'ALTER TABLE `user` DROP COLUMN detail_address';
+  PREPARE drop_legacy_column_stmt FROM @drop_legacy_column_sql;
+  EXECUTE drop_legacy_column_stmt;
+  DEALLOCATE PREPARE drop_legacy_column_stmt;
+END//
+DELIMITER ;
+CALL drop_legacy_user_address_columns();
+DROP PROCEDURE drop_legacy_user_address_columns;
 
 CREATE TABLE IF NOT EXISTS addresses (
   address_id BIGINT NOT NULL AUTO_INCREMENT,
@@ -80,15 +70,39 @@ CREATE TABLE IF NOT EXISTS addresses (
 
 CREATE TABLE IF NOT EXISTS coupon (
   coupon_id BIGINT NOT NULL AUTO_INCREMENT,
-  user_id BIGINT NOT NULL,
+  coupon_template_id BIGINT NULL,
+  user_id BIGINT NULL,
   coupon_name VARCHAR(100),
   discount_type VARCHAR(50),
   discount_value INT NOT NULL DEFAULT 0,
   minimum_order_amount INT NOT NULL DEFAULT 0,
+  started_date DATE,
   expired_date DATE,
+  issued_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   used BOOLEAN NOT NULL DEFAULT FALSE,
+  used_at DATETIME NULL,
+  coupon_code VARCHAR(100) NULL,
+  guest_identifier VARCHAR(255) NULL,
   PRIMARY KEY (coupon_id),
-  KEY idx_coupon_member_expired (user_id, expired_date, coupon_id)
+  KEY idx_coupon_template_id (coupon_template_id),
+  KEY idx_coupon_member_period (user_id, started_date, expired_date, coupon_id),
+  KEY idx_coupon_code (coupon_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS coupon_template (
+  coupon_template_id BIGINT NOT NULL AUTO_INCREMENT,
+  coupon_name VARCHAR(100) NOT NULL,
+  discount_type VARCHAR(50) NOT NULL,
+  discount_value INT NOT NULL DEFAULT 0,
+  minimum_order_amount INT NOT NULL DEFAULT 0,
+  started_date DATE,
+  expired_date DATE,
+  target_type VARCHAR(30) NOT NULL DEFAULT 'ALL',
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (coupon_template_id),
+  KEY idx_coupon_template_active_period (active, started_date, expired_date, coupon_template_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS buylist (
@@ -115,6 +129,23 @@ CREATE TABLE IF NOT EXISTS inquiries (
   KEY idx_inquiries_member_id (user_id, inquiry_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 기존 DB의 문자열 문의 상태를 boolean 답변 상태로 변환
+DELIMITER //
+CREATE PROCEDURE normalize_inquiry_status_column()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+  UPDATE inquiries
+  SET status = CASE
+    WHEN status IN ('1', 'true', 'TRUE', '답변완료', 'ANSWERED', 'answered') THEN 1
+    ELSE 0
+  END
+  WHERE inquiry_id > 0;
+  ALTER TABLE inquiries MODIFY COLUMN status BOOLEAN NOT NULL DEFAULT FALSE;
+END//
+DELIMITER ;
+CALL normalize_inquiry_status_column();
+DROP PROCEDURE normalize_inquiry_status_column;
+
 CREATE TABLE IF NOT EXISTS inquiry_comments (
   comment_id BIGINT NOT NULL AUTO_INCREMENT,
   inquiry_id BIGINT NOT NULL,
@@ -129,38 +160,22 @@ CREATE TABLE IF NOT EXISTS inquiry_comments (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- @Suil - 기존 DB에도 관리자 문의 답변 작성자 컬럼을 추가
-SET @add_inquiry_comment_admin_id = (
-  SELECT IF(
-    COUNT(*) = 0,
-    'ALTER TABLE inquiry_comments ADD COLUMN admin_id BIGINT NULL AFTER user_id',
-    'DO 0'
-  )
-  FROM information_schema.COLUMNS
-  WHERE TABLE_SCHEMA = DATABASE()
-    AND TABLE_NAME = 'inquiry_comments'
-    AND COLUMN_NAME = 'admin_id'
-);
-PREPARE add_inquiry_comment_admin_id_stmt FROM @add_inquiry_comment_admin_id;
-EXECUTE add_inquiry_comment_admin_id_stmt;
-DEALLOCATE PREPARE add_inquiry_comment_admin_id_stmt;
-
-SET @add_inquiry_comment_writer_type = (
-  SELECT IF(
-    COUNT(*) = 0,
-    'ALTER TABLE inquiry_comments ADD COLUMN writer_type VARCHAR(20) NOT NULL DEFAULT ''USER'' AFTER admin_id',
-    'DO 0'
-  )
-  FROM information_schema.COLUMNS
-  WHERE TABLE_SCHEMA = DATABASE()
-    AND TABLE_NAME = 'inquiry_comments'
-    AND COLUMN_NAME = 'writer_type'
-);
-PREPARE add_inquiry_comment_writer_type_stmt FROM @add_inquiry_comment_writer_type;
-EXECUTE add_inquiry_comment_writer_type_stmt;
-DEALLOCATE PREPARE add_inquiry_comment_writer_type_stmt;
+DELIMITER //
+CREATE PROCEDURE add_inquiry_comment_writer_columns()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+  ALTER TABLE inquiry_comments ADD COLUMN admin_id BIGINT NULL AFTER user_id;
+  ALTER TABLE inquiry_comments ADD COLUMN writer_type VARCHAR(20) NOT NULL DEFAULT 'USER' AFTER admin_id;
+END//
+DELIMITER ;
+CALL add_inquiry_comment_writer_columns();
+DROP PROCEDURE add_inquiry_comment_writer_columns;
 
 ALTER TABLE inquiry_comments MODIFY COLUMN user_id BIGINT NULL;
-UPDATE inquiry_comments SET writer_type = 'USER' WHERE writer_type IS NULL OR writer_type = '';
+UPDATE inquiry_comments
+SET writer_type = 'USER'
+WHERE comment_id > 0
+  AND (writer_type IS NULL OR writer_type = '');
 
 -- @Suil - 관리자 문의 답변에 첨부한 사진을 댓글과 연결
 CREATE TABLE IF NOT EXISTS inquiry_comment_images (
@@ -374,25 +389,53 @@ INSERT INTO addresses (
   detail_address = VALUES(detail_address),
   default_address = VALUES(default_address);
 
+INSERT INTO coupon_template (
+  coupon_template_id,
+  coupon_name,
+  discount_type,
+  discount_value,
+  minimum_order_amount,
+  started_date,
+  expired_date,
+  target_type,
+  active
+) VALUES
+  (1, '신규회원 10% 할인', 'percent', 10, 10000, '2026-12-01', '2026-12-31', 'MEMBER', TRUE),
+  (2, '무료배송 쿠폰', 'shipping', 3000, 0, '2026-09-01', '2026-09-30', 'ALL', TRUE),
+  (3, '테스터1 쿠폰', 'amount', 5000, 30000, '2026-08-01', '2026-08-31', 'MEMBER', TRUE)
+ON DUPLICATE KEY UPDATE
+  coupon_name = VALUES(coupon_name),
+  discount_type = VALUES(discount_type),
+  discount_value = VALUES(discount_value),
+  minimum_order_amount = VALUES(minimum_order_amount),
+  started_date = VALUES(started_date),
+  expired_date = VALUES(expired_date),
+  target_type = VALUES(target_type),
+  active = VALUES(active);
+
 INSERT INTO coupon (
   coupon_id,
+  coupon_template_id,
   user_id,
   coupon_name,
   discount_type,
   discount_value,
   minimum_order_amount,
+  started_date,
   expired_date,
   used
 ) VALUES
-  (1, @demo_user_id, '신규회원 10% 할인', 'percent', 10, 10000, '2026-12-31', FALSE),
-  (2, @demo_user_id, '무료배송 쿠폰', 'shipping', 3000, 0, '2026-09-30', FALSE),
-  (3, @tester1_user_id, '테스터1 쿠폰', 'amount', 5000, 30000, '2026-08-31', FALSE)
+  (1, 1, @demo_user_id, '신규회원 10% 할인', 'percent', 10, 10000, '2026-12-01', '2026-12-31', FALSE),
+  (2, 2, @demo_user_id, '무료배송 쿠폰', 'shipping', 3000, 0, '2026-09-01', '2026-09-30', FALSE),
+  (3, 3, @tester1_user_id, '테스터1 쿠폰', 'amount', 5000, 30000, '2026-08-01', '2026-08-31', FALSE)
 ON DUPLICATE KEY UPDATE
+  coupon_template_id = VALUES(coupon_template_id),
   user_id = VALUES(user_id),
   coupon_name = VALUES(coupon_name),
   discount_type = VALUES(discount_type),
   discount_value = VALUES(discount_value),
   minimum_order_amount = VALUES(minimum_order_amount),
+  started_date = VALUES(started_date),
   expired_date = VALUES(expired_date),
   used = VALUES(used);
 

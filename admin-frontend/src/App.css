@@ -855,6 +855,192 @@
   color: #64748b;
 }
 
+.admin-success-line {
+  padding: 12px 14px;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  background: #f0fdf4;
+  color: #15803d;
+  font-weight: 700;
+}
+
+.admin-coupon-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px;
+  border: 1px solid #dfe5ed;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.admin-coupon-tabs button {
+  min-height: 38px;
+  border: 0;
+  border-radius: 7px;
+  padding: 0 14px;
+  background: transparent;
+  color: #475569;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.admin-coupon-tabs button:hover,
+.admin-coupon-tabs button.is-active {
+  background: #111827;
+  color: #ffffff;
+}
+
+.admin-coupon-form-panel {
+  border: 1px solid #dfe5ed;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.admin-coupon-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding: 18px;
+}
+
+.admin-coupon-form label {
+  display: grid;
+  gap: 7px;
+}
+
+.admin-coupon-form label span {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.admin-coupon-form input,
+.admin-coupon-form select {
+  height: 40px;
+  min-width: 0;
+  border: 1px solid #d8dee7;
+  border-radius: 8px;
+  padding: 0 11px;
+  background: #ffffff;
+  color: #111827;
+  outline: 0;
+}
+
+.admin-coupon-form input:focus,
+.admin-coupon-form select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+
+.admin-coupon-form button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 42px;
+  align-self: end;
+  border: 0;
+  border-radius: 8px;
+  background: #111827;
+  color: #ffffff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.admin-coupon-form button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.admin-checkbox-line {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  align-self: end;
+}
+
+.admin-checkbox-line input {
+  width: 18px;
+  height: 18px;
+}
+
+.admin-coupon-event-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.admin-coupon-table {
+  min-width: 760px;
+}
+
+.admin-row-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fff1f2;
+  color: #be123c;
+  cursor: pointer;
+}
+
+.admin-row-action-button:hover {
+  background: #ffe4e6;
+}
+
+.admin-member-picker {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 10px;
+}
+
+.admin-member-check-list {
+  display: grid;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid #d8dee7;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.admin-member-check-list label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 40px;
+  padding: 0 12px;
+  border-bottom: 1px solid #edf1f5;
+}
+
+.admin-member-check-list label:last-child {
+  border-bottom: 0;
+}
+
+.admin-member-check-list input {
+  width: 16px;
+  height: 16px;
+}
+
+.admin-member-check-list p,
+.admin-selected-count {
+  margin: 0;
+  padding: 12px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.admin-selected-count {
+  padding: 0;
+  font-weight: 800;
+}
+
 @media (max-width: 1080px) {
   .admin-shell {
     grid-template-columns: 1fr;
@@ -891,6 +1077,10 @@
 
   .admin-inquiry-layout {
     grid-template-columns: 340px minmax(0, 1fr);
+  }
+
+  .admin-coupon-event-layout {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -930,5 +1120,9 @@
 
   .admin-inquiry-detail-panel {
     min-height: 520px;
+  }
+
+  .admin-coupon-form {
+    grid-template-columns: 1fr;
   }
 }
