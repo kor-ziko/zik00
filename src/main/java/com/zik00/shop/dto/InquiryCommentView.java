@@ -3,9 +3,11 @@ package com.zik00.shop.dto;
 import java.util.List;
 
 import com.zik00.shop.domain.InquiryComment;
+import lombok.Getter;
 
 // @Suil - 사용자 화면에 댓글 작성자 유형과 답변 사진을 함께 전달 (굳이 필요없다 생각하면 지워도 됨)
 
+@Getter
 public class InquiryCommentView {
     private final long commentId;
     private final String writerName;
@@ -23,31 +25,7 @@ public class InquiryCommentView {
         this.images = images;
     }
 
-    public long getCommentId() {
-        return commentId;
-    }
-
-    public String getWriterName() {
-        return writerName;
-    }
-
-    public String getWriterType() {
-        return writerType;
-    }
-
     public boolean isAdmin() {
         return InquiryComment.ADMIN_WRITER_TYPE.equals(writerType);
-    }
-
-    public String getContent() {
-        return content;
-    }
-
-    public String getCreatedAt() {
-        return createdAt;
-    }
-
-    public List<InquiryImageView> getImages() {
-        return images;
     }
 }

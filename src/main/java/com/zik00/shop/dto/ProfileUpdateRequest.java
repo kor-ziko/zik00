@@ -4,7 +4,11 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import lombok.Getter;
+import lombok.Setter;
 
+@Getter
+@Setter
 public class ProfileUpdateRequest {
     @NotBlank(message = "\uC774\uB984\uC744 \uC785\uB825\uD574\uC8FC\uC138\uC694.")
     @Size(max = 100, message = "\uC774\uB984\uC740 100\uC790 \uC774\uD558\uB85C \uC785\uB825\uD574\uC8FC\uC138\uC694.")
@@ -25,38 +29,4 @@ public class ProfileUpdateRequest {
     private String email;
     private boolean alarmConsent;
 
-    public String getName() {
-        return name;
-    }
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getNickname() {
-        return nickname;
-    }
-    public void setNickname(String nickname) {
-        this.nickname = nickname;
-    }
-
-    public String getMobilePhone() {
-        return mobilePhone;
-    }
-    public void setMobilePhone(String mobilePhone) {
-        this.mobilePhone = mobilePhone;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public boolean isAlarmConsent() {
-        return alarmConsent;
-    }
-    public void setAlarmConsent(boolean alarmConsent) {
-        this.alarmConsent = alarmConsent;
-    }
 }

@@ -8,7 +8,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import lombok.Getter;
 
+@Getter
 @Entity
 @Table(name = "coupon_template")
 public class CouponTemplate {
@@ -75,45 +77,5 @@ public class CouponTemplate {
 
     public long getId() {
         return id == null ? 0L : id;
-    }
-
-    public String getCouponName() {
-        return couponName;
-    }
-
-    public String getDiscountType() {
-        return discountType;
-    }
-
-    public int getDiscountValue() {
-        return discountValue;
-    }
-
-    public int getMinimumOrderAmount() {
-        return minimumOrderAmount;
-    }
-
-    public LocalDate getStartedDate() {
-        return startedDate;
-    }
-
-    public LocalDate getExpiredDate() {
-        return expiredDate;
-    }
-
-    public String getTargetType() {
-        return targetType;
-    }
-
-    public boolean isActive() {
-        return active;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
     }
 }

@@ -8,7 +8,9 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.Getter;
 
+@Getter
 @Entity
 @Table(name = "`user`")
 public class User {
@@ -107,46 +109,8 @@ public class User {
     public long getMemberId() {
         return memberId == null ? 0L : memberId;
     }
-    public String getName() {
-        return name;
-    }
-    public LocalDate getBirthDate() {
-        return birthDate;
-    }
-    public String getGender() {
-        return gender;
-    }
-    public String getNickname() {
-        return nickname;
-    }
-    public String getTelephone() {
-        return telephone;
-    }
+
     public String getUserId() {
         return loginId;
-    }
-    public int getDepositBalance() {
-        return depositBalance;
-    }
-    public int getRewardPoint() {
-        return rewardPoint;
-    }
-    public String getMobilePhone() {
-        return mobilePhone;
-    }
-    public String getEmail() {
-        return email;
-    }
-    public int getCompletedOrderCount() {
-        return completedOrderCount;
-    }
-    public LocalDate getJoinedDate() {
-        return joinedDate;
-    }
-    public String getMemberDetail() {
-        return memberDetail;
-    }
-    public boolean isAlarmConsent() {
-        return alarmConsent;
     }
 }

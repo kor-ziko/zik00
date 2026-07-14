@@ -7,7 +7,9 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import lombok.Getter;
 
+@Getter
 @Entity
 @Table(name = "addresses", indexes = {
         @Index(name = "idx_addresses_member_default", columnList = "user_id, default_address, address_id")
@@ -92,29 +94,5 @@ public class DeliveryAddress {
     }
     public long getId() {
         return id == null ? 0L : id;
-    }
-    public long getMemberId() {
-        return memberId;
-    }
-    public String getAddressName() {
-        return addressName;
-    }
-    public String getReceiverName() {
-        return receiverName;
-    }
-    public String getReceiverPhone() {
-        return receiverPhone;
-    }
-    public String getZipCode() {
-        return zipCode;
-    }
-    public String getProvince() {
-        return province;
-    }
-    public String getDetailAddress() {
-        return detailAddress;
-    }
-    public boolean isDefaultAddress() {
-        return defaultAddress;
     }
 }

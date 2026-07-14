@@ -8,7 +8,9 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.Getter;
 
+@Getter
 @Entity
 @Table(name = "admin_users")
 public class AdminUser {
@@ -35,27 +37,4 @@ public class AdminUser {
     protected AdminUser() {
     }
 
-    public Long getAdminId() {
-        return adminId;
-    }
-
-    public String getLoginId() {
-        return loginId;
-    }
-
-    public String getPasswordHash() {
-        return passwordHash;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public boolean isActive() {
-        return active;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
 }

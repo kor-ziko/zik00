@@ -9,7 +9,9 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import lombok.Getter;
 
+@Getter
 @Entity
 @Table(name = "buylist", indexes = {
         @Index(name = "idx_buylist_member_ordered", columnList = "user_id, ordered_date, purchase_id")
@@ -65,26 +67,5 @@ public class Purchase {
 
     public long getPurchaseId() {
         return purchaseId == null ? 0L : purchaseId;
-    }
-    public long getMemberId() {
-        return memberId;
-    }
-    public String getOrderNumber() {
-        return orderNumber;
-    }
-    public String getProductName() {
-        return productName;
-    }
-    public int getQuantity() {
-        return quantity;
-    }
-    public int getPaymentAmount() {
-        return paymentAmount;
-    }
-    public String getOrderStatus() {
-        return orderStatus;
-    }
-    public LocalDate getOrderedDate() {
-        return orderedDate;
     }
 }

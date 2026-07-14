@@ -8,7 +8,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
+import lombok.Getter;
 
+@Getter
 @Entity
 @Table(name = "inquiry_comments", indexes = {
         @Index(name = "idx_inquiry_comments_inquiry_comment", columnList = "inquiry_id, comment_id")
@@ -85,25 +87,10 @@ public class InquiryComment {
     public long getCommentId() {
         return commentId == null ? 0L : commentId;
     }
-    public long getInquiryId() {
-        return inquiryId;
-    }
     public long getMemberId() {
         return memberId == null ? 0L : memberId;
     }
     public long getAdminId() {
         return adminId == null ? 0L : adminId;
-    }
-    public String getWriterType() {
-        return writerType;
-    }
-    public String getWriterName() {
-        return writerName;
-    }
-    public String getContent() {
-        return content;
-    }
-    public String getCreatedAt() {
-        return createdAt;
     }
 }

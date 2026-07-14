@@ -1,5 +1,8 @@
 package com.zik00.shop.dto;
 
+import lombok.Getter;
+
+@Getter
 public class MypageMenuItem {
     private final String title;
     private final String description;
@@ -13,12 +16,4 @@ public class MypageMenuItem {
         this.active = active;
     }
 
-    public String getTitle() {
-        return title;
-    }
-    public String getDescription() { return description; }
-    public String getUrl() { return url; }
-    public boolean isActive() {
-        return active;
-    }
 }

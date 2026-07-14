@@ -3,7 +3,11 @@ package com.zik00.shop.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import lombok.Getter;
+import lombok.Setter;
 
+@Getter
+@Setter
 public class AddressCreateRequest {
     @NotBlank(message = "\uBC30\uC1A1\uC9C0\uBA85\uC744 \uC785\uB825\uD574\uC8FC\uC138\uC694.")
     @Size(max = 100, message = "\uBC30\uC1A1\uC9C0\uBA85\uC740 100\uC790 \uC774\uD558\uB85C \uC785\uB825\uD574\uC8FC\uC138\uC694.")
@@ -31,59 +35,4 @@ public class AddressCreateRequest {
     private String detailAddress;
     private boolean defaultAddress;
 
-    public String getAddressName() {
-        return addressName;
-    }
-    public void setAddressName(String addressName) {
-        this.addressName = addressName;
-    }
-
-    public String getReceiverName() {
-        return receiverName;
-    }
-    public void setReceiverName(String receiverName) {
-        this.receiverName = receiverName;
-    }
-
-    public String getReceiverPhone() {
-        return receiverPhone;
-    }
-    public void setReceiverPhone(String receiverPhone) {
-        this.receiverPhone = receiverPhone;
-    }
-
-    public String getZipCode() {
-        return zipCode;
-    }
-    public void setZipCode(String zipCode) {
-        this.zipCode = zipCode;
-    }
-
-    public String getProvince() {
-        return province;
-    }
-    public void setProvince(String province) {
-        this.province = province;
-    }
-
-    public String getBaseAddress() {
-        return baseAddress;
-    }
-    public void setBaseAddress(String baseAddress) {
-        this.baseAddress = baseAddress;
-    }
-
-    public String getDetailAddress() {
-        return detailAddress;
-    }
-    public void setDetailAddress(String detailAddress) {
-        this.detailAddress = detailAddress;
-    }
-
-    public boolean isDefaultAddress() {
-        return defaultAddress;
-    }
-    public void setDefaultAddress(boolean defaultAddress) {
-        this.defaultAddress = defaultAddress;
-    }
 }

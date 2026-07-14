@@ -1,5 +1,8 @@
 package com.zik00.shop.dto;
 
+import lombok.Getter;
+
+@Getter
 public enum MypageSection {
     HOME("", "\uB9C8\uC774\uD398\uC774\uC9C0", "\uC1FC\uD551 \uD65C\uB3D9\uC744 \uD55C\uB208\uC5D0 \uD655\uC778\uD558\uC138\uC694."),
     ORDERS("orders", "\uAD6C\uB9E4\uB0B4\uC5ED", "\uC644\uB8CC\uB41C \uC8FC\uBB38\uACFC \uAD6C\uB9E4 \uB0B4\uC5ED\uC744 \uD655\uC778\uD569\uB2C8\uB2E4."),
@@ -19,13 +22,6 @@ public enum MypageSection {
         this.description = description;
     }
 
-    public String getPath() {
-        return path;
-    }
-    public String getTitle() { return title; }
-    public String getDescription() {
-        return description;
-    }
     public String getUrl() {
         return path.isEmpty() ? "/mypage" : "/mypage/" + path;
     }

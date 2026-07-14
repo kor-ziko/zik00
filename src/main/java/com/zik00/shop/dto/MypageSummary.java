@@ -1,5 +1,8 @@
 package com.zik00.shop.dto;
 
+import lombok.Getter;
+
+@Getter
 public class MypageSummary {
     private final int completedOrderCount;
     private final int deliveryTrackingCount;
@@ -27,25 +30,4 @@ public class MypageSummary {
         this.memberNickname = memberNickname;
     }
 
-    public int getCompletedOrderCount() {
-        return completedOrderCount;
-    }
-    public int getDeliveryTrackingCount() {
-        return deliveryTrackingCount;
-    }
-    public int getInquiryCount() {
-        return inquiryCount;
-    }
-    public int getCouponCount() {
-        return couponCount;
-    }
-    public int getDepositBalance() {
-        return depositBalance;
-    }
-    public int getRewardPoint() {
-        return rewardPoint;
-    }
-    public String getMemberNickname() {
-        return memberNickname;
-    }
 }

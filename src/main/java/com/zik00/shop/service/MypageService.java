@@ -17,15 +17,20 @@ import com.zik00.shop.domain.InquiryImage;
 import com.zik00.shop.domain.Purchase;
 import com.zik00.shop.domain.User;
 import com.zik00.shop.dto.AddressCreateRequest;
+import com.zik00.shop.dto.CouponResponse;
+import com.zik00.shop.dto.DeliveryAddressResponse;
 import com.zik00.shop.dto.InquiryCommentCreateRequest;
 import com.zik00.shop.dto.InquiryCommentView;
 import com.zik00.shop.dto.InquiryCreateRequest;
 import com.zik00.shop.dto.InquiryImageView;
 import com.zik00.shop.dto.InquiryThread;
+import com.zik00.shop.dto.InquiryView;
 import com.zik00.shop.dto.MypageMenuItem;
+import com.zik00.shop.dto.MypageProfileResponse;
 import com.zik00.shop.dto.MypageSection;
 import com.zik00.shop.dto.MypageSummary;
 import com.zik00.shop.dto.ProfileUpdateRequest;
+import com.zik00.shop.dto.PurchaseResponse;
 import com.zik00.shop.repository.CouponRepository;
 import com.zik00.shop.repository.DeliveryAddressRepository;
 import com.zik00.shop.repository.InquiryCommentImageRepository;
@@ -99,8 +104,8 @@ public class MypageService {
         );
     }
 
-    public User getCurrentUser() {
-        return findCurrentUser();
+    public MypageProfileResponse getCurrentUser() {
+        return MypageProfileResponse.from(findCurrentUser());
     }
 
     public ProfileUpdateRequest getProfileUpdateRequest() {
@@ -126,9 +131,12 @@ public class MypageService {
         );
     }
 
-    public List<DeliveryAddress> getDeliveryAddresses() {
+    public List<DeliveryAddressResponse> getDeliveryAddresses() {
         User user = findCurrentUser();
-        return deliveryAddressRepository.findUserAddresses(user.getMemberId());
+        return deliveryAddressRepository.findUserAddresses(user.getMemberId())
+                .stream()
+                .map(DeliveryAddressResponse::from)
+                .toList();
     }
 
     public AddressCreateRequest getAddressCreateRequest() {
@@ -193,14 +201,20 @@ public class MypageService {
         deliveryAddressRepository.delete(address);
     }
 
-    public List<Coupon> getCoupons() {
+    public List<CouponResponse> getCoupons() {
         User user = findCurrentUser();
-        return couponRepository.findUserCoupons(user.getMemberId());
+        return couponRepository.findUserCoupons(user.getMemberId())
+                .stream()
+                .map(CouponResponse::from)
+                .toList();
     }
 
-    public List<Purchase> getPurchases() {
+    public List<PurchaseResponse> getPurchases() {
         User user = findCurrentUser();
-        return purchaseRepository.findUserPurchases(user.getMemberId());
+        return purchaseRepository.findUserPurchases(user.getMemberId())
+                .stream()
+                .map(PurchaseResponse::from)
+                .toList();
     }
 
     public List<InquiryThread> getInquiryThreads() {
@@ -254,7 +268,7 @@ public class MypageService {
 
         return inquiries.stream()
                 .map(inquiry -> new InquiryThread(
-                        inquiry,
+                        InquiryView.from(inquiry),
                         commentsByInquiryId.getOrDefault(inquiry.getInquiryId(), List.of()),
                         imagesByInquiryId.getOrDefault(inquiry.getInquiryId(), List.of())
                 ))

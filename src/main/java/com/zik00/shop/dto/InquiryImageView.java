@@ -5,7 +5,9 @@ import java.util.Optional;
 import com.zik00.shop.domain.InquiryCommentImage;
 import com.zik00.shop.domain.InquiryImage;
 import com.zik00.shop.util.InquiryImagePaths;
+import lombok.Getter;
 
+@Getter
 public class InquiryImageView {
     private final String imageUuid;
     private final String imageUrl;
@@ -26,13 +28,6 @@ public class InquiryImageView {
         String imageUuid = InquiryImagePaths.normalize(image.getImageUuid());
         return InquiryImagePaths.extractSafeStoredFileName(imageUuid, image.getStoredFileName())
                 .map(fileName -> new InquiryImageView(imageUuid, InquiryImagePaths.buildViewUrl(imageUuid)));
-    }
-
-    public String getImageUuid() {
-        return imageUuid;
-    }
-    public String getImageUrl() {
-        return imageUrl;
     }
 
 }

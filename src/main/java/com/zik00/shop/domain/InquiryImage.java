@@ -7,7 +7,9 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import lombok.Getter;
 
+@Getter
 @Entity
 @Table(name = "inquiry_images", indexes = {
         @Index(name = "idx_inquiry_images_inquiry_id", columnList = "inquiry_id")
@@ -38,14 +40,5 @@ public class InquiryImage {
 
     public long getImageId() {
         return imageId == null ? 0L : imageId;
-    }
-    public long getInquiryId() {
-        return inquiryId;
-    }
-    public String getImageUuid() {
-        return imageUuid;
-    }
-    public String getStoredFileName() {
-        return storedFileName;
     }
 }

@@ -8,7 +8,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
+import lombok.Getter;
 
+@Getter
 @Entity
 @Table(name = "inquiries", indexes = {
         @Index(name = "idx_inquiries_member_id", columnList = "user_id, inquiry_id")
@@ -51,10 +53,6 @@ public class Inquiry {
         this.createdAt = createdAt;
     }
 
-    public boolean isStatus() {
-        return status;
-    }
-
     public void markAnswered() {
         this.status = true;
     }
@@ -66,17 +64,5 @@ public class Inquiry {
 
     public long getInquiryId() {
         return inquiryId == null ? 0L : inquiryId;
-    }
-    public long getMemberId() {
-        return memberId;
-    }
-    public String getTitle() {
-        return title;
-    }
-    public String getContent() {
-        return content;
-    }
-    public String getCreatedAt() {
-        return createdAt;
     }
 }

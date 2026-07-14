@@ -1,5 +1,8 @@
 package com.zik00.shop.dto;
 
+import lombok.Getter;
+
+@Getter
 public class JapanPostalCodeResponse {
     private final String zipCode;
     private final String province;
@@ -9,16 +12,6 @@ public class JapanPostalCodeResponse {
         this.zipCode = formatPostalCode(zipCode);
         this.province = normalize(province);
         this.detailAddress = normalize(detailAddress);
-    }
-
-    public String getZipCode() {
-        return zipCode;
-    }
-    public String getProvince() {
-        return province;
-    }
-    public String getDetailAddress() {
-        return detailAddress;
     }
 
     private String formatPostalCode(String value) {

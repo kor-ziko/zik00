@@ -10,7 +10,9 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import lombok.Getter;
 
+@Getter
 @Entity
 @Table(name = "coupon", indexes = {
         @Index(name = "idx_coupon_member_period", columnList = "user_id, started_date, expired_date, coupon_id")
@@ -146,38 +148,5 @@ public class Coupon {
     }
     public long getMemberId() {
         return memberId == null ? 0L : memberId;
-    }
-    public String getCouponName() {
-        return couponName;
-    }
-    public String getDiscountType() {
-        return discountType;
-    }
-    public int getDiscountValue() {
-        return discountValue;
-    }
-    public int getMinimumOrderAmount() {
-        return minimumOrderAmount;
-    }
-    public LocalDate getStartedDate() {
-        return startedDate;
-    }
-    public LocalDate getExpiredDate() {
-        return expiredDate;
-    }
-    public boolean isUsed() {
-        return used;
-    }
-    public LocalDateTime getIssuedAt() {
-        return issuedAt;
-    }
-    public LocalDateTime getUsedAt() {
-        return usedAt;
-    }
-    public String getCouponCode() {
-        return couponCode;
-    }
-    public String getGuestIdentifier() {
-        return guestIdentifier;
     }
 }
