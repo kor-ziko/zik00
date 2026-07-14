@@ -2,7 +2,7 @@ package com.zik00.shop.controller;
 
 import java.util.List;
 
-import com.zik00.shop.dto.JapanPostalCodeResponse;
+import com.zik00.shop.dto.mypage.JapanPostalCodeResponse;
 import com.zik00.shop.service.JapanPostalCodeSearchService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

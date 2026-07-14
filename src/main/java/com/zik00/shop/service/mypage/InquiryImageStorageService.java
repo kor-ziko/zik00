@@ -1,4 +1,4 @@
-package com.zik00.shop.service;
+package com.zik00.shop.service.mypage;
 
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
@@ -14,7 +14,7 @@ import java.util.UUID;
 
 import javax.imageio.ImageIO;
 
-import com.zik00.shop.util.InquiryImagePaths;
+import com.zik00.shop.util.mypage.InquiryImagePaths;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;

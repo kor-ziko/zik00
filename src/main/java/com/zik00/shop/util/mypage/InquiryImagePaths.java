@@ -1,4 +1,4 @@
-package com.zik00.shop.util;
+package com.zik00.shop.util.mypage;
 
 import java.util.Locale;
 import java.util.Optional;

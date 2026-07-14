@@ -1,4 +1,4 @@
-package com.zik00.shop.service;
+package com.zik00.shop.service.mypage;
 
 import java.nio.file.Path;
 import java.time.LocalDateTime;
@@ -9,28 +9,26 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import com.zik00.shop.domain.Coupon;
 import com.zik00.shop.domain.DeliveryAddress;
 import com.zik00.shop.domain.Inquiry;
 import com.zik00.shop.domain.InquiryComment;
 import com.zik00.shop.domain.InquiryImage;
-import com.zik00.shop.domain.Purchase;
 import com.zik00.shop.domain.User;
-import com.zik00.shop.dto.AddressCreateRequest;
-import com.zik00.shop.dto.CouponResponse;
-import com.zik00.shop.dto.DeliveryAddressResponse;
-import com.zik00.shop.dto.InquiryCommentCreateRequest;
-import com.zik00.shop.dto.InquiryCommentView;
-import com.zik00.shop.dto.InquiryCreateRequest;
-import com.zik00.shop.dto.InquiryImageView;
-import com.zik00.shop.dto.InquiryThread;
-import com.zik00.shop.dto.InquiryView;
-import com.zik00.shop.dto.MypageMenuItem;
-import com.zik00.shop.dto.MypageProfileResponse;
-import com.zik00.shop.dto.MypageSection;
-import com.zik00.shop.dto.MypageSummary;
-import com.zik00.shop.dto.ProfileUpdateRequest;
-import com.zik00.shop.dto.PurchaseResponse;
+import com.zik00.shop.dto.mypage.AddressCreateRequest;
+import com.zik00.shop.dto.mypage.CouponResponse;
+import com.zik00.shop.dto.mypage.DeliveryAddressResponse;
+import com.zik00.shop.dto.mypage.InquiryCommentCreateRequest;
+import com.zik00.shop.dto.mypage.InquiryCommentView;
+import com.zik00.shop.dto.mypage.InquiryCreateRequest;
+import com.zik00.shop.dto.mypage.InquiryImageView;
+import com.zik00.shop.dto.mypage.InquiryThread;
+import com.zik00.shop.dto.mypage.InquiryView;
+import com.zik00.shop.dto.mypage.MypageMenuItem;
+import com.zik00.shop.dto.mypage.MypageProfileResponse;
+import com.zik00.shop.dto.mypage.MypageSection;
+import com.zik00.shop.dto.mypage.MypageSummary;
+import com.zik00.shop.dto.mypage.ProfileUpdateRequest;
+import com.zik00.shop.dto.mypage.PurchaseResponse;
 import com.zik00.shop.repository.CouponRepository;
 import com.zik00.shop.repository.DeliveryAddressRepository;
 import com.zik00.shop.repository.InquiryCommentImageRepository;
@@ -39,7 +37,7 @@ import com.zik00.shop.repository.InquiryImageRepository;
 import com.zik00.shop.repository.InquiryRepository;
 import com.zik00.shop.repository.PurchaseRepository;
 import com.zik00.shop.repository.UserRepository;
-import com.zik00.shop.util.InquiryImagePaths;
+import com.zik00.shop.util.mypage.InquiryImagePaths;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -108,6 +106,7 @@ public class MypageService {
         return MypageProfileResponse.from(findCurrentUser());
     }
 
+    // 전화번호, email format 안맞게 적으면 저장 안되게 해야함
     public ProfileUpdateRequest getProfileUpdateRequest() {
         User user = findCurrentUser();
         ProfileUpdateRequest request = new ProfileUpdateRequest();

@@ -1,4 +1,4 @@
-package com.zik00.shop.dto;
+package com.zik00.shop.dto.mypage;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

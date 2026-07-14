@@ -1,4 +1,4 @@
-package com.zik00.shop.dto;
+package com.zik00.shop.dto.mypage;
 
 import lombok.Getter;
 

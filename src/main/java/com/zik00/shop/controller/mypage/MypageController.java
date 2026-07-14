@@ -1,11 +1,11 @@
-package com.zik00.shop.controller;
+package com.zik00.shop.controller.mypage;
 
-import com.zik00.shop.dto.AddressCreateRequest;
-import com.zik00.shop.dto.InquiryCommentCreateRequest;
-import com.zik00.shop.dto.InquiryCreateRequest;
-import com.zik00.shop.dto.MypageSection;
-import com.zik00.shop.dto.ProfileUpdateRequest;
-import com.zik00.shop.service.MypageService;
+import com.zik00.shop.dto.mypage.AddressCreateRequest;
+import com.zik00.shop.dto.mypage.InquiryCommentCreateRequest;
+import com.zik00.shop.dto.mypage.InquiryCreateRequest;
+import com.zik00.shop.dto.mypage.MypageSection;
+import com.zik00.shop.dto.mypage.ProfileUpdateRequest;
+import com.zik00.shop.service.mypage.MypageService;
 import jakarta.validation.Valid;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;

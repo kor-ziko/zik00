@@ -1,10 +1,10 @@
-package com.zik00.shop.dto;
+package com.zik00.shop.dto.mypage;
 
 import java.util.Optional;
 
 import com.zik00.shop.domain.InquiryCommentImage;
 import com.zik00.shop.domain.InquiryImage;
-import com.zik00.shop.util.InquiryImagePaths;
+import com.zik00.shop.util.mypage.InquiryImagePaths;
 import lombok.Getter;
 
 @Getter
