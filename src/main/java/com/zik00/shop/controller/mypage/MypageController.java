@@ -21,11 +21,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
-@RequestMapping("/mypage")
 public class MypageController {
     private static final String VIEW = "mypage/index";
     private static final String REDIRECT_PROFILE = "redirect:/mypage/profile";
@@ -48,38 +46,38 @@ public class MypageController {
         this.mypageService = mypageService;
     }
 
-    @GetMapping({"", "/"})
+    @GetMapping("/mypage")
     public String home(Model model) {
         addMypageModel(model, MypageSection.HOME);
         return VIEW;
     }
 
-    @GetMapping("/orders")
+    @GetMapping("/mypage/orders")
     public String orders(Model model) {
         addMypageModel(model, MypageSection.ORDERS);
         model.addAttribute("purchases", mypageService.getPurchases());
         return VIEW;
     }
 
-    @GetMapping("/deliveries")
+    @GetMapping("/mypage/deliveries")
     public String deliveries(Model model) {
         addMypageModel(model, MypageSection.DELIVERIES);
         return VIEW;
     }
 
-    @GetMapping("/inquiries")
+    @GetMapping("/mypage/inquiries")
     public String inquiries(Model model) {
         addInquiriesModel(model, false);
         return VIEW;
     }
 
-    @GetMapping("/inquiries/new")
+    @GetMapping("/mypage/inquiries/new")
     public String newInquiry(Model model) {
         addInquiriesModel(model, true);
         return VIEW;
     }
 
-    @GetMapping("/inquiries/images/{imageUuid}")
+    @GetMapping("/mypage/inquiries/images/{imageUuid}")
     public ResponseEntity<Resource> inquiryImage(@PathVariable String imageUuid) {
         return mypageService.getInquiryImageDownload(imageUuid)
                 .map(image -> ResponseEntity.ok()
@@ -104,38 +102,38 @@ public class MypageController {
         }
     }
 
-    @GetMapping("/coupons")
+    @GetMapping("/mypage/coupons")
     public String coupons(Model model) {
         addMypageModel(model, MypageSection.COUPONS);
         model.addAttribute("coupons", mypageService.getCoupons());
         return VIEW;
     }
 
-    @GetMapping("/deposits")
+    @GetMapping("/mypage/deposits")
     public String deposits(Model model) {
         addMypageModel(model, MypageSection.DEPOSITS);
         return VIEW;
     }
 
-    @GetMapping("/profile")
+    @GetMapping("/mypage/profile")
     public String profile(Model model) {
         addProfileModel(model, false, false);
         return VIEW;
     }
 
-    @GetMapping("/profile/edit")
+    @GetMapping("/mypage/profile/edit")
     public String editProfile(Model model) {
         addProfileModel(model, true, false);
         return VIEW;
     }
 
-    @GetMapping("/profile/addresses/edit")
+    @GetMapping("/mypage/profile/addresses/edit")
     public String editDeliveryAddresses(Model model) {
         addProfileModel(model, false, true);
         return VIEW;
     }
 
-    @PostMapping("/profile")
+    @PostMapping("/mypage/profile")
     public String updateProfile(
             @Valid @ModelAttribute ProfileUpdateRequest profileUpdateRequest,
             BindingResult bindingResult,
@@ -150,7 +148,7 @@ public class MypageController {
         return redirectWithMessage(redirectAttributes, PROFILE_UPDATED, REDIRECT_PROFILE);
     }
 
-    @PostMapping("/profile/addresses")
+    @PostMapping("/mypage/profile/addresses")
     public String addDeliveryAddress(
             @Valid @ModelAttribute AddressCreateRequest addressCreateRequest,
             BindingResult bindingResult,
@@ -170,7 +168,7 @@ public class MypageController {
         }
     }
 
-    @PostMapping("/profile/addresses/{addressId}/update")
+    @PostMapping("/mypage/profile/addresses/{addressId}/update")
     public String updateDeliveryAddress(
             @PathVariable long addressId,
             @Valid @ModelAttribute AddressCreateRequest addressCreateRequest,
@@ -189,7 +187,7 @@ public class MypageController {
         }
     }
 
-    @PostMapping("/profile/addresses/{addressId}/delete")
+    @PostMapping("/mypage/profile/addresses/{addressId}/delete")
     public String deleteDeliveryAddress(
             @PathVariable long addressId,
             RedirectAttributes redirectAttributes
@@ -198,7 +196,7 @@ public class MypageController {
         return redirectWithMessage(redirectAttributes, ADDRESS_DELETED, REDIRECT_PROFILE);
     }
 
-    @PostMapping("/inquiries")
+    @PostMapping("/mypage/inquiries")
     public String addInquiry(
             @Valid @ModelAttribute InquiryCreateRequest inquiryCreateRequest,
             BindingResult bindingResult,
@@ -218,7 +216,7 @@ public class MypageController {
         }
     }
 
-    @PostMapping("/inquiries/{inquiryId}/comments")
+    @PostMapping("/mypage/inquiries/{inquiryId}/comments")
     public String addInquiryComment(
             @PathVariable long inquiryId,
             @Valid @ModelAttribute InquiryCommentCreateRequest inquiryCommentCreateRequest,

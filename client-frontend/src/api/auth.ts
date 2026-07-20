@@ -48,7 +48,7 @@ async function readError(response: Response) {
   }
 }
 
-async function getCsrfToken(): Promise<CsrfResponse> {
+export async function getCsrfToken(): Promise<CsrfResponse> {
   const response = await fetch('/api/auth/csrf', { credentials: 'include' });
   if (!response.ok) throw await readError(response);
   return response.json() as Promise<CsrfResponse>;
@@ -78,7 +78,7 @@ function refreshAccessToken(): Promise<boolean> {
   return refreshInFlight;
 }
 
-async function fetchAuthenticated(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+export async function fetchAuthenticated(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const options = { ...init, credentials: 'include' as const };
   let response = await fetch(input, options);
   if (response.status === 401 && await refreshAccessToken()) {

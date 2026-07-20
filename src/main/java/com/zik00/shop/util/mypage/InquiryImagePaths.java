@@ -5,7 +5,7 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 
 public final class InquiryImagePaths {
-    private static final String IMAGE_URL_PREFIX = "/mypage/inquiries/images/";
+    private static final String IMAGE_URL_PREFIX = "/api/mypage/inquiries/images/";
     private static final Pattern SAFE_IMAGE_UUID_PATTERN = Pattern.compile(
             "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
     );

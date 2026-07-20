@@ -72,7 +72,7 @@ public class SecurityConfig {
                                 "/api/auth/csrf", "/api/auth/refresh", "/api/auth/oauth/complete",
                                 "/admin/**", "/api/admin/**", "/", "/index.html", "/error"
                         ).permitAll()
-                        .requestMatchers("/api/auth/**", "/signup/**", "/mypage/**").authenticated()
+                        .requestMatchers("/api/auth/**", "/api/mypage/**", "/signup/**", "/mypage/**").authenticated()
                         .anyRequest().permitAll()
                 )
                 .formLogin(formLogin -> formLogin.disable())
@@ -82,6 +82,7 @@ public class SecurityConfig {
                 .exceptionHandling(exceptions -> exceptions.defaultAuthenticationEntryPointFor(
                         new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
                         request -> request.getServletPath().startsWith("/api/auth/")
+                                || request.getServletPath().startsWith("/api/mypage")
                 ))
                 .oauth2Login(oauth2 -> oauth2
                         .loginPage("/login")

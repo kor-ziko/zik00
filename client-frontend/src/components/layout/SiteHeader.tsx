@@ -90,7 +90,7 @@ function SiteHeader() {
         <SearchBox />
 
         <nav className="primary-actions" aria-label="주요 메뉴">
-          <a href="#mypage"><UserRound size={25} /><span>마이페이지</span></a>
+          <a href="/mypage"><UserRound size={25} /><span>마이페이지</span></a>
           <a href="#wishlist"><Heart size={25} /><span>찜</span></a>
           <a href="#cart" className="cart-link">
             <ShoppingBag size={25} />
