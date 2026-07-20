@@ -54,9 +54,14 @@ password: ${SPRING_DATASOURCE_PASSWORD:1q2w3e}
 # 관리자 페이지 아이디 비번
 admin / admin1234!
 
-# 7/8 - 7/13 작업내용
-1. 관리자 로그인 구현
-2. 관리자 회원조회 기능 구현
-3. 관리자 1대1문의 처리 기능 구현 (여기 피드백좀 더 주면 좋을듯)
+# OAuth 관련
+.env파일 format이다. .gitignore을 통해서 업로드 안되게 해놓았으므로 .env파일을 생성해서 아래 포멧을 넣고 각 data를 넣어주면 된다.
+Google Cloud Console OAuth 2.0 Client credentials
+GOOGLE_CLIENT_ID=change_user_client_id
+GOOGLE_CLIENT_SECRET=change_secret
 
-Java 버전 26 통일/v1, v2 sql 지우고 test_date.sql로 통합
+# 작업 내용
+work.md에서 옮김
+
+
+
