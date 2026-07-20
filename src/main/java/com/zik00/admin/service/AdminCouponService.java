@@ -13,6 +13,9 @@ import com.zik00.shop.domain.User;
 import com.zik00.shop.repository.UserRepository;
 import java.security.SecureRandom;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -83,9 +86,11 @@ public class AdminCouponService {
         }
 
         CouponIssueSpec issueSpec = resolveIssueSpec(request);
-        return request.memberIds()
+        Map<Long, User> usersById = userRepository.findAllById(request.memberIds()).stream()
+                .collect(Collectors.toMap(User::getMemberId, Function.identity()));
+        List<Coupon> coupons = request.memberIds()
                 .stream()
-                .map(this::findUser)
+                .map(memberId -> requireUser(usersById, memberId))
                 .map(user -> Coupon.issueToMember(
                         issueSpec.couponTemplateId(),
                         user.getMemberId(),
@@ -96,7 +101,8 @@ public class AdminCouponService {
                         issueSpec.startedDate(),
                         issueSpec.expiredDate()
                 ))
-                .map(adminCouponRepository::save)
+                .toList();
+        return adminCouponRepository.saveAll(coupons).stream()
                 .map(AdminIssuedCouponResponse::from)
                 .toList();
     }
@@ -163,6 +169,14 @@ public class AdminCouponService {
     private User findUser(Long memberId) {
         return userRepository.findById(memberId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원을 찾을 수 없습니다."));
+    }
+
+    private User requireUser(Map<Long, User> usersById, Long memberId) {
+        User user = usersById.get(memberId);
+        if (user == null) {
+            return findUser(memberId);
+        }
+        return user;
     }
 
     private String generateCouponCode() {

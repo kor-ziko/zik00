@@ -9,10 +9,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import com.zik00.shop.domain.Coupon;
 import com.zik00.shop.domain.DeliveryAddress;
 import com.zik00.shop.domain.Inquiry;
 import com.zik00.shop.domain.InquiryComment;
 import com.zik00.shop.domain.InquiryImage;
+import com.zik00.shop.domain.Purchase;
 import com.zik00.shop.domain.User;
 import com.zik00.shop.dto.mypage.AddressCreateRequest;
 import com.zik00.shop.dto.mypage.CouponResponse;
@@ -106,19 +108,21 @@ public class MypageService {
     public DashboardData getDashboard() {
         User user = findCurrentUser();
         long memberId = user.getMemberId();
+        List<Purchase> purchaseEntities = purchaseRepository.findUserPurchases(memberId);
+        List<Coupon> couponEntities = couponRepository.findUserCoupons(memberId);
         MypageSummary summary = new MypageSummary(
-                toInt(purchaseRepository.countUserOrdersByStatus(memberId, ORDER_COMPLETED)),
-                toInt(purchaseRepository.countUserOrdersByStatus(memberId, DELIVERY)),
+                countOrdersByStatus(purchaseEntities, ORDER_COMPLETED),
+                countOrdersByStatus(purchaseEntities, DELIVERY),
                 toInt(inquiryRepository.countUserInquiries(memberId)),
-                toInt(couponRepository.countUserCoupons(memberId)),
+                couponEntities.size(),
                 user.getDepositBalance(),
                 user.getRewardPoint(),
                 user.getNickname()
         );
-        List<PurchaseResponse> purchases = purchaseRepository.findUserPurchases(memberId).stream()
+        List<PurchaseResponse> purchases = purchaseEntities.stream()
                 .map(PurchaseResponse::from)
                 .toList();
-        List<CouponResponse> coupons = couponRepository.findUserCoupons(memberId).stream()
+        List<CouponResponse> coupons = couponEntities.stream()
                 .map(CouponResponse::from)
                 .toList();
         return new DashboardData(summary, MypageProfileResponse.from(user), purchases, coupons);
@@ -369,6 +373,13 @@ public class MypageService {
 
     private int toInt(long value) {
         return Math.toIntExact(value);
+    }
+
+    private int countOrdersByStatus(List<Purchase> purchases, String status) {
+        return Math.toIntExact(purchases.stream()
+                .filter(purchase -> purchase.getOrderStatus() != null
+                        && purchase.getOrderStatus().contains(status))
+                .count());
     }
 
     private void validateDeliveryAddressRequest(AddressCreateRequest request) {
