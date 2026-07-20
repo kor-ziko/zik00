@@ -1,4 +1,9 @@
+server:
+  port: 8080
+
 spring:
+  config:
+    import: optional:file:.env[.properties]
   application:
     name: shop
   servlet:
@@ -17,7 +22,27 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:local-google-client-id}
+            client-secret: ${GOOGLE_CLIENT_SECRET:local-google-client-secret}
+            scope:
+              - profile
+              - email
 
 shop:
+  jwt:
+    secret: ${JWT_SECRET:${GOOGLE_CLIENT_SECRET:local-jwt-secret-change-me-at-least-32-characters}}
+    issuer: zik00-shop
+    access-token-ttl: PT15M
+    refresh-token-ttl: P14D
+    cookie-secure: ${JWT_COOKIE_SECURE:false}
+  oauth:
+    token-encryption-key: ${OAUTH_TOKEN_ENCRYPTION_KEY:${GOOGLE_CLIENT_SECRET:local-token-encryption-key-change-me}}
+  frontend:
+    base-url: ${SHOP_FRONTEND_BASE_URL:http://localhost:5174}
   upload:
     inquiry-image-dir: ${SHOP_INQUIRY_IMAGE_DIR:uploads/inquiries_images}

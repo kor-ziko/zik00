@@ -1,0 +1,42 @@
+:root { color-scheme: light; font-family: Inter, Pretendard, "Noto Sans KR", system-ui, sans-serif; color: #1d1d1f; background: #f5f4f0; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; }
+.auth-shell { min-height: 100vh; padding: 56px 20px; display: grid; place-items: center; background: radial-gradient(circle at 12% 5%, #fff 0, transparent 31%), #f5f4f0; }
+.auth-shell--login { padding: 20px; }
+.auth-card { width: min(860px, 100%); background: rgba(255,255,255,.94); border: 1px solid #e4e1da; border-radius: 24px; box-shadow: 0 20px 60px rgba(38,34,25,.08); }
+.login-card { width: min(440px, 100%); padding: 44px; text-align: center; }
+.signup-card { padding: 44px; }
+.brand { color: #161616; font-weight: 900; letter-spacing: .18em; text-decoration: none; }
+.eyebrow { margin: 28px 0 8px; color: #8a6d3b; font-size: 12px; font-weight: 800; letter-spacing: .16em; }
+h1 { margin: 0; font-size: clamp(30px, 4vw, 42px); letter-spacing: -.045em; }
+.lead { color: #6b6861; line-height: 1.65; }
+.google-button { margin-top: 30px; min-height: 54px; display: flex; align-items: center; justify-content: center; gap: 12px; border: 1px solid #d8d5ce; border-radius: 12px; color: #222; background: #fff; font-weight: 750; text-decoration: none; transition: .18s ease; }
+.google-button:hover { border-color: #aaa69e; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(0,0,0,.07); }
+.google-button svg { width: 22px; height: 22px; }
+.fine-print { margin: 20px 0 0; color: #8b8881; font-size: 13px; }
+.signup-header { display: flex; justify-content: space-between; gap: 24px; border-bottom: 1px solid #ece9e3; padding-bottom: 30px; }
+.signup-header .eyebrow { margin-top: 24px; }
+.step-badge { align-self: flex-start; border-radius: 999px; padding: 8px 13px; color: #75592d; background: #f4ead8; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.signup-form { margin-top: 34px; }
+fieldset { margin: 0 0 34px; padding: 0; border: 0; }
+legend { width: 100%; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #eeeae4; font-size: 18px; font-weight: 800; }
+.form-grid { display: grid; gap: 18px; }
+.two-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+label { display: grid; gap: 8px; color: #45423d; font-size: 14px; font-weight: 700; }
+label b { color: #a45042; }
+input, select { width: 100%; min-height: 48px; padding: 0 14px; border: 1px solid #d8d4cc; border-radius: 10px; background: #fff; color: #222; font: inherit; outline: 0; }
+input:focus, select:focus { border-color: #9b7841; box-shadow: 0 0 0 3px rgba(155,120,65,.13); }
+input[readonly] { background: #f7f6f3; color: #5f5c56; }
+.postal-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: end; margin-bottom: 10px; }
+.postal-row button { min-height: 48px; padding: 0 22px; border: 0; border-radius: 10px; background: #34312c; color: #fff; font-weight: 750; cursor: pointer; }
+.postal-row button:disabled { opacity: .55; }
+.search-status { min-height: 20px; margin: 5px 0 10px; color: #666; font-size: 13px; }
+.search-status.is-error { color: #ae4034; }
+.address-results { display: grid; gap: 7px; margin-bottom: 12px; }
+.address-result { padding: 11px 13px; border: 1px solid #dedad2; border-radius: 9px; background: #faf9f7; text-align: left; cursor: pointer; }
+.primary-button { width: 100%; min-height: 56px; border: 0; border-radius: 12px; background: #1f1e1b; color: #fff; font-size: 16px; font-weight: 800; cursor: pointer; }
+.alert { margin: 20px 0; padding: 13px 15px; border-radius: 10px; font-size: 14px; text-align: left; }
+.alert p { margin: 3px 0; }
+.alert--error { color: #8f3028; background: #fff0ed; }
+.alert--success { color: #296a42; background: #ebf8ef; }
+@media (max-width: 660px) { .auth-shell { padding: 0; display: block; } .auth-card { min-height: 100vh; padding: 28px 20px; border: 0; border-radius: 0; } .login-card { display: flex; flex-direction: column; justify-content: center; } .two-columns { grid-template-columns: 1fr; } .signup-header { padding-top: 8px; } }

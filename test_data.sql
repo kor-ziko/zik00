@@ -14,7 +14,9 @@ SET @tester3_user_id = 4;
 
 CREATE TABLE IF NOT EXISTS `user` (
   user_id BIGINT NOT NULL AUTO_INCREMENT,
+  access_id VARCHAR(36) NOT NULL,
   name VARCHAR(100),
+  name_kana VARCHAR(100),
   birth_date DATE,
   gender VARCHAR(20),
   nickname VARCHAR(100),
@@ -28,7 +30,68 @@ CREATE TABLE IF NOT EXISTS `user` (
   joined_date DATE,
   member_detail VARCHAR(500),
   alarm_consent BOOLEAN NOT NULL DEFAULT FALSE,
-  PRIMARY KEY (user_id)
+  PRIMARY KEY (user_id),
+  UNIQUE KEY uk_user_access_id (access_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DELIMITER //
+DROP PROCEDURE IF EXISTS add_google_oauth_user_columns//
+CREATE PROCEDURE add_google_oauth_user_columns()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR 1060 BEGIN END;
+  ALTER TABLE `user` ADD COLUMN name_kana VARCHAR(100) AFTER name;
+END//
+DELIMITER ;
+CALL add_google_oauth_user_columns();
+DROP PROCEDURE add_google_oauth_user_columns;
+
+DELIMITER //
+DROP PROCEDURE IF EXISTS add_user_access_id//
+CREATE PROCEDURE add_user_access_id()
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'user' AND column_name = 'access_id'
+  ) THEN
+    ALTER TABLE `user` ADD COLUMN access_id VARCHAR(36) NULL AFTER user_id;
+  END IF;
+  UPDATE `user` SET access_id = UUID() WHERE access_id IS NULL OR access_id = '';
+  ALTER TABLE `user` MODIFY COLUMN access_id VARCHAR(36) NOT NULL;
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.statistics
+    WHERE table_schema = DATABASE() AND table_name = 'user' AND index_name = 'uk_user_access_id'
+  ) THEN
+    ALTER TABLE `user` ADD UNIQUE KEY uk_user_access_id (access_id);
+  END IF;
+END//
+DELIMITER ;
+CALL add_user_access_id();
+DROP PROCEDURE add_user_access_id;
+
+CREATE TABLE IF NOT EXISTS oauth_access_tokens (
+  oauth_token_id BIGINT NOT NULL AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  provider VARCHAR(30) NOT NULL,
+  access_token_encrypted TEXT NOT NULL,
+  issued_at DATETIME(6) NULL,
+  expires_at DATETIME(6) NULL,
+  scopes VARCHAR(1000) NULL,
+  updated_at DATETIME(6) NOT NULL,
+  PRIMARY KEY (oauth_token_id),
+  UNIQUE KEY uk_oauth_access_tokens_user_provider (user_id, provider),
+  KEY idx_oauth_access_tokens_expiry (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+  refresh_token_id BIGINT NOT NULL AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  token_hash VARCHAR(64) NOT NULL,
+  expires_at DATETIME(6) NOT NULL,
+  created_at DATETIME(6) NOT NULL,
+  revoked_at DATETIME(6) NULL,
+  PRIMARY KEY (refresh_token_id),
+  UNIQUE KEY uk_refresh_tokens_token_hash (token_hash),
+  KEY idx_refresh_tokens_user_active (user_id, revoked_at, expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 DELIMITER //
@@ -229,7 +292,9 @@ INSERT INTO admin_users (
 
 INSERT INTO `user` (
   user_id,
+  access_id,
   name,
+  name_kana,
   birth_date,
   gender,
   nickname,
@@ -245,7 +310,9 @@ INSERT INTO `user` (
   alarm_consent
 ) VALUES (
   @demo_user_id,
+  '00000000-0000-0000-0000-000000000001',
   '김테스트',
+  'キム テスト',
   '1990-05-14',
   '남성',
   '테스터01',
@@ -260,7 +327,9 @@ INSERT INTO `user` (
   '테스트용 일반회원, 연락처/주문 이력 포함',
   FALSE
 ) ON DUPLICATE KEY UPDATE
+  access_id = VALUES(access_id),
   name = VALUES(name),
+  name_kana = VALUES(name_kana),
   birth_date = VALUES(birth_date),
   gender = VALUES(gender),
   nickname = VALUES(nickname),
@@ -277,7 +346,9 @@ INSERT INTO `user` (
 
 INSERT INTO `user` (
   user_id,
+  access_id,
   name,
+  name_kana,
   birth_date,
   gender,
   nickname,
@@ -294,7 +365,9 @@ INSERT INTO `user` (
 ) VALUES
   (
     @tester1_user_id,
+    '00000000-0000-0000-0000-000000000002',
     '테스터1',
+    'テスター イチ',
     '1995-01-01',
     '남성',
     '테스터1',
@@ -311,7 +384,9 @@ INSERT INTO `user` (
   ),
   (
     @tester2_user_id,
+    '00000000-0000-0000-0000-000000000003',
     '테스터2',
+    'テスター ニ',
     '1996-02-02',
     '여성',
     '테스터2',
@@ -328,7 +403,9 @@ INSERT INTO `user` (
   ),
   (
     @tester3_user_id,
+    '00000000-0000-0000-0000-000000000004',
     '테스터3',
+    'テスター サン',
     '1997-03-03',
     '기타',
     '테스터3',
@@ -344,7 +421,9 @@ INSERT INTO `user` (
     TRUE
   )
 ON DUPLICATE KEY UPDATE
+  access_id = VALUES(access_id),
   name = VALUES(name),
+  name_kana = VALUES(name_kana),
   birth_date = VALUES(birth_date),
   gender = VALUES(gender),
   nickname = VALUES(nickname),

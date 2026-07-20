@@ -1,6 +1,7 @@
 package com.zik00.shop.domain;
 
 import java.time.LocalDate;
+import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -19,7 +20,13 @@ public class User {
     @Column(name = "user_id")
     private Long memberId;
 
+    @Column(name = "access_id", nullable = false, unique = true, length = 36)
+    private String accessId;
+
     private String name;
+
+    @Column(name = "name_kana")
+    private String nameKana;
     @Column(name = "birth_date")
     private LocalDate birthDate;
 
@@ -73,6 +80,7 @@ public class User {
             String memberDetail,
             boolean alarmConsent
     ) {
+        this.accessId = UUID.randomUUID().toString();
         this.name = name;
         this.birthDate = birthDate;
         this.gender = gender;
@@ -103,7 +111,58 @@ public class User {
         this.alarmConsent = alarmConsent;
     }
 
+    public static User createGoogleUser(String loginId, String email, String googleName) {
+        return new User(
+                normalizeValue(googleName),
+                null,
+                "",
+                "",
+                "",
+                loginId,
+                0,
+                0,
+                "",
+                normalizeValue(email),
+                0,
+                LocalDate.now(),
+                "",
+                false
+        );
+    }
+
+    public void completeRegistration(
+            String name,
+            String nameKana,
+            LocalDate birthDate,
+            String gender,
+            String nickname,
+            String mobilePhone
+    ) {
+        this.name = normalizeValue(name);
+        this.nameKana = normalizeValue(nameKana);
+        this.birthDate = birthDate;
+        this.gender = normalizeValue(gender);
+        this.nickname = normalizeValue(nickname);
+        this.mobilePhone = normalizeValue(mobilePhone);
+        if (this.joinedDate == null) {
+            this.joinedDate = LocalDate.now();
+        }
+    }
+
+    public boolean hasCompletedRegistration() {
+        return !normalizeValue(name).isEmpty()
+                && !normalizeValue(nameKana).isEmpty()
+                && birthDate != null
+                && !normalizeValue(gender).isEmpty()
+                && !normalizeValue(nickname).isEmpty()
+                && !normalizeValue(mobilePhone).isEmpty();
+    }
+
     private String normalize(String value) {
+        return normalizeValue(value);
+    }
+
+    private static String normalizeValue(String value) {
         return value == null ? "" : value.trim();
     }
     public long getMemberId() {

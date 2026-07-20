@@ -10,7 +10,7 @@ npm install
 npm run dev
 ```
 
-브라우저에서 `http://127.0.0.1:5174`를 연다.
+브라우저에서 `http://localhost:5174`를 연다. Google 로그인 세션 쿠키를 Spring Boot와 공유하기 위해 `localhost`를 사용한다.
 
 ## 화면 구조
 

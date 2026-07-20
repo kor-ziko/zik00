@@ -35,8 +35,8 @@ function SiteHeader() {
         <div className="header-inner utility-inner">
           <span>한국 상품을 일본까지, 쉽고 빠르게</span>
           <nav aria-label="회원 메뉴">
-            <a href="#login">로그인</a>
-            <a href="#signup">회원가입</a>
+            <a href="/login">로그인</a>
+            <a href="/login">회원가입</a>
             <a href="#support">고객센터</a>
             <button className="language-button" type="button">
               <Globe2 size={14} aria-hidden="true" /> KO

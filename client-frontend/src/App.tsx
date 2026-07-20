@@ -4,8 +4,14 @@ import ServiceStrip from './components/home/ServiceStrip';
 import QuickMenu from './components/layout/QuickMenu';
 import SiteFooter from './components/layout/SiteFooter';
 import SiteHeader from './components/layout/SiteHeader';
+import LoginPage from './components/auth/LoginPage';
+import AdditionalInfoPage from './components/auth/AdditionalInfoPage';
 
 function App() {
+  const path = window.location.pathname.replace(/\/+$/, '') || '/';
+  if (path === '/login') return <LoginPage />;
+  if (path === '/login/additional-info') return <AdditionalInfoPage />;
+
   return (
     <div className="app-shell">
       <SiteHeader />

@@ -36,7 +36,7 @@ import com.zik00.shop.repository.InquiryCommentRepository;
 import com.zik00.shop.repository.InquiryImageRepository;
 import com.zik00.shop.repository.InquiryRepository;
 import com.zik00.shop.repository.PurchaseRepository;
-import com.zik00.shop.repository.UserRepository;
+import com.zik00.shop.service.auth.AuthenticatedUserService;
 import com.zik00.shop.util.mypage.InquiryImagePaths;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,7 +56,7 @@ public class MypageService {
     private static final String INQUIRY_NOT_FOUND = "\uBB38\uC758\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.";
     private static final String USER_NOT_FOUND = "\uD68C\uC6D0 \uB370\uC774\uD130\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.";
 
-    private final UserRepository userRepository;
+    private final AuthenticatedUserService authenticatedUserService;
     private final DeliveryAddressRepository deliveryAddressRepository;
     private final CouponRepository couponRepository;
     private final PurchaseRepository purchaseRepository;
@@ -67,7 +67,7 @@ public class MypageService {
     private final InquiryImageStorageService inquiryImageStorageService;
 
     public MypageService(
-            UserRepository userRepository,
+            AuthenticatedUserService authenticatedUserService,
             DeliveryAddressRepository deliveryAddressRepository,
             CouponRepository couponRepository,
             PurchaseRepository purchaseRepository,
@@ -77,7 +77,7 @@ public class MypageService {
             InquiryImageRepository inquiryImageRepository,
             InquiryImageStorageService inquiryImageStorageService
     ) {
-        this.userRepository = userRepository;
+        this.authenticatedUserService = authenticatedUserService;
         this.deliveryAddressRepository = deliveryAddressRepository;
         this.couponRepository = couponRepository;
         this.purchaseRepository = purchaseRepository;
@@ -340,8 +340,7 @@ public class MypageService {
     }
 
     private User findCurrentUser() {
-        return userRepository.findCurrentUser()
-                .orElseThrow(() -> new IllegalStateException(USER_NOT_FOUND));
+        return authenticatedUserService.getCurrentUser();
     }
 
     private int toInt(long value) {

@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 public interface DeliveryAddressRepository extends JpaRepository<DeliveryAddress, Long> {
+    boolean existsByMemberId(long memberId);
+
     @Query("""
             select a
             from DeliveryAddress a

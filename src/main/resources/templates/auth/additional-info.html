@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>추가 정보 입력 | SHOP</title>
+    <link rel="stylesheet" th:href="@{/css/auth.css}">
+    <script th:src="@{/js/japan-address-search.js}" defer></script>
+</head>
+<body>
+<main class="auth-shell">
+    <section class="auth-card signup-card">
+        <header class="signup-header">
+            <div>
+                <a class="brand" th:href="@{/}">SHOP</a>
+                <p class="eyebrow">ONE MORE STEP</p>
+                <h1>회원 정보 입력</h1>
+                <p class="lead">첫 로그인에 필요한 정보입니다. 배송지로 사용할 일본 주소를 입력해주세요.</p>
+            </div>
+            <span class="step-badge">1 / 1</span>
+        </header>
+
+        <form class="signup-form" th:action="@{/signup/additional-info}" th:object="${additionalInfoRequest}" method="post">
+            <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+            <div class="alert alert--error" th:if="${#fields.hasAnyErrors()}">
+                <p th:each="error : ${#fields.allErrors()}" th:text="${error}">입력값을 확인해주세요.</p>
+            </div>
+
+            <fieldset>
+                <legend>기본 정보</legend>
+                <div class="form-grid two-columns">
+                    <label><span>이름(한자) <b>*</b></span><input th:field="*{nameKanji}" required maxlength="100" autocomplete="name" data-label="이름(한자)"></label>
+                    <label><span>이름(카타카나) <b>*</b></span><input th:field="*{nameKatakana}" required maxlength="100" placeholder="ヤマダ タロウ" data-label="이름(카타카나)"></label>
+                    <label><span>생년월일 <b>*</b></span><input type="date" th:field="*{birthDate}" required data-label="생년월일"></label>
+                    <label><span>성별 <b>*</b></span>
+                        <select th:field="*{gender}" required>
+                            <option value="">선택해주세요</option>
+                            <option value="MALE">남성</option><option value="FEMALE">여성</option><option value="OTHER">기타 / 응답하지 않음</option>
+                        </select>
+                    </label>
+                    <label><span>닉네임 <b>*</b></span><input th:field="*{nickname}" required maxlength="100" autocomplete="nickname" data-label="닉네임"></label>
+                    <label><span>전화번호 <b>*</b></span><input type="tel" th:field="*{phoneNumber}" required placeholder="090-1234-5678" autocomplete="tel" data-label="전화번호"></label>
+                </div>
+            </fieldset>
+
+            <fieldset data-address-search>
+                <legend>기본 배송지</legend>
+                <div class="postal-row">
+                    <label><span>우편번호 <b>*</b></span><input th:field="*{zipCode}" data-address-query data-address-field="zipCode" required placeholder="100-0005" inputmode="numeric" data-label="우편번호"></label>
+                    <button type="button" data-address-search-button>주소 조회</button>
+                </div>
+                <p class="search-status" data-address-search-status aria-live="polite"></p>
+                <div class="address-results" data-address-search-results></div>
+                <div class="form-grid">
+                    <label><span>도도부현 <b>*</b></span>
+                        <select th:field="*{province}" data-address-field="province" required>
+                            <option value="">선택해주세요</option>
+                            <option th:each="prefecture : ${prefectures}" th:value="${prefecture}" th:text="${prefecture}"></option>
+                        </select>
+                    </label>
+                    <label><span>조회 주소 <b>*</b></span><input th:field="*{baseAddress}" data-address-field="baseAddress" required readonly data-label="조회 주소"></label>
+                    <label><span>상세 주소 <b>*</b></span><input th:field="*{detailAddress}" required maxlength="150" placeholder="1-2-3 ○○マンション 101号室" autocomplete="street-address" data-label="상세 주소"></label>
+                </div>
+            </fieldset>
+
+            <button class="primary-button" type="submit">가입 완료</button>
+        </form>
+    </section>
+</main>
+</body>
+</html>
