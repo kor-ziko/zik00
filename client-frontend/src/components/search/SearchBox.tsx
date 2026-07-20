@@ -1,4 +1,5 @@
-import { Search, X } from 'lucide-react';
+import Search from 'lucide-react/dist/esm/icons/search.js';
+import X from 'lucide-react/dist/esm/icons/x.js';
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { popularKeywords } from '../../data';
 import { useRecentSearches } from '../../hooks/useRecentSearches';
@@ -18,6 +19,8 @@ function SearchBox() {
   } = useRecentSearches();
 
   useEffect(() => {
+    if (!searchOpen) return undefined;
+
     const closeOnOutsideClick = (event: MouseEvent) => {
       if (!searchAreaRef.current?.contains(event.target as Node)) {
         setSearchOpen(false);
@@ -26,7 +29,7 @@ function SearchBox() {
 
     document.addEventListener('mousedown', closeOnOutsideClick);
     return () => document.removeEventListener('mousedown', closeOnOutsideClick);
-  }, []);
+  }, [searchOpen]);
 
   const search = (keyword: string) => {
     const normalized = keyword.trim();

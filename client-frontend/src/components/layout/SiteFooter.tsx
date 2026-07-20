@@ -1,4 +1,4 @@
-import { HelpCircle } from 'lucide-react';
+import HelpCircle from 'lucide-react/dist/esm/icons/help-circle.js';
 import { Brand } from './SiteHeader';
 
 function SiteFooter() {

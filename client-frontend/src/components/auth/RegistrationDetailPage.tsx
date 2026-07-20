@@ -1,5 +1,11 @@
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Check, ChevronRight, LoaderCircle, MapPin, Search, UserRound } from 'lucide-react';
+import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left.js';
+import Check from 'lucide-react/dist/esm/icons/check.js';
+import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right.js';
+import LoaderCircle from 'lucide-react/dist/esm/icons/loader-circle.js';
+import MapPin from 'lucide-react/dist/esm/icons/map-pin.js';
+import Search from 'lucide-react/dist/esm/icons/search.js';
+import UserRound from 'lucide-react/dist/esm/icons/user-round.js';
 import {
   ApiError,
   type RegistrationDetailPayload,
@@ -58,8 +64,10 @@ function RegistrationDetailPage() {
   const maxBirthDate = useMemo(yesterday, []);
 
   useEffect(() => {
+    let active = true;
     getRegistrationDetailSession()
       .catch((error) => {
+        if (!active) return;
         if (error instanceof ApiError && error.status === 409) {
           window.location.replace('/login/terms');
           return;
@@ -70,7 +78,12 @@ function RegistrationDetailPage() {
         }
         setSessionError('가입 정보를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.');
       })
-      .finally(() => setCheckingSession(false));
+      .finally(() => {
+        if (active) setCheckingSession(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const update = (name: keyof RegistrationDetailPayload, value: string) => {

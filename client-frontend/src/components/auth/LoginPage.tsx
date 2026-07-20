@@ -1,4 +1,7 @@
-import { ArrowRight, BadgeCheck, PackageCheck, ShieldCheck } from 'lucide-react';
+import ArrowRight from 'lucide-react/dist/esm/icons/arrow-right.js';
+import BadgeCheck from 'lucide-react/dist/esm/icons/badge-check.js';
+import PackageCheck from 'lucide-react/dist/esm/icons/package-check.js';
+import ShieldCheck from 'lucide-react/dist/esm/icons/shield-check.js';
 import AuthShell from './AuthShell';
 
 const benefits = [

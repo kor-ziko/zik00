@@ -1,15 +1,20 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import HeroCarousel from './components/home/HeroCarousel';
 import ProductSection from './components/home/ProductSection';
 import ServiceStrip from './components/home/ServiceStrip';
 import QuickMenu from './components/layout/QuickMenu';
 import SiteFooter from './components/layout/SiteFooter';
 import SiteHeader from './components/layout/SiteHeader';
-import LoginPage from './components/auth/LoginPage';
-import RegistrationDetailPage from './components/auth/RegistrationDetailPage';
-import RegistrationTermsPage from './components/auth/RegistrationTermsPage';
-import MypagePage from './components/mypage/MypagePage';
-import OAuthCallbackPage from './components/auth/OAuthCallbackPage';
+
+const LoginPage = lazy(() => import('./components/auth/LoginPage'));
+const RegistrationDetailPage = lazy(() => import('./components/auth/RegistrationDetailPage'));
+const RegistrationTermsPage = lazy(() => import('./components/auth/RegistrationTermsPage'));
+const MypagePage = lazy(() => import('./components/mypage/MypagePage'));
+const OAuthCallbackPage = lazy(() => import('./components/auth/OAuthCallbackPage'));
+
+function PageLoader() {
+  return <div className="auth-loading" role="status" aria-live="polite">Loading...</div>;
+}
 
 function App() {
   const [path, setPath] = useState(() => window.location.pathname.replace(/\/+$/, '') || '/');
@@ -19,11 +24,13 @@ function App() {
     window.addEventListener('popstate', updatePath);
     return () => window.removeEventListener('popstate', updatePath);
   }, []);
-  if (path === '/login') return <LoginPage />;
-  if (path === '/login/terms') return <RegistrationTermsPage />;
-  if (path === '/login/detail') return <RegistrationDetailPage />;
-  if (path === '/oauth/callback') return <OAuthCallbackPage />;
-  if (path === '/mypage' || path.startsWith('/mypage/')) return <MypagePage />;
+  if (path === '/login') return <Suspense fallback={<PageLoader />}><LoginPage /></Suspense>;
+  if (path === '/login/terms') return <Suspense fallback={<PageLoader />}><RegistrationTermsPage /></Suspense>;
+  if (path === '/login/detail') return <Suspense fallback={<PageLoader />}><RegistrationDetailPage /></Suspense>;
+  if (path === '/oauth/callback') return <Suspense fallback={<PageLoader />}><OAuthCallbackPage /></Suspense>;
+  if (path === '/mypage' || path.startsWith('/mypage/')) {
+    return <Suspense fallback={<PageLoader />}><MypagePage /></Suspense>;
+  }
 
   return (
     <div className="app-shell">

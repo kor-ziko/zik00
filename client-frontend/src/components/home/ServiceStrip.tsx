@@ -1,4 +1,6 @@
-import { Calculator, Clock3, PackageCheck } from 'lucide-react';
+import Calculator from 'lucide-react/dist/esm/icons/calculator.js';
+import Clock3 from 'lucide-react/dist/esm/icons/clock-3.js';
+import PackageCheck from 'lucide-react/dist/esm/icons/package-check.js';
 
 function ServiceStrip() {
   return (

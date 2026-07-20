@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { ArrowLeft, LockKeyhole } from 'lucide-react';
+import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left.js';
+import LockKeyhole from 'lucide-react/dist/esm/icons/lock-keyhole.js';
 
 type AuthShellProps = {
   children: ReactNode;

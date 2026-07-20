@@ -17,7 +17,11 @@ export function useRecentSearches() {
   const [recentSearches, setRecentSearches] = useState<string[]>(getStoredSearches);
 
   useEffect(() => {
-    localStorage.setItem(RECENT_SEARCH_KEY, JSON.stringify(recentSearches));
+    try {
+      localStorage.setItem(RECENT_SEARCH_KEY, JSON.stringify(recentSearches));
+    } catch {
+      // Browsing modes that disable storage should not break search.
+    }
   }, [recentSearches]);
 
   const addRecentSearch = (keyword: string) => {

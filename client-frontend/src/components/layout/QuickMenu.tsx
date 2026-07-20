@@ -1,4 +1,7 @@
-import { Calculator, Headphones, PackageCheck, Search } from 'lucide-react';
+import Calculator from 'lucide-react/dist/esm/icons/calculator.js';
+import Headphones from 'lucide-react/dist/esm/icons/headphones.js';
+import PackageCheck from 'lucide-react/dist/esm/icons/package-check.js';
+import Search from 'lucide-react/dist/esm/icons/search.js';
 
 function QuickMenu() {
   return (

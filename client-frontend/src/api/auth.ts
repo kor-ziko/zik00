@@ -41,6 +41,14 @@ type TermsAgreementPayload = {
 };
 
 let refreshInFlight: Promise<boolean> | null = null;
+let csrfInFlight: Promise<CsrfResponse> | null = null;
+let sessionInFlight: Promise<AuthSession> | null = null;
+let detailSessionInFlight: Promise<void> | null = null;
+let termsSessionInFlight: Promise<TermsSessionResponse> | null = null;
+const postalCodeCache = new Map<string, { expiresAt: number; results: AddressResult[] }>();
+const postalCodeRequests = new Map<string, Promise<AddressResult[]>>();
+const POSTAL_CODE_CACHE_TTL_MS = 30 * 60 * 1_000;
+const MAX_POSTAL_CODE_CACHE_SIZE = 32;
 
 export class ApiError extends Error {
   constructor(public readonly messages: string[], public readonly status: number) {
@@ -61,9 +69,17 @@ async function readError(response: Response) {
 }
 
 export async function getCsrfToken(): Promise<CsrfResponse> {
-  const response = await fetch('/api/auth/csrf', { credentials: 'include' });
-  if (!response.ok) throw await readError(response);
-  return response.json() as Promise<CsrfResponse>;
+  if (csrfInFlight === null) {
+    csrfInFlight = fetch('/api/auth/csrf', { credentials: 'include' })
+      .then(async (response) => {
+        if (!response.ok) throw await readError(response);
+        return response.json() as Promise<CsrfResponse>;
+      })
+      .finally(() => {
+        csrfInFlight = null;
+      });
+  }
+  return csrfInFlight;
 }
 
 async function performAccessTokenRefresh(): Promise<boolean> {
@@ -128,27 +144,74 @@ export async function completeOAuthLogin(code: string): Promise<OAuthCompleteRes
 }
 
 export async function getAuthSession(): Promise<AuthSession> {
-  const response = await fetchAuthenticated('/api/auth/session');
-  if (!response.ok) throw await readError(response);
-  return response.json() as Promise<AuthSession>;
+  if (sessionInFlight === null) {
+    sessionInFlight = fetchAuthenticated('/api/auth/session')
+      .then(async (response) => {
+        if (!response.ok) throw await readError(response);
+        return response.json() as Promise<AuthSession>;
+      })
+      .finally(() => {
+        sessionInFlight = null;
+      });
+  }
+  return sessionInFlight;
 }
 
 export async function searchJapaneseAddress(postalCode: string): Promise<AddressResult[]> {
+  const cached = postalCodeCache.get(postalCode);
+  if (cached && cached.expiresAt > Date.now()) return cached.results;
+  if (cached) postalCodeCache.delete(postalCode);
+
+  const existingRequest = postalCodeRequests.get(postalCode);
+  if (existingRequest) return existingRequest;
+
   const query = new URLSearchParams({ postalCode });
-  const response = await fetch(`/api/japan-postal-codes?${query}`, { credentials: 'include' });
-  if (!response.ok) throw await readError(response);
-  return response.json() as Promise<AddressResult[]>;
+  const request = fetch(`/api/japan-postal-codes?${query}`, { credentials: 'include' })
+    .then(async (response) => {
+      if (!response.ok) throw await readError(response);
+      const results = await response.json() as AddressResult[];
+      if (postalCodeCache.size >= MAX_POSTAL_CODE_CACHE_SIZE) {
+        const oldestKey = postalCodeCache.keys().next().value as string | undefined;
+        if (oldestKey) postalCodeCache.delete(oldestKey);
+      }
+      postalCodeCache.set(postalCode, {
+        expiresAt: Date.now() + POSTAL_CODE_CACHE_TTL_MS,
+        results,
+      });
+      return results;
+    })
+    .finally(() => {
+      postalCodeRequests.delete(postalCode);
+    });
+  postalCodeRequests.set(postalCode, request);
+  return request;
 }
 
 export async function getRegistrationDetailSession(): Promise<void> {
-  const response = await fetch('/api/auth/detail', { credentials: 'include' });
-  if (!response.ok) throw await readError(response);
+  if (detailSessionInFlight === null) {
+    detailSessionInFlight = fetch('/api/auth/detail', { credentials: 'include' })
+      .then(async (response) => {
+        if (!response.ok) throw await readError(response);
+      })
+      .finally(() => {
+        detailSessionInFlight = null;
+      });
+  }
+  return detailSessionInFlight;
 }
 
 export async function getRegistrationTerms(): Promise<TermsSessionResponse> {
-  const response = await fetch('/api/auth/terms', { credentials: 'include' });
-  if (!response.ok) throw await readError(response);
-  return response.json() as Promise<TermsSessionResponse>;
+  if (termsSessionInFlight === null) {
+    termsSessionInFlight = fetch('/api/auth/terms', { credentials: 'include' })
+      .then(async (response) => {
+        if (!response.ok) throw await readError(response);
+        return response.json() as Promise<TermsSessionResponse>;
+      })
+      .finally(() => {
+        termsSessionInFlight = null;
+      });
+  }
+  return termsSessionInFlight;
 }
 
 export async function acceptRegistrationTerms(payload: TermsAgreementPayload): Promise<void> {

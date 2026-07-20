@@ -1,12 +1,10 @@
-import {
-  ChevronDown,
-  Globe2,
-  Heart,
-  Menu,
-  ShoppingBag,
-  Truck,
-  UserRound,
-} from 'lucide-react';
+import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down.js';
+import Globe2 from 'lucide-react/dist/esm/icons/globe-2.js';
+import Heart from 'lucide-react/dist/esm/icons/heart.js';
+import Menu from 'lucide-react/dist/esm/icons/menu.js';
+import ShoppingBag from 'lucide-react/dist/esm/icons/shopping-bag.js';
+import Truck from 'lucide-react/dist/esm/icons/truck.js';
+import UserRound from 'lucide-react/dist/esm/icons/user-round.js';
 import { useEffect, useState } from 'react';
 import { type AuthSession, getAuthSession, logout } from '../../api/auth';
 import SearchBox from '../search/SearchBox';
@@ -36,10 +34,20 @@ function SiteHeader() {
   const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
+    let active = true;
     getAuthSession()
-      .then(setSession)
-      .catch(() => setSession(null))
-      .finally(() => setSessionChecked(true));
+      .then((result) => {
+        if (active) setSession(result);
+      })
+      .catch(() => {
+        if (active) setSession(null);
+      })
+      .finally(() => {
+        if (active) setSessionChecked(true);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleLogout = async () => {

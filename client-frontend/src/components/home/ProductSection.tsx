@@ -1,4 +1,5 @@
-import { ChevronRight, Heart } from 'lucide-react';
+import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right.js';
+import Heart from 'lucide-react/dist/esm/icons/heart.js';
 import { products } from '../../data';
 
 function ProductSection() {
@@ -17,7 +18,7 @@ function ProductSection() {
           <article className="product-card" key={product.id}>
             <div className="product-image-wrap">
               <a className="product-image-link" href={`#product-${product.id}`}>
-                <img src={product.image} alt={product.name} loading="lazy" />
+                <img src={product.image} alt={product.name} loading="lazy" decoding="async" />
               </a>
               {product.badge && <span>{product.badge}</span>}
               <button type="button" aria-label={`${product.name} 찜하기`}>

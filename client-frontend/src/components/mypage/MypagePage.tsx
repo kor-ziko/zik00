@@ -1,9 +1,24 @@
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
-import {
-  Bell, ChevronRight, CircleDollarSign, CreditCard, Gift, HelpCircle,
-  ImagePlus, LoaderCircle, MapPin, MessageCircleQuestion, PackageCheck, Pencil,
-  Plus, ReceiptText, Search, Trash2, Truck, UserRound, WalletCards, X,
-} from 'lucide-react';
+import { type FormEvent, useEffect, useState } from 'react';
+import Bell from 'lucide-react/dist/esm/icons/bell.js';
+import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right.js';
+import CircleDollarSign from 'lucide-react/dist/esm/icons/circle-dollar-sign.js';
+import CreditCard from 'lucide-react/dist/esm/icons/credit-card.js';
+import Gift from 'lucide-react/dist/esm/icons/gift.js';
+import HelpCircle from 'lucide-react/dist/esm/icons/help-circle.js';
+import ImagePlus from 'lucide-react/dist/esm/icons/image-plus.js';
+import LoaderCircle from 'lucide-react/dist/esm/icons/loader-circle.js';
+import MapPin from 'lucide-react/dist/esm/icons/map-pin.js';
+import MessageCircleQuestion from 'lucide-react/dist/esm/icons/message-circle-question.js';
+import PackageCheck from 'lucide-react/dist/esm/icons/package-check.js';
+import Pencil from 'lucide-react/dist/esm/icons/pencil.js';
+import Plus from 'lucide-react/dist/esm/icons/plus.js';
+import ReceiptText from 'lucide-react/dist/esm/icons/receipt-text.js';
+import Search from 'lucide-react/dist/esm/icons/search.js';
+import Trash2 from 'lucide-react/dist/esm/icons/trash-2.js';
+import Truck from 'lucide-react/dist/esm/icons/truck.js';
+import UserRound from 'lucide-react/dist/esm/icons/user-round.js';
+import WalletCards from 'lucide-react/dist/esm/icons/wallet-cards.js';
+import X from 'lucide-react/dist/esm/icons/x.js';
 import {
   type AddressUpdatePayload, type Coupon, type Dashboard, type DeliveryAddress,
   type InquiryThread, type MypageProfile, type MypageSection, type ProfileData,
@@ -44,7 +59,8 @@ function AuthenticatedImage({ src, alt }: { src: string; alt: string }) {
   useEffect(() => {
     let active = true;
     let createdUrl = '';
-    fetchAuthenticated(src)
+    const controller = new AbortController();
+    fetchAuthenticated(src, { signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error('이미지를 불러오지 못했습니다.');
         return response.blob();
@@ -54,9 +70,12 @@ function AuthenticatedImage({ src, alt }: { src: string; alt: string }) {
         createdUrl = URL.createObjectURL(blob);
         setObjectUrl(createdUrl);
       })
-      .catch(() => setObjectUrl(''));
+      .catch(() => {
+        if (active) setObjectUrl('');
+      });
     return () => {
       active = false;
+      controller.abort();
       if (createdUrl) URL.revokeObjectURL(createdUrl);
     };
   }, [src]);
@@ -248,7 +267,7 @@ function AddressManager({ profile, addresses, onSaved }: { profile: MypageProfil
 }
 
 function MypagePage() {
-  const section = useMemo(currentSection, []);
+  const [section] = useState(currentSection);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [sectionData, setSectionData] = useState<SectionData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -256,26 +275,51 @@ function MypagePage() {
   const active = menuItems.find((item) => item.section === section) ?? menuItems[0];
 
   useEffect(() => {
+    let active = true;
     setLoading(true);
+    setError('');
+    const sectionRequest = section === 'inquiries' || section === 'profile'
+      ? getMypageSection(section)
+      : Promise.resolve(null);
     Promise.all([
       getMypageDashboard(),
-      section === 'home' ? Promise.resolve(null) : getMypageSection(section),
+      sectionRequest,
     ])
       .then(([dashboardResult, pageResult]) => {
+        if (!active) return;
         setDashboard(dashboardResult);
-        setSectionData(pageResult);
+        if (section === 'orders' || section === 'deliveries') {
+          setSectionData(dashboardResult.recentOrders);
+        } else if (section === 'coupons') {
+          setSectionData(dashboardResult.coupons);
+        } else if (section === 'deposits') {
+          setSectionData(dashboardResult.summary);
+        } else {
+          setSectionData(pageResult);
+        }
       })
-      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : '정보를 불러오지 못했습니다.'))
-      .finally(() => setLoading(false));
+      .catch((reason: unknown) => {
+        if (active) setError(reason instanceof Error ? reason.message : '정보를 불러오지 못했습니다.');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [section]);
 
   const refreshProfile = async () => {
-    const [profileResult, dashboardResult] = await Promise.all([
-      getMypageSection('profile'),
-      getMypageDashboard(),
-    ]);
+    const profileResult = await getMypageSection('profile') as ProfileData;
     setSectionData(profileResult);
-    setDashboard(dashboardResult);
+    setDashboard((current) => current && ({
+      ...current,
+      profile: profileResult.profile,
+      summary: {
+        ...current.summary,
+        memberNickname: profileResult.profile.nickname,
+      },
+    }));
   };
 
   const renderContent = () => {

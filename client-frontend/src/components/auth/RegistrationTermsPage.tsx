@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Check, ChevronRight, LoaderCircle, ShieldCheck } from 'lucide-react';
+import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left.js';
+import Check from 'lucide-react/dist/esm/icons/check.js';
+import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right.js';
+import LoaderCircle from 'lucide-react/dist/esm/icons/loader-circle.js';
+import ShieldCheck from 'lucide-react/dist/esm/icons/shield-check.js';
 import { acceptRegistrationTerms, ApiError, getRegistrationTerms } from '../../api/auth';
 import { registrationTerms, type RegistrationTermId } from '../../content/registrationTerms';
 import AuthShell from './AuthShell';
@@ -20,8 +24,10 @@ function RegistrationTermsPage() {
   const allAgreed = registrationTerms.every((term) => agreements[term.id]);
 
   useEffect(() => {
+    let active = true;
     getRegistrationTerms()
       .then(({ accepted, alarmConsent }) => {
+        if (!active) return;
         if (accepted) {
           setAgreements(Object.fromEntries(
             registrationTerms.map((term) => [
@@ -32,13 +38,19 @@ function RegistrationTermsPage() {
         }
       })
       .catch((requestError) => {
+        if (!active) return;
         if (requestError instanceof ApiError && requestError.status === 401) {
           window.location.replace('/login?reason=registration-expired');
           return;
         }
         setError('가입 정보를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.');
       })
-      .finally(() => setCheckingSession(false));
+      .finally(() => {
+        if (active) setCheckingSession(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const toggleAll = (checked: boolean) => {

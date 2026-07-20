@@ -87,14 +87,27 @@ export type AddressUpdatePayload = {
 export type MypageSection = 'home' | 'orders' | 'deliveries' | 'inquiries' | 'coupons' | 'deposits' | 'profile';
 export type SectionData = Purchase[] | InquiryThread[] | Coupon[] | MypageSummary | ProfileData;
 
+const requestsInFlight = new Map<string, Promise<unknown>>();
+
 async function requestJson<T>(path: string): Promise<T> {
-  const response = await fetchAuthenticated(path);
-  if (response.status === 401) {
-    window.location.replace('/login');
-    throw new Error('로그인이 필요합니다.');
+  const existingRequest = requestsInFlight.get(path) as Promise<T> | undefined;
+  if (existingRequest) return existingRequest;
+
+  const request = (async () => {
+    const response = await fetchAuthenticated(path);
+    if (response.status === 401) {
+      window.location.replace('/login');
+      throw new Error('로그인이 필요합니다.');
+    }
+    if (!response.ok) throw new Error('마이페이지 정보를 불러오지 못했습니다.');
+    return response.json() as Promise<T>;
+  })();
+  requestsInFlight.set(path, request);
+  try {
+    return await request;
+  } finally {
+    if (requestsInFlight.get(path) === request) requestsInFlight.delete(path);
   }
-  if (!response.ok) throw new Error('마이페이지 정보를 불러오지 못했습니다.');
-  return response.json() as Promise<T>;
 }
 
 export function getMypageDashboard() {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { LoaderCircle } from 'lucide-react';
+import LoaderCircle from 'lucide-react/dist/esm/icons/loader-circle.js';
 import { completeOAuthLogin } from '../../api/auth';
 import AuthShell from './AuthShell';
 

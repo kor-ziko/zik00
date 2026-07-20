@@ -1,4 +1,5 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left.js';
+import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right.js';
 import { useEffect, useState } from 'react';
 import { heroSlides } from '../../data';
 
@@ -8,11 +9,31 @@ function HeroCarousel() {
   const [activeSlide, setActiveSlide] = useState(0);
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      setActiveSlide((current) => (current + 1) % heroSlides.length);
-    }, AUTO_PLAY_DELAY);
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (reducedMotion.matches || heroSlides.length < 2) return undefined;
 
-    return () => window.clearInterval(timer);
+    let timer: number | undefined;
+    const stopTimer = () => {
+      if (timer !== undefined) window.clearInterval(timer);
+      timer = undefined;
+    };
+    const startTimer = () => {
+      if (document.hidden || timer !== undefined) return;
+      timer = window.setInterval(() => {
+        setActiveSlide((current) => (current + 1) % heroSlides.length);
+      }, AUTO_PLAY_DELAY);
+    };
+    const handleVisibilityChange = () => {
+      if (document.hidden) stopTimer();
+      else startTimer();
+    };
+    startTimer();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      stopTimer();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const selectedSlide = heroSlides[activeSlide];
@@ -25,7 +46,7 @@ function HeroCarousel() {
 
   return (
     <section className="hero" aria-label="주요 기획전">
-      <img src={selectedSlide.image} alt="" />
+      <img src={selectedSlide.image} alt="" decoding="async" fetchPriority={activeSlide === 0 ? 'high' : 'auto'} />
       <div className="hero-overlay" />
       <div className="hero-content header-inner">
         <div className="hero-copy">
