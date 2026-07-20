@@ -103,6 +103,27 @@ public class MypageService {
         );
     }
 
+    public DashboardData getDashboard() {
+        User user = findCurrentUser();
+        long memberId = user.getMemberId();
+        MypageSummary summary = new MypageSummary(
+                toInt(purchaseRepository.countUserOrdersByStatus(memberId, ORDER_COMPLETED)),
+                toInt(purchaseRepository.countUserOrdersByStatus(memberId, DELIVERY)),
+                toInt(inquiryRepository.countUserInquiries(memberId)),
+                toInt(couponRepository.countUserCoupons(memberId)),
+                user.getDepositBalance(),
+                user.getRewardPoint(),
+                user.getNickname()
+        );
+        List<PurchaseResponse> purchases = purchaseRepository.findUserPurchases(memberId).stream()
+                .map(PurchaseResponse::from)
+                .toList();
+        List<CouponResponse> coupons = couponRepository.findUserCoupons(memberId).stream()
+                .map(CouponResponse::from)
+                .toList();
+        return new DashboardData(summary, MypageProfileResponse.from(user), purchases, coupons);
+    }
+
     public MypageProfileResponse getCurrentUser() {
         return MypageProfileResponse.from(findCurrentUser());
     }
@@ -449,6 +470,14 @@ public class MypageService {
             String fileName,
             String contentType,
             long contentLength
+    ) {
+    }
+
+    public record DashboardData(
+            MypageSummary summary,
+            MypageProfileResponse profile,
+            List<PurchaseResponse> recentOrders,
+            List<CouponResponse> coupons
     ) {
     }
 }

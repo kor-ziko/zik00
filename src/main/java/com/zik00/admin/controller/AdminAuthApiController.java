@@ -3,6 +3,7 @@ package com.zik00.admin.controller;
 import com.zik00.admin.dto.AdminLoginRequest;
 import com.zik00.admin.dto.AdminSessionResponse;
 import com.zik00.admin.service.AdminAuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -25,19 +26,22 @@ public class AdminAuthApiController {
     @PostMapping("/login")
     public AdminSessionResponse login(
             @Valid @RequestBody AdminLoginRequest request,
-            HttpSession httpSession
+            HttpServletRequest httpRequest
     ) {
-        return AdminSessionResponse.from(adminAuthService.login(request, httpSession));
+        HttpSession httpSession = httpRequest.getSession();
+        AdminSessionResponse response = AdminSessionResponse.from(adminAuthService.login(request, httpSession));
+        httpRequest.changeSessionId();
+        return response;
     }
 
     @GetMapping("/me")
-    public AdminSessionResponse me(HttpSession httpSession) {
-        return AdminSessionResponse.from(adminAuthService.current(httpSession));
+    public AdminSessionResponse me(HttpServletRequest request) {
+        return AdminSessionResponse.from(adminAuthService.current(request.getSession(false)));
     }
 
     @PostMapping("/logout")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void logout(HttpSession httpSession) {
-        adminAuthService.logout(httpSession);
+    public void logout(HttpServletRequest request) {
+        adminAuthService.logout(request.getSession(false));
     }
 }

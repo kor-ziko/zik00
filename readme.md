@@ -71,7 +71,8 @@ https://chooobb.tistory.com/33
 
 Spring Boot 실행 전에 Redis가 `localhost:6379`에서 실행 중이어야 한다.
 
-```properties
+```
+properties
 REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_DATABASE=0
@@ -82,27 +83,24 @@ REDIS_PASSWORD=
 확인 명령은 `redis-cli ping`이며 `PONG`이 반환되어야 한다. Refresh Token 원문은 HttpOnly 쿠키에만 있고, Redis에는 `shop:auth:refresh:{tokenHash}` 키와 TTL만 저장된다.
 
 # .env 파일 format
-Google Cloud Console OAuth 2.0 Client credentials
 ```
-GOOGLE_CLIENT_ID={}
-GOOGLE_CLIENT_SECRET={}
-```
+# Google Cloud Console OAuth 2.0 Client credentials
+GOOGLE_CLIENT_ID={your}
+GOOGLE_CLIENT_SECRET={your}
 
-JWT RS256 key pair (PKCS#8 private key / X.509 public key)
-```
-JWT_PRIVATE_KEY={}
-JWT_PUBLIC_KEY={}
-```
+# Spring datasource
+SPRING_DATASOURCE_USERNAME={your}
+SPRING_DATASOURCE_PASSWORD={your}
 
-Redis refresh token store
-```
+# OAuth token encryption
+OAUTH_TOKEN_ENCRYPTION_KEY={your}
+
+# JWT RS256 key pair (PKCS#8 private key / X.509 public key)
+JWT_PRIVATE_KEY={your}
+JWT_PUBLIC_KEY={your}
+
+# Redis refresh token store
 REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_DATABASE=0
 ```
-
-# 작업 내용
-work.md에서 옮김
-
-
-

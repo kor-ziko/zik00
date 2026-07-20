@@ -1,6 +1,9 @@
 package com.zik00.shop.config;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
+import java.util.Locale;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -33,11 +36,21 @@ public class WebClientOrigins {
             throw new IllegalArgumentException("Web client origin must not be blank.");
         }
 
-        String normalized = value.strip();
-        int end = normalized.length();
-        while (end > 0 && normalized.charAt(end - 1) == '/') {
-            end--;
+        try {
+            URI uri = new URI(value.strip());
+            String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(Locale.ROOT);
+            String path = uri.getPath();
+            if (!("http".equals(scheme) || "https".equals(scheme))
+                    || uri.getHost() == null
+                    || uri.getUserInfo() != null
+                    || uri.getQuery() != null
+                    || uri.getFragment() != null
+                    || (path != null && !path.isEmpty() && !"/".equals(path))) {
+                throw new IllegalArgumentException("Web client URL must be an HTTP(S) origin without a path.");
+            }
+            return new URI(scheme, null, uri.getHost(), uri.getPort(), null, null, null).toASCIIString();
+        } catch (URISyntaxException exception) {
+            throw new IllegalArgumentException("Web client origin is invalid.", exception);
         }
-        return normalized.substring(0, end);
     }
 }

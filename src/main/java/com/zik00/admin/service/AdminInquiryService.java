@@ -62,23 +62,39 @@ public class AdminInquiryService {
     }
 
     public List<AdminInquirySummaryResponse> findInquiries() {
-        return inquiryRepository.findAllByOrderByInquiryIdDesc()
+        List<Inquiry> inquiries = inquiryRepository.findAllByOrderByInquiryIdDesc();
+        if (inquiries.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> inquiryIds = inquiries.stream().map(Inquiry::getInquiryId).toList();
+        Map<Long, String> memberNames = userRepository.findAllById(
+                        inquiries.stream().map(Inquiry::getMemberId).distinct().toList()
+                ).stream()
+                .collect(Collectors.toMap(User::getMemberId, User::getName));
+        Map<Long, Long> commentCounts = inquiryCommentRepository.countByInquiryIds(inquiryIds).stream()
+                .collect(Collectors.toMap(
+                        InquiryCommentRepository.InquiryItemCount::getInquiryId,
+                        InquiryCommentRepository.InquiryItemCount::getItemCount
+                ));
+        Map<Long, Long> imageCounts = inquiryImageRepository.countByInquiryIds(inquiryIds).stream()
+                .collect(Collectors.toMap(
+                        InquiryImageRepository.InquiryItemCount::getInquiryId,
+                        InquiryImageRepository.InquiryItemCount::getItemCount
+                ));
+
+        return inquiries
                 .stream()
-                .map(inquiry -> {
-                    String memberName = userRepository.findById(inquiry.getMemberId())
-                            .map(User::getName)
-                            .orElse("탈퇴회원");
-                    return new AdminInquirySummaryResponse(
-                            inquiry.getInquiryId(),
-                            inquiry.getMemberId(),
-                            memberName,
-                            inquiry.getTitle(),
-                            inquiry.isStatus(),
-                            inquiry.getCreatedAt(),
-                            inquiryCommentRepository.countByInquiryId(inquiry.getInquiryId()),
-                            inquiryImageRepository.countByInquiryId(inquiry.getInquiryId())
-                    );
-                })
+                .map(inquiry -> new AdminInquirySummaryResponse(
+                        inquiry.getInquiryId(),
+                        inquiry.getMemberId(),
+                        memberNames.getOrDefault(inquiry.getMemberId(), "탈퇴회원"),
+                        inquiry.getTitle(),
+                        inquiry.isStatus(),
+                        inquiry.getCreatedAt(),
+                        commentCounts.getOrDefault(inquiry.getInquiryId(), 0L),
+                        imageCounts.getOrDefault(inquiry.getInquiryId(), 0L)
+                ))
                 .toList();
     }
 

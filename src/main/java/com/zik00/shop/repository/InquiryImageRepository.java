@@ -2,6 +2,7 @@ package com.zik00.shop.repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Collection;
 
 import com.zik00.shop.domain.InquiryImage;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -10,6 +11,14 @@ import org.springframework.data.jpa.repository.Query;
 public interface InquiryImageRepository extends JpaRepository<InquiryImage, Long> {
     // @Suil - 관리자 문의 목록에 사용자 첨부사진 개수를 표시
     long countByInquiryId(long inquiryId);
+
+    @Query("""
+            select i.inquiryId as inquiryId, count(i) as itemCount
+            from InquiryImage i
+            where i.inquiryId in ?1
+            group by i.inquiryId
+            """)
+    List<InquiryItemCount> countByInquiryIds(Collection<Long> inquiryIds);
 
     @Query("""
             select i
@@ -30,4 +39,10 @@ public interface InquiryImageRepository extends JpaRepository<InquiryImage, Long
 
     // @Suil - 관리자 화면에서 사용자 문의 사진을 조회
     Optional<InquiryImage> findByImageUuid(String imageUuid);
+
+    interface InquiryItemCount {
+        Long getInquiryId();
+
+        long getItemCount();
+    }
 }

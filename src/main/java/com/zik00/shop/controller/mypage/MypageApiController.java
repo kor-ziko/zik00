@@ -42,11 +42,12 @@ public class MypageApiController {
 
     @GetMapping
     public DashboardResponse dashboard() {
+        MypageService.DashboardData dashboard = mypageService.getDashboard();
         return new DashboardResponse(
-                mypageService.getSummary(),
-                mypageService.getCurrentUser(),
-                mypageService.getPurchases(),
-                mypageService.getCoupons()
+                dashboard.summary(),
+                dashboard.profile(),
+                dashboard.recentOrders(),
+                dashboard.coupons()
         );
     }
 

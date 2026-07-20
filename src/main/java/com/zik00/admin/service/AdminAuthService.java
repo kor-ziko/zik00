@@ -43,7 +43,7 @@ public class AdminAuthService {
     }
 
     public AdminSession current(HttpSession httpSession) {
-        Object session = httpSession.getAttribute(SESSION_ATTRIBUTE);
+        Object session = httpSession == null ? null : httpSession.getAttribute(SESSION_ATTRIBUTE);
         if (session instanceof AdminSession adminSession) {
             return adminSession;
         }
@@ -51,7 +51,9 @@ public class AdminAuthService {
     }
 
     public void logout(HttpSession httpSession) {
-        httpSession.removeAttribute(SESSION_ATTRIBUTE);
+        if (httpSession != null) {
+            httpSession.invalidate();
+        }
     }
 
     private String normalize(String value) {

@@ -66,10 +66,10 @@ public class SecurityConfig {
                                 "/login", "/oauth2/**", "/login/oauth2/**",
                                 "/api/japan-postal-codes",
                                 "/api/auth/csrf", "/api/auth/refresh", "/api/auth/oauth/complete",
-                                "/admin/**", "/api/admin/**", "/", "/error"
+                                "/api/admin/**", "/logout", "/error"
                         ).permitAll()
                         .requestMatchers("/api/auth/**", "/api/mypage/**", "/signup/**", "/mypage/**").authenticated()
-                        .anyRequest().permitAll()
+                        .anyRequest().denyAll()
                 )
                 .formLogin(formLogin -> formLogin.disable())
                 .httpBasic(httpBasic -> httpBasic.disable())
@@ -108,7 +108,9 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(webClientOrigins.allowedOrigins());
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowedHeaders(List.of(
+                "Accept", "Authorization", "Content-Type", "X-XSRF-TOKEN"
+        ));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 

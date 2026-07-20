@@ -9,6 +9,8 @@ import java.security.PublicKey;
 import java.security.Signature;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
@@ -28,6 +30,8 @@ public class JwtService {
     public static final String REFRESH = "refresh";
     private static final String ALGORITHM = "RS256";
     private static final String HEADER = base64Url("{\"alg\":\"RS256\",\"typ\":\"JWT\"}");
+    private static final int MIN_RSA_KEY_BITS = 2_048;
+    private static final int MAX_TOKEN_LENGTH = 8_192;
 
     private final ObjectMapper objectMapper;
     private final PrivateKey privateKey;
@@ -50,9 +54,13 @@ public class JwtService {
         this.accessTtl = accessTtl;
         this.refreshTtl = refreshTtl;
         this.issuer = issuer;
+        validateConfiguration();
     }
 
     public JwtPair issue(String accessId) {
+        if (accessId == null || accessId.isBlank()) {
+            throw new IllegalArgumentException("JWT subject must not be blank.");
+        }
         Instant now = Instant.now();
         return new JwtPair(
                 createToken(accessId, ACCESS, now, now.plus(accessTtl)),
@@ -64,7 +72,11 @@ public class JwtService {
 
     public JwtClaims validate(String token, String expectedType) {
         try {
-            String[] parts = token == null ? new String[0] : token.split("\\.");
+            if (token == null || token.isBlank() || token.length() > MAX_TOKEN_LENGTH
+                    || (!ACCESS.equals(expectedType) && !REFRESH.equals(expectedType))) {
+                throw new InvalidJwtException("JWT를 사용할 수 없습니다.");
+            }
+            String[] parts = token.split("\\.", -1);
             if (parts.length != 3) {
                 throw new InvalidJwtException("JWT 형식이 올바르지 않습니다.");
             }
@@ -135,6 +147,35 @@ public class JwtService {
             return signature.verify(signatureValue);
         } catch (GeneralSecurityException exception) {
             throw new InvalidJwtException("JWT 서명을 검증할 수 없습니다.", exception);
+        }
+    }
+
+    private void validateConfiguration() {
+        if (!(privateKey instanceof RSAPrivateKey rsaPrivateKey)
+                || !(publicKey instanceof RSAPublicKey rsaPublicKey)
+                || rsaPrivateKey.getModulus().bitLength() < MIN_RSA_KEY_BITS
+                || rsaPublicKey.getModulus().bitLength() < MIN_RSA_KEY_BITS) {
+            throw new IllegalStateException("JWT RSA key size must be at least 2048 bits.");
+        }
+        if (accessTtl.isZero() || accessTtl.isNegative()
+                || refreshTtl.isZero() || refreshTtl.isNegative()
+                || issuer == null || issuer.isBlank()) {
+            throw new IllegalStateException("JWT issuer and token TTL values must be valid.");
+        }
+
+        byte[] probe = "zik00-jwt-key-pair-check".getBytes(StandardCharsets.UTF_8);
+        try {
+            Signature signer = Signature.getInstance("SHA256withRSA");
+            signer.initSign(privateKey);
+            signer.update(probe);
+            Signature verifier = Signature.getInstance("SHA256withRSA");
+            verifier.initVerify(publicKey);
+            verifier.update(probe);
+            if (!verifier.verify(signer.sign())) {
+                throw new IllegalStateException("JWT private and public keys do not match.");
+            }
+        } catch (GeneralSecurityException exception) {
+            throw new IllegalStateException("JWT RSA key pair validation failed.", exception);
         }
     }
 

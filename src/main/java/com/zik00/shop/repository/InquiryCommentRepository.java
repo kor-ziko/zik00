@@ -12,10 +12,24 @@ public interface InquiryCommentRepository extends JpaRepository<InquiryComment, 
     long countByInquiryId(long inquiryId);
 
     @Query("""
+            select c.inquiryId as inquiryId, count(c) as itemCount
+            from InquiryComment c
+            where c.inquiryId in ?1
+            group by c.inquiryId
+            """)
+    List<InquiryItemCount> countByInquiryIds(Collection<Long> inquiryIds);
+
+    @Query("""
             select c
             from InquiryComment c
             where c.inquiryId in ?1
             order by c.commentId asc
             """)
     List<InquiryComment> findByInquiryIds(Collection<Long> inquiryIds);
+
+    interface InquiryItemCount {
+        Long getInquiryId();
+
+        long getItemCount();
+    }
 }

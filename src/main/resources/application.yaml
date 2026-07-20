@@ -1,6 +1,13 @@
 server:
   address: 127.0.0.1
   port: 8080
+  servlet:
+    session:
+      timeout: 30m
+      cookie:
+        http-only: true
+        secure: ${SESSION_COOKIE_SECURE:false}
+        same-site: lax
 
 spring:
   config:
@@ -13,8 +20,8 @@ spring:
       max-request-size: 15MB
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/shop?serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
-    username: ${SPRING_DATASOURCE_USERNAME:root}
-    password: ${SPRING_DATASOURCE_PASSWORD:1q2w3e}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
   data:
     redis:
@@ -31,14 +38,14 @@ spring:
     open-in-view: false
     properties:
       hibernate:
-        format_sql: true
+        format_sql: false
   security:
     oauth2:
       client:
         registration:
           google:
-            client-id: ${GOOGLE_CLIENT_ID:local-google-client-id}
-            client-secret: ${GOOGLE_CLIENT_SECRET:local-google-client-secret}
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
             redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/login/oauth2/code/google}
             scope:
               - profile
@@ -53,7 +60,7 @@ shop:
     refresh-token-ttl: P14D
     cookie-secure: ${JWT_COOKIE_SECURE:false}
   oauth:
-    token-encryption-key: ${OAUTH_TOKEN_ENCRYPTION_KEY:${GOOGLE_CLIENT_SECRET:local-token-encryption-key-change-me}}
+    token-encryption-key: ${OAUTH_TOKEN_ENCRYPTION_KEY}
   frontend:
     base-url: ${SHOP_FRONTEND_BASE_URL:http://localhost:5174}
   admin:

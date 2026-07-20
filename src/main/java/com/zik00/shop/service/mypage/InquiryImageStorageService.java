@@ -1,18 +1,20 @@
 package com.zik00.shop.service.mypage;
 
-import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
+import java.util.Iterator;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
 
 import com.zik00.shop.util.mypage.InquiryImagePaths;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,6 +28,8 @@ import org.springframework.web.multipart.MultipartFile;
 public class InquiryImageStorageService {
     private static final int MAX_IMAGE_COUNT = 3;
     private static final long MAX_IMAGE_SIZE = 5L * 1024L * 1024L;
+    private static final int MAX_IMAGE_DIMENSION = 10_000;
+    private static final long MAX_IMAGE_PIXELS = 40_000_000L;
     private static final Set<String> DECODE_REQUIRED_EXTENSIONS = Set.of("jpg", "png", "gif");
     private static final String IMAGE_COUNT_EXCEEDED = "이미지는 최대 3개까지 첨부할 수 있습니다.";
     private static final String IMAGE_SIZE_EXCEEDED = "이미지는 파일당 5MB 이하여야 합니다.";
@@ -112,7 +116,7 @@ public class InquiryImageStorageService {
             throw new IllegalArgumentException(IMAGE_INVALID);
         }
         if (DECODE_REQUIRED_EXTENSIONS.contains(extension)) {
-            requireDecodable(content);
+            requireSafeDimensions(content);
         }
 
         String imageUuid = UUID.randomUUID().toString();
@@ -176,13 +180,31 @@ public class InquiryImageStorageService {
         return true;
     }
 
-    private void requireDecodable(byte[] content) {
-        try {
-            BufferedImage decodedImage = ImageIO.read(new ByteArrayInputStream(content));
-            if (decodedImage == null || decodedImage.getWidth() <= 0 || decodedImage.getHeight() <= 0) {
+    private void requireSafeDimensions(byte[] content) {
+        try (ImageInputStream input = ImageIO.createImageInputStream(new ByteArrayInputStream(content))) {
+            if (input == null) {
                 throw new IllegalArgumentException(IMAGE_INVALID);
             }
-        } catch (IOException exception) {
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(input);
+            if (!readers.hasNext()) {
+                throw new IllegalArgumentException(IMAGE_INVALID);
+            }
+
+            ImageReader reader = readers.next();
+            try {
+                reader.setInput(input, true, true);
+                int width = reader.getWidth(0);
+                int height = reader.getHeight(0);
+                long pixels = Math.multiplyExact((long) width, (long) height);
+                if (width <= 0 || height <= 0
+                        || width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION
+                        || pixels > MAX_IMAGE_PIXELS) {
+                    throw new IllegalArgumentException(IMAGE_INVALID);
+                }
+            } finally {
+                reader.dispose();
+            }
+        } catch (IOException | ArithmeticException exception) {
             throw new IllegalArgumentException(IMAGE_INVALID, exception);
         }
     }
