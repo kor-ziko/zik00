@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Semaphore;
 
 import com.zik00.shop.dto.mypage.JapanPostalCodeResponse;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -22,10 +23,12 @@ public class JapanPostalCodeSearchService {
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(2);
     private static final Duration READ_TIMEOUT = Duration.ofSeconds(3);
     private static final int MAX_CACHE_SIZE = 2048;
+    private static final int MAX_CONCURRENT_EXTERNAL_REQUESTS = 4;
 
     private final RestClient restClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Map<String, CacheEntry> cache = new ConcurrentHashMap<>();
+    private final Semaphore externalRequestSlots = new Semaphore(MAX_CONCURRENT_EXTERNAL_REQUESTS, true);
 
     public JapanPostalCodeSearchService() {
         this.restClient = RestClient.builder()
@@ -46,7 +49,16 @@ public class JapanPostalCodeSearchService {
             return cached.results();
         }
 
-        List<JapanPostalCodeResponse> results = fetchPostalCode(normalizedPostalCode);
+        if (!externalRequestSlots.tryAcquire()) {
+            throw new ExternalApiRateLimitException("우편번호 조회가 혼잡합니다. 잠시 후 다시 시도해주세요.");
+        }
+
+        List<JapanPostalCodeResponse> results;
+        try {
+            results = fetchPostalCode(normalizedPostalCode);
+        } finally {
+            externalRequestSlots.release();
+        }
         cache.put(normalizedPostalCode, new CacheEntry(results, now.plus(CACHE_TTL)));
         pruneCache(now);
         return results;
