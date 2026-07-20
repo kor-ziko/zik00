@@ -1683,6 +1683,11 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     headers.set('Content-Type', 'application/json');
   }
 
+  if (requiresCsrfToken(init.method)) {
+    const csrf = await getCsrfToken();
+    headers.set(csrf.headerName, csrf.token);
+  }
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     credentials: 'include',
@@ -1701,6 +1706,34 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
 
   return response.json() as Promise<T>;
+}
+
+type CsrfToken = {
+  headerName: string;
+  token: string;
+};
+
+let csrfTokenPromise: Promise<CsrfToken> | null = null;
+
+function getCsrfToken(): Promise<CsrfToken> {
+  if (!csrfTokenPromise) {
+    csrfTokenPromise = fetch(`${API_BASE_URL}/api/admin/auth/csrf`, {
+      credentials: 'include',
+    }).then(async (response) => {
+      if (!response.ok) {
+        throw new Error(await errorMessage(response));
+      }
+      return response.json() as Promise<CsrfToken>;
+    }).catch((error) => {
+      csrfTokenPromise = null;
+      throw error;
+    });
+  }
+  return csrfTokenPromise;
+}
+
+function requiresCsrfToken(method: string | undefined) {
+  return !['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes((method ?? 'GET').toUpperCase());
 }
 
 async function errorMessage(response: Response) {

@@ -6,7 +6,10 @@ import com.zik00.admin.service.AdminAuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
+import java.util.Map;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -35,8 +38,13 @@ public class AdminAuthApiController {
     }
 
     @GetMapping("/me")
-    public AdminSessionResponse me(HttpServletRequest request) {
-        return AdminSessionResponse.from(adminAuthService.current(request.getSession(false)));
+    public AdminSessionResponse me(Authentication authentication) {
+        return AdminSessionResponse.from(adminAuthService.current(authentication));
+    }
+
+    @GetMapping("/csrf")
+    public Map<String, String> csrf(CsrfToken csrfToken) {
+        return Map.of("headerName", csrfToken.getHeaderName(), "token", csrfToken.getToken());
     }
 
     @PostMapping("/logout")

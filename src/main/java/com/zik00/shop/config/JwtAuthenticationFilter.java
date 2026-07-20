@@ -18,6 +18,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+    private static final String ADMIN_API_PREFIX = "/api/admin/";
     private final JwtService jwtService;
     private final UserRepository userRepository;
     private final RedisRefreshTokenStore refreshTokenStore;
@@ -30,6 +31,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         this.jwtService = jwtService;
         this.userRepository = userRepository;
         this.refreshTokenStore = refreshTokenStore;
+    }
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        return request.getServletPath().startsWith(ADMIN_API_PREFIX);
     }
 
     @Override

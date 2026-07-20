@@ -1,5 +1,6 @@
 package com.zik00.shop.config;
 
+import com.zik00.admin.config.AdminSessionAuthenticationFilter;
 import com.zik00.shop.service.auth.GoogleOAuth2UserService;
 import com.zik00.shop.service.auth.RegistrationService;
 import com.zik00.shop.service.auth.JwtService;
@@ -7,6 +8,7 @@ import com.zik00.shop.service.auth.RedisRefreshTokenStore;
 import com.zik00.shop.repository.UserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.oauth2.client.web.OAuth2LoginAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
@@ -58,7 +60,6 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                         .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
-                        .ignoringRequestMatchers("/api/admin/**")
                 )
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(
@@ -70,8 +71,11 @@ public class SecurityConfig {
                                 "/login", "/oauth2/**", "/login/oauth2/**",
                                 "/api/japan-postal-codes",
                                 "/api/auth/csrf", "/api/auth/refresh", "/api/auth/oauth/complete",
-                                "/api/admin/**", "/logout", "/error"
+                                "/logout", "/error"
                         ).permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/admin/auth/csrf").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/admin/auth/login").permitAll()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/auth/**", "/api/mypage/**", "/signup/**", "/mypage/**").authenticated()
                         .anyRequest().denyAll()
                 )
@@ -83,6 +87,7 @@ public class SecurityConfig {
                         new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
                         request -> request.getServletPath().startsWith("/api/auth/")
                                 || request.getServletPath().startsWith("/api/mypage")
+                                || request.getServletPath().startsWith("/api/admin/")
                 ))
                 .oauth2Login(oauth2 -> oauth2
                         .loginPage("/login")
@@ -99,6 +104,10 @@ public class SecurityConfig {
                 .addFilterBefore(
                         new JwtAuthenticationFilter(jwtService, userRepository, refreshTokenStore),
                         UsernamePasswordAuthenticationFilter.class
+                )
+                .addFilterBefore(
+                        new AdminSessionAuthenticationFilter(),
+                        JwtAuthenticationFilter.class
                 )
                 .addFilterBefore(
                         new AllowedOriginFilter(webClientOrigins.allowedOrigins()),

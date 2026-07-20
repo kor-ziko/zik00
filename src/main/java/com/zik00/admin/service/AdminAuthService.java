@@ -7,6 +7,7 @@ import com.zik00.admin.repository.AdminUserRepository;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -42,9 +43,8 @@ public class AdminAuthService {
         return adminSession;
     }
 
-    public AdminSession current(HttpSession httpSession) {
-        Object session = httpSession == null ? null : httpSession.getAttribute(SESSION_ATTRIBUTE);
-        if (session instanceof AdminSession adminSession) {
+    public AdminSession current(Authentication authentication) {
+        if (authentication != null && authentication.getPrincipal() instanceof AdminSession adminSession) {
             return adminSession;
         }
         throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "관리자 로그인이 필요합니다.");

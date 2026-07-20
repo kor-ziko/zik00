@@ -7,7 +7,7 @@ import com.zik00.admin.dto.AdminInquirySummaryResponse;
 import com.zik00.admin.dto.AdminSession;
 import com.zik00.admin.service.AdminAuthService;
 import com.zik00.admin.service.AdminInquiryService;
-import jakarta.servlet.http.HttpSession;
+import org.springframework.security.core.Authentication;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.CacheControl;
@@ -52,9 +52,9 @@ public class AdminInquiryApiController {
             @PathVariable long inquiryId,
             @RequestParam String content,
             @RequestParam(required = false) List<MultipartFile> images,
-            HttpSession httpSession
+            Authentication authentication
     ) {
-        AdminSession adminSession = adminAuthService.current(httpSession);
+        AdminSession adminSession = adminAuthService.current(authentication);
         return adminInquiryService.reply(inquiryId, content, images, adminSession);
     }
 
