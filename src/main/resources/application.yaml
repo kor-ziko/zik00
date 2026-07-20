@@ -59,6 +59,10 @@ shop:
     access-token-ttl: PT15M
     refresh-token-ttl: P14D
     cookie-secure: ${JWT_COOKIE_SECURE:false}
+  pii:
+    current-key-version: ${PII_CURRENT_KEY_VERSION:v1}
+    encryption-keys: ${PII_ENCRYPTION_KEYS}
+    migrate-plaintext-on-startup: ${PII_MIGRATE_PLAINTEXT_ON_STARTUP:false}
   frontend:
     base-url: ${SHOP_FRONTEND_BASE_URL:http://localhost:5174}
   admin:

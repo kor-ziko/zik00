@@ -1713,23 +1713,15 @@ type CsrfToken = {
   token: string;
 };
 
-let csrfTokenPromise: Promise<CsrfToken> | null = null;
-
 function getCsrfToken(): Promise<CsrfToken> {
-  if (!csrfTokenPromise) {
-    csrfTokenPromise = fetch(`${API_BASE_URL}/api/admin/auth/csrf`, {
-      credentials: 'include',
-    }).then(async (response) => {
-      if (!response.ok) {
-        throw new Error(await errorMessage(response));
-      }
-      return response.json() as Promise<CsrfToken>;
-    }).catch((error) => {
-      csrfTokenPromise = null;
-      throw error;
-    });
-  }
-  return csrfTokenPromise;
+  return fetch(`${API_BASE_URL}/api/admin/auth/csrf`, {
+    credentials: 'include',
+  }).then(async (response) => {
+    if (!response.ok) {
+      throw new Error(await errorMessage(response));
+    }
+    return response.json() as Promise<CsrfToken>;
+  });
 }
 
 function requiresCsrfToken(method: string | undefined) {

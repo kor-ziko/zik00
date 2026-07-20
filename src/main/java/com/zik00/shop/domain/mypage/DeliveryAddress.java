@@ -1,6 +1,8 @@
 package com.zik00.shop.domain;
 
+import com.zik00.shop.config.PiiStringAttributeConverter;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -23,13 +25,16 @@ public class DeliveryAddress {
     @Column(name = "user_id")
     private long memberId;
 
-    @Column(name = "address_name")
+    @Convert(converter = PiiStringAttributeConverter.class)
+    @Column(name = "address_name", length = 2048)
     private String addressName;
 
-    @Column(name = "receiver_name")
+    @Convert(converter = PiiStringAttributeConverter.class)
+    @Column(name = "receiver_name", length = 2048)
     private String receiverName;
 
-    @Column(name = "receiver_phone")
+    @Convert(converter = PiiStringAttributeConverter.class)
+    @Column(name = "receiver_phone", length = 2048)
     private String receiverPhone;
 
     @Column(name = "zip_code")
@@ -37,7 +42,8 @@ public class DeliveryAddress {
 
     private String province;
 
-    @Column(name = "detail_address")
+    @Convert(converter = PiiStringAttributeConverter.class)
+    @Column(name = "detail_address", length = 2048)
     private String detailAddress;
 
     @Column(name = "default_address")

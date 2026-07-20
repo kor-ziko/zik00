@@ -1,6 +1,5 @@
--- @Suil -
--- 1. v1, v2 sql 지우고 여기에 통합
--- 2. 1대1 답변처리 로직 수정 line 112
+-- 현재 Spring Boot JPA 엔티티 기준 통합 스키마와 개발용 시드 데이터
+-- 개인정보 시드 값은 애플리케이션 시작 시 PII_MIGRATE_PLAINTEXT_ON_STARTUP=true로 암호화한다.
 CREATE DATABASE IF NOT EXISTS shop
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_unicode_ci;
@@ -12,20 +11,23 @@ SET @tester1_user_id = 2;
 SET @tester2_user_id = 3;
 SET @tester3_user_id = 4;
 
+-- access_id는 회원 생성 시 UUID()로 각각 발급한다.
+-- 아래 UPSERT에서는 access_id를 갱신하지 않아 SQL 재실행으로 기존 JWT sub가 바뀌지 않는다.
+
 CREATE TABLE IF NOT EXISTS `user` (
   user_id BIGINT NOT NULL AUTO_INCREMENT,
   access_id VARCHAR(36) NOT NULL,
-  name VARCHAR(100),
-  name_kana VARCHAR(100),
-  birth_date DATE,
-  gender VARCHAR(20),
+  name VARCHAR(2048),
+  name_kana VARCHAR(2048),
+  birth_date VARCHAR(255),
+  gender VARCHAR(2048),
   nickname VARCHAR(100),
-  telephone VARCHAR(50),
+  telephone VARCHAR(2048),
   login_id VARCHAR(100),
   deposit_balance INT NOT NULL DEFAULT 0,
   reward_point INT NOT NULL DEFAULT 0,
-  mobile_phone VARCHAR(50),
-  email VARCHAR(255),
+  mobile_phone VARCHAR(2048),
+  email VARCHAR(2048),
   completed_order_count INT NOT NULL DEFAULT 0,
   joined_date DATE,
   member_detail VARCHAR(500) NOT NULL DEFAULT '일반회원',
@@ -35,120 +37,26 @@ CREATE TABLE IF NOT EXISTS `user` (
   UNIQUE KEY uk_user_login_id (login_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-DELIMITER //
-DROP PROCEDURE IF EXISTS add_google_oauth_user_columns//
-CREATE PROCEDURE add_google_oauth_user_columns()
-BEGIN
-  DECLARE CONTINUE HANDLER FOR 1060 BEGIN END;
-  ALTER TABLE `user` ADD COLUMN name_kana VARCHAR(100) AFTER name;
-END//
-DELIMITER ;
-CALL add_google_oauth_user_columns();
-DROP PROCEDURE add_google_oauth_user_columns;
-
-DELIMITER //
-DROP PROCEDURE IF EXISTS add_user_access_id//
-CREATE PROCEDURE add_user_access_id()
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema = DATABASE() AND table_name = 'user' AND column_name = 'access_id'
-  ) THEN
-    ALTER TABLE `user` ADD COLUMN access_id VARCHAR(36) NULL AFTER user_id;
-  END IF;
-  UPDATE `user` SET access_id = UUID() WHERE access_id IS NULL OR access_id = '';
-  ALTER TABLE `user` MODIFY COLUMN access_id VARCHAR(36) NOT NULL;
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.statistics
-    WHERE table_schema = DATABASE() AND table_name = 'user' AND index_name = 'uk_user_access_id'
-  ) THEN
-    ALTER TABLE `user` ADD UNIQUE KEY uk_user_access_id (access_id);
-  END IF;
-END//
-DELIMITER ;
-CALL add_user_access_id();
-DROP PROCEDURE add_user_access_id;
-
-DELIMITER //
-DROP PROCEDURE IF EXISTS normalize_user_profile_columns//
-CREATE PROCEDURE normalize_user_profile_columns()
-BEGIN
-  UPDATE `user`
-  SET gender = CASE gender
-    WHEN 'MALE' THEN '남자'
-    WHEN '남성' THEN '남자'
-    WHEN 'FEMALE' THEN '여자'
-    WHEN '여성' THEN '여자'
-    WHEN 'OTHER' THEN '기타'
-    ELSE gender
-  END;
-  UPDATE `user` SET member_detail = '일반회원'
-  WHERE member_detail IS NULL OR TRIM(member_detail) = '';
-  UPDATE `user` SET login_id = NULL
-  WHERE login_id IS NOT NULL AND TRIM(login_id) = '';
-
-  ALTER TABLE `user`
-    MODIFY COLUMN name VARCHAR(100) NULL,
-    MODIFY COLUMN name_kana VARCHAR(100) NULL,
-    MODIFY COLUMN gender VARCHAR(20) NULL,
-    MODIFY COLUMN nickname VARCHAR(100) NULL,
-    MODIFY COLUMN telephone VARCHAR(50) NULL,
-    MODIFY COLUMN login_id VARCHAR(100) NULL,
-    MODIFY COLUMN mobile_phone VARCHAR(50) NULL,
-    MODIFY COLUMN member_detail VARCHAR(500) NOT NULL DEFAULT '일반회원';
-
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.statistics
-    WHERE table_schema = DATABASE() AND table_name = 'user' AND index_name = 'uk_user_login_id'
-  ) AND NOT EXISTS (
-    SELECT 1
-    FROM (SELECT login_id FROM `user` WHERE login_id IS NOT NULL GROUP BY login_id HAVING COUNT(*) > 1) duplicate_login_ids
-  ) THEN
-    ALTER TABLE `user` ADD UNIQUE KEY uk_user_login_id (login_id);
-  END IF;
-END//
-DELIMITER ;
-CALL normalize_user_profile_columns();
-DROP PROCEDURE normalize_user_profile_columns;
-
--- Google Access Token은 로그인 판별에 사용하지 않으므로 DB에 저장하지 않는다.
-DROP TABLE IF EXISTS oauth_access_tokens;
-
--- Refresh Token 상태는 Redis TTL 키로 관리한다.
-DROP TABLE IF EXISTS refresh_tokens;
-
-DELIMITER //
-CREATE PROCEDURE drop_legacy_user_address_columns()
-BEGIN
-  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
-  SET @drop_legacy_column_sql = 'ALTER TABLE `user` DROP COLUMN zip_code';
-  PREPARE drop_legacy_column_stmt FROM @drop_legacy_column_sql;
-  EXECUTE drop_legacy_column_stmt;
-  DEALLOCATE PREPARE drop_legacy_column_stmt;
-
-  SET @drop_legacy_column_sql = 'ALTER TABLE `user` DROP COLUMN province';
-  PREPARE drop_legacy_column_stmt FROM @drop_legacy_column_sql;
-  EXECUTE drop_legacy_column_stmt;
-  DEALLOCATE PREPARE drop_legacy_column_stmt;
-
-  SET @drop_legacy_column_sql = 'ALTER TABLE `user` DROP COLUMN detail_address';
-  PREPARE drop_legacy_column_stmt FROM @drop_legacy_column_sql;
-  EXECUTE drop_legacy_column_stmt;
-  DEALLOCATE PREPARE drop_legacy_column_stmt;
-END//
-DELIMITER ;
-CALL drop_legacy_user_address_columns();
-DROP PROCEDURE drop_legacy_user_address_columns;
+-- 예전 시드에서 사용한 순차형 placeholder access_id만 한 번 실제 UUID로 교체한다.
+-- 이 변경은 해당 개발용 테스트 계정의 기존 JWT를 무효화한다.
+UPDATE `user`
+SET access_id = UUID()
+WHERE access_id IN (
+  '00000000-0000-0000-0000-000000000001',
+  '00000000-0000-0000-0000-000000000002',
+  '00000000-0000-0000-0000-000000000003',
+  '00000000-0000-0000-0000-000000000004'
+);
 
 CREATE TABLE IF NOT EXISTS addresses (
   address_id BIGINT NOT NULL AUTO_INCREMENT,
   user_id BIGINT NOT NULL,
-  address_name VARCHAR(100),
-  receiver_name VARCHAR(100),
-  receiver_phone VARCHAR(50),
-  zip_code VARCHAR(20),
-  province VARCHAR(100),
-  detail_address VARCHAR(255),
+  address_name VARCHAR(2048),
+  receiver_name VARCHAR(2048),
+  receiver_phone VARCHAR(2048),
+  zip_code VARCHAR(255),
+  province VARCHAR(255),
+  detail_address VARCHAR(2048),
   default_address BOOLEAN NOT NULL DEFAULT FALSE,
   PRIMARY KEY (address_id),
   KEY idx_addresses_member_default (user_id, default_address, address_id)
@@ -158,8 +66,8 @@ CREATE TABLE IF NOT EXISTS coupon (
   coupon_id BIGINT NOT NULL AUTO_INCREMENT,
   coupon_template_id BIGINT NULL,
   user_id BIGINT NULL,
-  coupon_name VARCHAR(100),
-  discount_type VARCHAR(50),
+  coupon_name VARCHAR(255),
+  discount_type VARCHAR(255),
   discount_value INT NOT NULL DEFAULT 0,
   minimum_order_amount INT NOT NULL DEFAULT 0,
   started_date DATE,
@@ -167,7 +75,7 @@ CREATE TABLE IF NOT EXISTS coupon (
   issued_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   used BOOLEAN NOT NULL DEFAULT FALSE,
   used_at DATETIME NULL,
-  coupon_code VARCHAR(100) NULL,
+  coupon_code VARCHAR(255) NULL,
   guest_identifier VARCHAR(255) NULL,
   PRIMARY KEY (coupon_id),
   KEY idx_coupon_template_id (coupon_template_id),
@@ -177,13 +85,13 @@ CREATE TABLE IF NOT EXISTS coupon (
 
 CREATE TABLE IF NOT EXISTS coupon_template (
   coupon_template_id BIGINT NOT NULL AUTO_INCREMENT,
-  coupon_name VARCHAR(100) NOT NULL,
-  discount_type VARCHAR(50) NOT NULL,
+  coupon_name VARCHAR(255),
+  discount_type VARCHAR(255),
   discount_value INT NOT NULL DEFAULT 0,
   minimum_order_amount INT NOT NULL DEFAULT 0,
   started_date DATE,
   expired_date DATE,
-  target_type VARCHAR(30) NOT NULL DEFAULT 'ALL',
+  target_type VARCHAR(255),
   active BOOLEAN NOT NULL DEFAULT TRUE,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -194,11 +102,11 @@ CREATE TABLE IF NOT EXISTS coupon_template (
 CREATE TABLE IF NOT EXISTS buylist (
   purchase_id BIGINT NOT NULL AUTO_INCREMENT,
   user_id BIGINT NOT NULL,
-  order_number VARCHAR(100),
-  product_name VARCHAR(100),
+  order_number VARCHAR(255),
+  product_name VARCHAR(255),
   quantity INT NOT NULL DEFAULT 0,
   payment_amount INT NOT NULL DEFAULT 0,
-  order_status VARCHAR(50),
+  order_status VARCHAR(255),
   ordered_date DATE,
   PRIMARY KEY (purchase_id),
   KEY idx_buylist_member_ordered (user_id, ordered_date, purchase_id)
@@ -210,27 +118,10 @@ CREATE TABLE IF NOT EXISTS inquiries (
   title VARCHAR(255),
   content LONGTEXT,
   status BOOLEAN NOT NULL DEFAULT FALSE,
-  created_at VARCHAR(50),
+  created_at VARCHAR(255),
   PRIMARY KEY (inquiry_id),
   KEY idx_inquiries_member_id (user_id, inquiry_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 기존 DB의 문자열 문의 상태를 boolean 답변 상태로 변환
-DELIMITER //
-CREATE PROCEDURE normalize_inquiry_status_column()
-BEGIN
-  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
-  UPDATE inquiries
-  SET status = CASE
-    WHEN status IN ('1', 'true', 'TRUE', '답변완료', 'ANSWERED', 'answered') THEN 1
-    ELSE 0
-  END
-  WHERE inquiry_id > 0;
-  ALTER TABLE inquiries MODIFY COLUMN status BOOLEAN NOT NULL DEFAULT FALSE;
-END//
-DELIMITER ;
-CALL normalize_inquiry_status_column();
-DROP PROCEDURE normalize_inquiry_status_column;
 
 CREATE TABLE IF NOT EXISTS inquiry_comments (
   comment_id BIGINT NOT NULL AUTO_INCREMENT,
@@ -238,32 +129,13 @@ CREATE TABLE IF NOT EXISTS inquiry_comments (
   user_id BIGINT,
   admin_id BIGINT,
   writer_type VARCHAR(20) NOT NULL DEFAULT 'USER',
-  writer_name VARCHAR(100),
+  writer_name VARCHAR(255),
   content LONGTEXT,
-  created_at VARCHAR(50),
+  created_at VARCHAR(255),
   PRIMARY KEY (comment_id),
   KEY idx_inquiry_comments_inquiry_comment (inquiry_id, comment_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- @Suil - 기존 DB에도 관리자 문의 답변 작성자 컬럼을 추가
-DELIMITER //
-CREATE PROCEDURE add_inquiry_comment_writer_columns()
-BEGIN
-  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
-  ALTER TABLE inquiry_comments ADD COLUMN admin_id BIGINT NULL AFTER user_id;
-  ALTER TABLE inquiry_comments ADD COLUMN writer_type VARCHAR(20) NOT NULL DEFAULT 'USER' AFTER admin_id;
-END//
-DELIMITER ;
-CALL add_inquiry_comment_writer_columns();
-DROP PROCEDURE add_inquiry_comment_writer_columns;
-
-ALTER TABLE inquiry_comments MODIFY COLUMN user_id BIGINT NULL;
-UPDATE inquiry_comments
-SET writer_type = 'USER'
-WHERE comment_id > 0
-  AND (writer_type IS NULL OR writer_type = '');
-
--- @Suil - 관리자 문의 답변에 첨부한 사진을 댓글과 연결
 CREATE TABLE IF NOT EXISTS inquiry_comment_images (
   comment_image_id BIGINT NOT NULL AUTO_INCREMENT,
   comment_id BIGINT NOT NULL,
@@ -286,9 +158,9 @@ CREATE TABLE IF NOT EXISTS inquiry_images (
 
 CREATE TABLE IF NOT EXISTS admin_users (
   admin_id BIGINT NOT NULL AUTO_INCREMENT,
-  login_id VARCHAR(100) NOT NULL,
-  password_hash VARCHAR(100) NOT NULL,
-  name VARCHAR(100) NOT NULL,
+  login_id VARCHAR(255) NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  name VARCHAR(255) NOT NULL,
   active BOOLEAN NOT NULL DEFAULT TRUE,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (admin_id),
@@ -333,7 +205,7 @@ INSERT INTO `user` (
   alarm_consent
 ) VALUES (
   @demo_user_id,
-  '00000000-0000-0000-0000-000000000001',
+  UUID(),
   '김테스트',
   'キム テスト',
   '1990-05-14',
@@ -350,7 +222,6 @@ INSERT INTO `user` (
   '테스트용 일반회원, 연락처/주문 이력 포함',
   FALSE
 ) ON DUPLICATE KEY UPDATE
-  access_id = VALUES(access_id),
   name = VALUES(name),
   name_kana = VALUES(name_kana),
   birth_date = VALUES(birth_date),
@@ -388,7 +259,7 @@ INSERT INTO `user` (
 ) VALUES
   (
     @tester1_user_id,
-    '00000000-0000-0000-0000-000000000002',
+    UUID(),
     '테스터1',
     'テスター イチ',
     '1995-01-01',
@@ -407,7 +278,7 @@ INSERT INTO `user` (
   ),
   (
     @tester2_user_id,
-    '00000000-0000-0000-0000-000000000003',
+    UUID(),
     '테스터2',
     'テスター ニ',
     '1996-02-02',
@@ -426,7 +297,7 @@ INSERT INTO `user` (
   ),
   (
     @tester3_user_id,
-    '00000000-0000-0000-0000-000000000004',
+    UUID(),
     '테스터3',
     'テスター サン',
     '1997-03-03',
@@ -444,7 +315,6 @@ INSERT INTO `user` (
     TRUE
   )
 ON DUPLICATE KEY UPDATE
-  access_id = VALUES(access_id),
   name = VALUES(name),
   name_kana = VALUES(name_kana),
   birth_date = VALUES(birth_date),

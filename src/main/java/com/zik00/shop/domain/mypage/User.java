@@ -1,9 +1,12 @@
 package com.zik00.shop.domain;
 
+import com.zik00.shop.config.PiiLocalDateAttributeConverter;
+import com.zik00.shop.config.PiiStringAttributeConverter;
 import java.time.LocalDate;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -23,21 +26,27 @@ public class User {
     @Column(name = "access_id", nullable = false, unique = true, length = 36)
     private String accessId;
 
-    @Column(length = 100)
+    @Convert(converter = PiiStringAttributeConverter.class)
+    @Column(length = 2048)
     private String name;
 
-    @Column(name = "name_kana", length = 100)
+    @Convert(converter = PiiStringAttributeConverter.class)
+    @Column(name = "name_kana", length = 2048)
     private String nameKana;
-    @Column(name = "birth_date")
+
+    @Convert(converter = PiiLocalDateAttributeConverter.class)
+    @Column(name = "birth_date", length = 255)
     private LocalDate birthDate;
 
-    @Column(length = 20)
+    @Convert(converter = PiiStringAttributeConverter.class)
+    @Column(length = 2048)
     private String gender;
 
     @Column(length = 100)
     private String nickname;
 
-    @Column(length = 50)
+    @Convert(converter = PiiStringAttributeConverter.class)
+    @Column(length = 2048)
     private String telephone;
 
     @Column(name = "login_id", unique = true, length = 100)
@@ -49,9 +58,12 @@ public class User {
     @Column(name = "reward_point")
     private int rewardPoint;
 
-    @Column(name = "mobile_phone", length = 50)
+    @Convert(converter = PiiStringAttributeConverter.class)
+    @Column(name = "mobile_phone", length = 2048)
     private String mobilePhone;
 
+    @Convert(converter = PiiStringAttributeConverter.class)
+    @Column(length = 2048)
     private String email;
 
     @Column(name = "completed_order_count")
