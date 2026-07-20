@@ -11,7 +11,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -25,12 +24,12 @@ public class GoogleLoginSuccessHandler implements AuthenticationSuccessHandler {
             AuthenticatedUserService authenticatedUserService,
             RegistrationService registrationService,
             JwtSessionService jwtSessionService,
-            @Value("${shop.frontend.base-url:http://localhost:5174}") String frontendBaseUrl
+            WebClientOrigins webClientOrigins
     ) {
         this.authenticatedUserService = authenticatedUserService;
         this.registrationService = registrationService;
         this.jwtSessionService = jwtSessionService;
-        this.frontendBaseUrl = frontendBaseUrl.replaceAll("/+$", "");
+        this.frontendBaseUrl = webClientOrigins.clientBaseUrl();
     }
 
     @Override

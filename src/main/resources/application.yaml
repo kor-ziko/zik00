@@ -1,4 +1,5 @@
 server:
+  address: 127.0.0.1
   port: 8080
 
 spring:
@@ -44,5 +45,7 @@ shop:
     token-encryption-key: ${OAUTH_TOKEN_ENCRYPTION_KEY:${GOOGLE_CLIENT_SECRET:local-token-encryption-key-change-me}}
   frontend:
     base-url: ${SHOP_FRONTEND_BASE_URL:http://localhost:5174}
+  admin:
+    base-url: ${SHOP_ADMIN_BASE_URL:http://127.0.0.1:5173}
   upload:
     inquiry-image-dir: ${SHOP_INQUIRY_IMAGE_DIR:uploads/inquiries_images}

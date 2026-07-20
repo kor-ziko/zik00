@@ -10,20 +10,25 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.oauth2.client.web.OAuth2LoginAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+import org.springframework.security.web.authentication.logout.LogoutFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
 
 @Configuration
 public class SecurityConfig {
     private final GoogleOAuth2UserService googleOAuth2UserService;
     private final GoogleLoginSuccessHandler googleLoginSuccessHandler;
     private final RegistrationService registrationService;
-    private final String frontendBaseUrl;
+    private final WebClientOrigins webClientOrigins;
     private final JwtService jwtService;
     private final JwtCookieService jwtCookieService;
     private final UserRepository userRepository;
@@ -35,12 +40,12 @@ public class SecurityConfig {
             JwtService jwtService,
             JwtCookieService jwtCookieService,
             UserRepository userRepository,
-            @Value("${shop.frontend.base-url:http://localhost:5174}") String frontendBaseUrl
+            WebClientOrigins webClientOrigins
     ) {
         this.googleOAuth2UserService = googleOAuth2UserService;
         this.googleLoginSuccessHandler = googleLoginSuccessHandler;
         this.registrationService = registrationService;
-        this.frontendBaseUrl = frontendBaseUrl.replaceAll("/+$", "");
+        this.webClientOrigins = webClientOrigins;
         this.jwtService = jwtService;
         this.jwtCookieService = jwtCookieService;
         this.userRepository = userRepository;
@@ -49,6 +54,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                         .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
@@ -82,11 +88,11 @@ public class SecurityConfig {
                         .userInfoEndpoint(userInfo -> userInfo.userService(googleOAuth2UserService))
                         .successHandler(googleLoginSuccessHandler)
                         .failureHandler((request, response, exception) ->
-                                response.sendRedirect(frontendBaseUrl + "/login?error"))
+                                response.sendRedirect(webClientOrigins.clientBaseUrl() + "/login?error"))
                 )
                 .logout(logout -> logout
                         .logoutSuccessHandler((request, response, authentication) ->
-                                response.sendRedirect(frontendBaseUrl + "/login?logout"))
+                                response.sendRedirect(webClientOrigins.clientBaseUrl() + "/login?logout"))
                         .invalidateHttpSession(true)
                         .clearAuthentication(true)
                 )
@@ -97,8 +103,25 @@ public class SecurityConfig {
                 .addFilterBefore(
                         new JwtAuthenticationFilter(jwtService, jwtCookieService, userRepository),
                         UsernamePasswordAuthenticationFilter.class
+                )
+                .addFilterBefore(
+                        new AllowedOriginFilter(webClientOrigins.allowedOrigins()),
+                        LogoutFilter.class
                 );
 
         return http.build();
+    }
+
+    private CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(webClientOrigins.allowedOrigins());
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 }
