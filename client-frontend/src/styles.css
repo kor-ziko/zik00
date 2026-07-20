@@ -1699,7 +1699,7 @@ img {
 
 .gender-options {
   display: grid;
-  grid-template-columns: .7fr .7fr 1.6fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 7px;
 }
 
@@ -1729,6 +1729,22 @@ img {
   border-color: var(--blue);
   background: #edf3ff;
   color: #174fbd;
+}
+
+.consent-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+  color: #59616c;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.consent-field input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--blue);
 }
 
 .postal-search-row {

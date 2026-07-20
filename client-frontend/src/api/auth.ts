@@ -19,11 +19,15 @@ export type AdditionalInfoPayload = {
   province: string;
   baseAddress: string;
   detailAddress: string;
-  phoneNumber: string;
+  telephone: string;
+  mobilePhone: string;
+  alarmConsent: boolean;
 };
 
 type CsrfResponse = { headerName: string; token: string };
 type ApiErrorResponse = { messages?: string[] };
+
+let refreshInFlight: Promise<boolean> | null = null;
 
 export class ApiError extends Error {
   constructor(public readonly messages: string[], public readonly status: number) {
@@ -49,7 +53,7 @@ async function getCsrfToken(): Promise<CsrfResponse> {
   return response.json() as Promise<CsrfResponse>;
 }
 
-async function refreshAccessToken(): Promise<boolean> {
+async function performAccessTokenRefresh(): Promise<boolean> {
   try {
     const csrf = await getCsrfToken();
     const response = await fetch('/api/auth/refresh', {
@@ -61,6 +65,16 @@ async function refreshAccessToken(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+function refreshAccessToken(): Promise<boolean> {
+  if (refreshInFlight === null) {
+    refreshInFlight = performAccessTokenRefresh()
+      .finally(() => {
+        refreshInFlight = null;
+      });
+  }
+  return refreshInFlight;
 }
 
 async function fetchAuthenticated(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {

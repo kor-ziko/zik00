@@ -22,8 +22,22 @@ const prefectures = [
 
 const initialForm: AdditionalInfoPayload = {
   nameKanji: '', nameKatakana: '', birthDate: '', gender: '', nickname: '',
-  zipCode: '', province: '', baseAddress: '', detailAddress: '', phoneNumber: '',
+  zipCode: '', province: '', baseAddress: '', detailAddress: '',
+  telephone: '', mobilePhone: '', alarmConsent: false,
 };
+
+function formatTelephone(value: string) {
+  const digits = value.replace(/\D/g, '').slice(0, 10);
+  if (digits.startsWith('02') && digits.length === 9) return `${digits.slice(0, 2)}-${digits.slice(2, 5)}-${digits.slice(5)}`;
+  if (digits.startsWith('02') && digits.length === 10) return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6)}`;
+  if (digits.length === 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  return value;
+}
+
+function formatMobilePhone(value: string) {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  return digits.length === 11 ? `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}` : value;
+}
 
 function yesterday() {
   const date = new Date();
@@ -133,10 +147,12 @@ function AdditionalInfoPage() {
               <label><span>이름(한자) <b>*</b></span><input required maxLength={100} value={form.nameKanji} onChange={(e) => update('nameKanji', e.target.value)} placeholder="山田 太郎" autoComplete="name" /></label>
               <label><span>이름(카타카나) <b>*</b></span><input required maxLength={100} value={form.nameKatakana} onChange={(e) => update('nameKatakana', e.target.value)} placeholder="ヤマダ タロウ" /></label>
               <label><span>생년월일 <b>*</b></span><input required type="date" max={maxBirthDate} value={form.birthDate} onChange={(e) => update('birthDate', e.target.value)} /></label>
-              <fieldset className="gender-field"><legend>성별 <b>*</b></legend><div className="gender-options">{[['MALE','남성'],['FEMALE','여성'],['OTHER','기타 / 응답 안 함']].map(([value,label]) => <label key={value} className={form.gender === value ? 'selected' : ''}><input required type="radio" name="gender" value={value} checked={form.gender === value} onChange={(e) => update('gender', e.target.value)} /><span>{label}</span></label>)}</div></fieldset>
+              <fieldset className="gender-field"><legend>성별 <b>*</b></legend><div className="gender-options">{['남자','여자','기타'].map((value) => <label key={value} className={form.gender === value ? 'selected' : ''}><input required type="radio" name="gender" value={value} checked={form.gender === value} onChange={(e) => update('gender', e.target.value)} /><span>{value}</span></label>)}</div></fieldset>
               <label><span>닉네임 <b>*</b></span><input required maxLength={100} value={form.nickname} onChange={(e) => update('nickname', e.target.value)} placeholder="ZIK:00에서 사용할 이름" /></label>
-              <label><span>전화번호 <b>*</b></span><input required type="tel" value={form.phoneNumber} onChange={(e) => update('phoneNumber', e.target.value)} placeholder="090-1234-5678" autoComplete="tel" /></label>
+              <label><span>일반전화 <b>*</b></span><input required type="tel" maxLength={13} value={form.telephone} onChange={(e) => update('telephone', e.target.value)} onBlur={(e) => update('telephone', formatTelephone(e.target.value))} placeholder="02-123-1234" autoComplete="tel" /></label>
+              <label><span>휴대전화 <b>*</b></span><input required type="tel" maxLength={13} value={form.mobilePhone} onChange={(e) => update('mobilePhone', e.target.value)} onBlur={(e) => update('mobilePhone', formatMobilePhone(e.target.value))} placeholder="090-1234-1234" autoComplete="tel-national" /></label>
             </div>
+            <label className="consent-field"><input type="checkbox" checked={form.alarmConsent} onChange={(e) => setForm((current) => ({ ...current, alarmConsent: e.target.checked }))} /><span>이벤트 및 알림 수신에 동의합니다. (선택)</span></label>
           </section>
 
           <section className="form-section" aria-labelledby="address-title">
