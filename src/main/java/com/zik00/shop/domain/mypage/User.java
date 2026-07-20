@@ -23,19 +23,24 @@ public class User {
     @Column(name = "access_id", nullable = false, unique = true, length = 36)
     private String accessId;
 
+    @Column(length = 100)
     private String name;
 
-    @Column(name = "name_kana")
+    @Column(name = "name_kana", length = 100)
     private String nameKana;
     @Column(name = "birth_date")
     private LocalDate birthDate;
 
+    @Column(length = 20)
     private String gender;
+
+    @Column(length = 100)
     private String nickname;
 
+    @Column(length = 50)
     private String telephone;
 
-    @Column(name = "login_id")
+    @Column(name = "login_id", unique = true, length = 100)
     private String loginId;
 
     @Column(name = "deposit_balance")
@@ -44,7 +49,7 @@ public class User {
     @Column(name = "reward_point")
     private int rewardPoint;
 
-    @Column(name = "mobile_phone")
+    @Column(name = "mobile_phone", length = 50)
     private String mobilePhone;
 
     private String email;
@@ -55,7 +60,7 @@ public class User {
     @Column(name = "joined_date")
     private LocalDate joinedDate;
 
-    @Column(name = "member_detail")
+    @Column(name = "member_detail", nullable = false, length = 500)
     private String memberDetail;
 
     @Column(name = "alarm_consent")
@@ -93,19 +98,22 @@ public class User {
         this.email = email;
         this.completedOrderCount = completedOrderCount;
         this.joinedDate = joinedDate;
-        this.memberDetail = memberDetail;
+        String normalizedMemberDetail = normalizeValue(memberDetail);
+        this.memberDetail = normalizedMemberDetail.isEmpty() ? "일반회원" : normalizedMemberDetail;
         this.alarmConsent = alarmConsent;
     }
 
     public void updateProfile(
             String name,
             String nickname,
+            String telephone,
             String mobilePhone,
             String email,
             boolean alarmConsent
     ) {
         this.name = normalize(name);
         this.nickname = normalize(nickname);
+        this.telephone = normalize(telephone);
         this.mobilePhone = normalize(mobilePhone);
         this.email = normalize(email);
         this.alarmConsent = alarmConsent;
@@ -136,14 +144,21 @@ public class User {
             LocalDate birthDate,
             String gender,
             String nickname,
-            String mobilePhone
+            String telephone,
+            String mobilePhone,
+            boolean alarmConsent
     ) {
         this.name = normalizeValue(name);
         this.nameKana = normalizeValue(nameKana);
         this.birthDate = birthDate;
         this.gender = normalizeValue(gender);
         this.nickname = normalizeValue(nickname);
+        this.telephone = normalizeValue(telephone);
         this.mobilePhone = normalizeValue(mobilePhone);
+        this.alarmConsent = alarmConsent;
+        if (normalizeValue(this.memberDetail).isEmpty()) {
+            this.memberDetail = "일반회원";
+        }
         if (this.joinedDate == null) {
             this.joinedDate = LocalDate.now();
         }
@@ -155,6 +170,7 @@ public class User {
                 && birthDate != null
                 && !normalizeValue(gender).isEmpty()
                 && !normalizeValue(nickname).isEmpty()
+                && !normalizeValue(telephone).isEmpty()
                 && !normalizeValue(mobilePhone).isEmpty();
     }
 

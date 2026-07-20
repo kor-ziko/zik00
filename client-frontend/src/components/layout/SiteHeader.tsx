@@ -7,6 +7,8 @@ import {
   Truck,
   UserRound,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { type AuthSession, getAuthSession, logout } from '../../api/auth';
 import SearchBox from '../search/SearchBox';
 
 const navigationItems = [
@@ -29,15 +31,47 @@ function Brand() {
 }
 
 function SiteHeader() {
+  const [session, setSession] = useState<AuthSession | null>(null);
+  const [sessionChecked, setSessionChecked] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  useEffect(() => {
+    getAuthSession()
+      .then(setSession)
+      .catch(() => setSession(null))
+      .finally(() => setSessionChecked(true));
+  }, []);
+
+  const handleLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await logout();
+      window.location.replace('/login?logout');
+    } catch {
+      setSession(null);
+      setSessionChecked(true);
+      setLoggingOut(false);
+    }
+  };
+
   return (
     <header className="site-header">
       <div className="utility-bar">
         <div className="header-inner utility-inner">
           <span>한국 상품을 일본까지, 쉽고 빠르게</span>
           <nav aria-label="회원 메뉴">
-            <a href="/login">로그인</a>
-            <a href="/login">회원가입</a>
-            <a href="#support">고객센터</a>
+            {sessionChecked && session?.authenticated ? (
+              <>
+                <span className="member-greeting">{session.nickname || '회원'} 안녕하세요.</span>
+                <button className="utility-link-button" type="button" onClick={handleLogout} disabled={loggingOut}>
+                  {loggingOut ? '로그아웃 중' : '로그아웃'}
+                </button>
+              </>
+            ) : sessionChecked ? (
+              <a href="/login">로그인</a>
+            ) : null}
+            <a className="utility-support-link" href="#support">고객센터</a>
             <button className="language-button" type="button">
               <Globe2 size={14} aria-hidden="true" /> KO
               <ChevronDown size={13} aria-hidden="true" />

@@ -4,7 +4,7 @@ import AuthShell from './AuthShell';
 const benefits = [
   { icon: PackageCheck, title: '주문부터 배송까지', body: '구매 내역과 일본 배송 현황을 한곳에서 확인해요.' },
   { icon: BadgeCheck, title: '회원 전용 혜택', body: '쿠폰과 적립금, 개인화된 상품 추천을 받아보세요.' },
-  { icon: ShieldCheck, title: '안전한 Google 인증', body: '별도 비밀번호 없이 Google 계정으로 안전하게 시작해요.' },
+  { icon: ShieldCheck, title: '안전한 소셜 인증', body: '별도 비밀번호 없이 소셜 계정으로 안전하게 시작해요.' },
 ];
 
 function LoginPage() {
@@ -37,7 +37,7 @@ function LoginPage() {
           <h2 id="login-title">로그인</h2>
           <p className="login-panel-copy">Google 계정 하나로 빠르고 간편하게 시작할 수 있습니다.</p>
           {hasError && <p className="form-alert" role="alert">Google 로그인에 실패했습니다. 잠시 후 다시 시도해주세요.</p>}
-          {loggedOut && <p className="form-notice" role="status">안전하게 로그아웃되었습니다.</p>}
+          {loggedOut && <p className="form-notice" role="status">로그아웃되었습니다.</p>}
           <a className="google-login-button" href="/oauth2/authorization/google">
             <span className="google-mark" aria-hidden="true">G</span>
             <span>Google로 계속하기</span>

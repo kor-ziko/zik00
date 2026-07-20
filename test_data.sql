@@ -28,10 +28,11 @@ CREATE TABLE IF NOT EXISTS `user` (
   email VARCHAR(255),
   completed_order_count INT NOT NULL DEFAULT 0,
   joined_date DATE,
-  member_detail VARCHAR(500),
+  member_detail VARCHAR(500) NOT NULL DEFAULT '일반회원',
   alarm_consent BOOLEAN NOT NULL DEFAULT FALSE,
   PRIMARY KEY (user_id),
-  UNIQUE KEY uk_user_access_id (access_id)
+  UNIQUE KEY uk_user_access_id (access_id),
+  UNIQUE KEY uk_user_login_id (login_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 DELIMITER //
@@ -67,6 +68,48 @@ END//
 DELIMITER ;
 CALL add_user_access_id();
 DROP PROCEDURE add_user_access_id;
+
+DELIMITER //
+DROP PROCEDURE IF EXISTS normalize_user_profile_columns//
+CREATE PROCEDURE normalize_user_profile_columns()
+BEGIN
+  UPDATE `user`
+  SET gender = CASE gender
+    WHEN 'MALE' THEN '남자'
+    WHEN '남성' THEN '남자'
+    WHEN 'FEMALE' THEN '여자'
+    WHEN '여성' THEN '여자'
+    WHEN 'OTHER' THEN '기타'
+    ELSE gender
+  END;
+  UPDATE `user` SET member_detail = '일반회원'
+  WHERE member_detail IS NULL OR TRIM(member_detail) = '';
+  UPDATE `user` SET login_id = NULL
+  WHERE login_id IS NOT NULL AND TRIM(login_id) = '';
+
+  ALTER TABLE `user`
+    MODIFY COLUMN name VARCHAR(100) NULL,
+    MODIFY COLUMN name_kana VARCHAR(100) NULL,
+    MODIFY COLUMN gender VARCHAR(20) NULL,
+    MODIFY COLUMN nickname VARCHAR(100) NULL,
+    MODIFY COLUMN telephone VARCHAR(50) NULL,
+    MODIFY COLUMN login_id VARCHAR(100) NULL,
+    MODIFY COLUMN mobile_phone VARCHAR(50) NULL,
+    MODIFY COLUMN member_detail VARCHAR(500) NOT NULL DEFAULT '일반회원';
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.statistics
+    WHERE table_schema = DATABASE() AND table_name = 'user' AND index_name = 'uk_user_login_id'
+  ) AND NOT EXISTS (
+    SELECT 1
+    FROM (SELECT login_id FROM `user` WHERE login_id IS NOT NULL GROUP BY login_id HAVING COUNT(*) > 1) duplicate_login_ids
+  ) THEN
+    ALTER TABLE `user` ADD UNIQUE KEY uk_user_login_id (login_id);
+  END IF;
+END//
+DELIMITER ;
+CALL normalize_user_profile_columns();
+DROP PROCEDURE normalize_user_profile_columns;
 
 CREATE TABLE IF NOT EXISTS oauth_access_tokens (
   oauth_token_id BIGINT NOT NULL AUTO_INCREMENT,
@@ -314,13 +357,13 @@ INSERT INTO `user` (
   '김테스트',
   'キム テスト',
   '1990-05-14',
-  '남성',
+  '남자',
   '테스터01',
   '02-1234-5678',
   'testuser01',
   50000,
   1200,
-  '010-1234-5678',
+  '090-1234-5678',
   'testuser01@example.com',
   3,
   '2026-07-07',
@@ -369,13 +412,13 @@ INSERT INTO `user` (
     '테스터1',
     'テスター イチ',
     '1995-01-01',
-    '남성',
+    '남자',
     '테스터1',
     '02-1000-0001',
     'tester1',
     10000,
     100,
-    '010-1000-0001',
+    '090-1000-0001',
     'tester1@example.com',
     1,
     '2026-07-08',
@@ -388,13 +431,13 @@ INSERT INTO `user` (
     '테스터2',
     'テスター ニ',
     '1996-02-02',
-    '여성',
+    '여자',
     '테스터2',
     '02-1000-0002',
     'tester2',
     20000,
     200,
-    '010-1000-0002',
+    '090-1000-0002',
     'tester2@example.com',
     2,
     '2026-07-08',
@@ -413,7 +456,7 @@ INSERT INTO `user` (
     'tester3',
     30000,
     300,
-    '010-1000-0003',
+    '090-1000-0003',
     'tester3@example.com',
     3,
     '2026-07-08',
@@ -453,7 +496,7 @@ INSERT INTO addresses (
   @demo_user_id,
   '집',
   '김테스트',
-  '010-1234-5678',
+  '090-1234-5678',
   '100-0005',
   '東京都',
   '千代田区丸の内 113232',

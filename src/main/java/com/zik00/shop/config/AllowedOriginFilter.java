@@ -14,6 +14,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 public class AllowedOriginFilter extends OncePerRequestFilter {
     private static final String GOOGLE_CALLBACK = "/login/oauth2/code/google";
+    private static final String OAUTH_COMPLETION = "/api/auth/oauth/complete";
     private static final byte[] FORBIDDEN_RESPONSE =
             "{\"message\":\"허용되지 않은 요청 출처입니다.\"}".getBytes(StandardCharsets.UTF_8);
 
@@ -30,7 +31,7 @@ public class AllowedOriginFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         String path = request.getRequestURI().substring(request.getContextPath().length());
-        if (GOOGLE_CALLBACK.equals(path) || comesFromAllowedOrigin(request)) {
+        if (GOOGLE_CALLBACK.equals(path) || OAUTH_COMPLETION.equals(path) || comesFromAllowedOrigin(request)) {
             filterChain.doFilter(request, response);
             return;
         }

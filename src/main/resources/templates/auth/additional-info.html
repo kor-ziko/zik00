@@ -35,12 +35,14 @@
                     <label><span>성별 <b>*</b></span>
                         <select th:field="*{gender}" required>
                             <option value="">선택해주세요</option>
-                            <option value="MALE">남성</option><option value="FEMALE">여성</option><option value="OTHER">기타 / 응답하지 않음</option>
+                            <option value="남자">남자</option><option value="여자">여자</option><option value="기타">기타</option>
                         </select>
                     </label>
                     <label><span>닉네임 <b>*</b></span><input th:field="*{nickname}" required maxlength="100" autocomplete="nickname" data-label="닉네임"></label>
-                    <label><span>전화번호 <b>*</b></span><input type="tel" th:field="*{phoneNumber}" required placeholder="090-1234-5678" autocomplete="tel" data-label="전화번호"></label>
+                    <label><span>일반전화 <b>*</b></span><input type="tel" th:field="*{telephone}" required placeholder="02-123-1234" autocomplete="tel" data-label="일반전화"></label>
+                    <label><span>휴대전화 <b>*</b></span><input type="tel" th:field="*{mobilePhone}" required placeholder="090-1234-1234" autocomplete="tel-national" data-label="휴대전화"></label>
                 </div>
+                <label class="checkbox-field"><input type="checkbox" th:field="*{alarmConsent}"><span>이벤트 및 알림 수신에 동의합니다. (선택)</span></label>
             </fieldset>
 
             <fieldset data-address-search>

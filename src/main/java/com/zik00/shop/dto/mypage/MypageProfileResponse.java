@@ -7,6 +7,7 @@ import lombok.Getter;
 public class MypageProfileResponse {
     private final String name;
     private final String nickname;
+    private final String telephone;
     private final String mobilePhone;
     private final String email;
     private final boolean alarmConsent;
@@ -14,12 +15,14 @@ public class MypageProfileResponse {
     private MypageProfileResponse(
             String name,
             String nickname,
+            String telephone,
             String mobilePhone,
             String email,
             boolean alarmConsent
     ) {
         this.name = name;
         this.nickname = nickname;
+        this.telephone = telephone;
         this.mobilePhone = mobilePhone;
         this.email = email;
         this.alarmConsent = alarmConsent;
@@ -29,6 +32,7 @@ public class MypageProfileResponse {
         return new MypageProfileResponse(
                 user.getName(),
                 user.getNickname(),
+                user.getTelephone(),
                 user.getMobilePhone(),
                 user.getEmail(),
                 user.isAlarmConsent()

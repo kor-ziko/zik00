@@ -69,7 +69,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/login", "/oauth2/**", "/login/oauth2/**",
                                 "/css/**", "/js/**", "/api/japan-postal-codes",
-                                "/api/auth/csrf", "/api/auth/refresh",
+                                "/api/auth/csrf", "/api/auth/refresh", "/api/auth/oauth/complete",
                                 "/admin/**", "/api/admin/**", "/", "/index.html", "/error"
                         ).permitAll()
                         .requestMatchers("/api/auth/**", "/signup/**", "/mypage/**").authenticated()
@@ -90,12 +90,7 @@ public class SecurityConfig {
                         .failureHandler((request, response, exception) ->
                                 response.sendRedirect(webClientOrigins.clientBaseUrl() + "/login?error"))
                 )
-                .logout(logout -> logout
-                        .logoutSuccessHandler((request, response, authentication) ->
-                                response.sendRedirect(webClientOrigins.clientBaseUrl() + "/login?logout"))
-                        .invalidateHttpSession(true)
-                        .clearAuthentication(true)
-                )
+                .logout(logout -> logout.disable())
                 .addFilterAfter(
                         new RegistrationCompletionFilter(registrationService),
                         OAuth2LoginAuthenticationFilter.class

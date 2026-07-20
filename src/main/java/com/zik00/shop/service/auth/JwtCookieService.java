@@ -14,8 +14,10 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class JwtCookieService {
-    public static final String ACCESS_COOKIE = "access_token";
-    public static final String REFRESH_COOKIE = "refresh_token";
+    public static final String ACCESS_COOKIE = "zik_access_token";
+    public static final String REFRESH_COOKIE = "zik_refresh_token";
+    private static final String LEGACY_ACCESS_COOKIE = "access_token";
+    private static final String LEGACY_REFRESH_COOKIE = "refresh_token";
 
     private final boolean secure;
 
@@ -24,6 +26,8 @@ public class JwtCookieService {
     }
 
     public void writeTokens(HttpServletResponse response, JwtService.JwtPair pair) {
+        addCookie(response, LEGACY_ACCESS_COOKIE, "", Duration.ZERO);
+        addCookie(response, LEGACY_REFRESH_COOKIE, "", Duration.ZERO);
         addCookie(response, ACCESS_COOKIE, pair.accessToken(), Duration.between(java.time.Instant.now(), pair.accessExpiresAt()));
         addCookie(response, REFRESH_COOKIE, pair.refreshToken(), Duration.between(java.time.Instant.now(), pair.refreshExpiresAt()));
     }
@@ -39,6 +43,8 @@ public class JwtCookieService {
     public void clearTokens(HttpServletResponse response) {
         addCookie(response, ACCESS_COOKIE, "", Duration.ZERO);
         addCookie(response, REFRESH_COOKIE, "", Duration.ZERO);
+        addCookie(response, LEGACY_ACCESS_COOKIE, "", Duration.ZERO);
+        addCookie(response, LEGACY_REFRESH_COOKIE, "", Duration.ZERO);
     }
 
     private Optional<String> readCookie(HttpServletRequest request, String name) {

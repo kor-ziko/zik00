@@ -8,6 +8,7 @@ import com.zik00.shop.dto.auth.AdditionalInfoRequest;
 import com.zik00.shop.dto.mypage.JapanPostalCodeResponse;
 import com.zik00.shop.repository.DeliveryAddressRepository;
 import com.zik00.shop.service.JapanPostalCodeSearchService;
+import com.zik00.shop.util.PhoneNumberFormatter;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,14 +46,17 @@ public class RegistrationService {
         }
 
         JapanPostalCodeResponse selectedAddress = verifySelectedAddress(request);
-        String phoneNumber = normalizePhone(request.getPhoneNumber());
+        String telephone = PhoneNumberFormatter.formatTelephone(request.getTelephone());
+        String mobilePhone = PhoneNumberFormatter.formatMobilePhone(request.getMobilePhone());
         user.completeRegistration(
                 request.getNameKanji(),
                 request.getNameKatakana(),
                 request.getBirthDate(),
                 request.getGender(),
                 request.getNickname(),
-                phoneNumber
+                telephone,
+                mobilePhone,
+                request.isAlarmConsent()
         );
 
         if (!deliveryAddressRepository.existsByMemberId(user.getMemberId())) {
@@ -61,7 +65,7 @@ public class RegistrationService {
                     user.getMemberId(),
                     "기본 배송지",
                     request.getNameKanji(),
-                    phoneNumber,
+                    mobilePhone,
                     selectedAddress.getZipCode(),
                     selectedAddress.getProvince(),
                     joinAddress(selectedAddress.getDetailAddress(), request.getDetailAddress()),
@@ -81,10 +85,6 @@ public class RegistrationService {
 
     private String joinAddress(String baseAddress, String detailAddress) {
         return normalize(baseAddress) + " " + normalize(detailAddress);
-    }
-
-    private String normalizePhone(String value) {
-        return value == null ? "" : value.replaceAll("[^0-9]", "");
     }
 
     private String normalize(String value) {

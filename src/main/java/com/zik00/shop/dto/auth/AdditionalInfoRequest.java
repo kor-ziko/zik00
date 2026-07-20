@@ -27,7 +27,7 @@ public class AdditionalInfoRequest {
     private LocalDate birthDate;
 
     @NotBlank(message = "성별을 선택해주세요.")
-    @Pattern(regexp = "^(MALE|FEMALE|OTHER)$", message = "성별을 올바르게 선택해주세요.")
+    @Pattern(regexp = "^(남자|여자|기타)$", message = "성별을 올바르게 선택해주세요.")
     private String gender;
 
     @NotBlank(message = "닉네임을 입력해주세요.")
@@ -50,10 +50,19 @@ public class AdditionalInfoRequest {
     @Size(max = 150, message = "상세 주소는 150자 이하로 입력해주세요.")
     private String detailAddress;
 
-    @NotBlank(message = "전화번호를 입력해주세요.")
+    @NotBlank(message = "일반전화 번호를 입력해주세요.")
     @Pattern(
-            regexp = "^0\\d{1,4}-?\\d{1,4}-?\\d{3,4}$",
-            message = "일본 전화번호 형식을 확인해주세요."
+            regexp = "^0\\d{1,4}-?\\d{1,4}-?\\d{4}$",
+            message = "일반전화 번호 형식을 확인해주세요. 예: 02-123-1234"
     )
-    private String phoneNumber;
+    private String telephone;
+
+    @NotBlank(message = "휴대전화 번호를 입력해주세요.")
+    @Pattern(
+            regexp = "^(070|080|090)-?\\d{4}-?\\d{4}$",
+            message = "휴대전화 번호 형식을 확인해주세요. 예: 090-1234-1234"
+    )
+    private String mobilePhone;
+
+    private boolean alarmConsent;
 }

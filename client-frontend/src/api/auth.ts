@@ -1,6 +1,7 @@
 export type AuthSession = {
   authenticated: boolean;
   registrationComplete: boolean;
+  nickname: string;
 };
 
 export type AddressResult = {
@@ -116,7 +117,7 @@ export async function submitAdditionalInfo(payload: AdditionalInfoPayload): Prom
 
 export async function logout(): Promise<void> {
   const csrf = await getCsrfToken();
-  const response = await fetchAuthenticated('/api/auth/logout', {
+  const response = await fetch('/logout', {
     method: 'POST',
     credentials: 'include',
     headers: { [csrf.headerName]: csrf.token },

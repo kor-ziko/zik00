@@ -37,6 +37,7 @@ import com.zik00.shop.repository.InquiryImageRepository;
 import com.zik00.shop.repository.InquiryRepository;
 import com.zik00.shop.repository.PurchaseRepository;
 import com.zik00.shop.service.auth.AuthenticatedUserService;
+import com.zik00.shop.util.PhoneNumberFormatter;
 import com.zik00.shop.util.mypage.InquiryImagePaths;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -112,6 +113,7 @@ public class MypageService {
         ProfileUpdateRequest request = new ProfileUpdateRequest();
         request.setName(user.getName());
         request.setNickname(user.getNickname());
+        request.setTelephone(user.getTelephone());
         request.setMobilePhone(user.getMobilePhone());
         request.setEmail(user.getEmail());
         request.setAlarmConsent(user.isAlarmConsent());
@@ -124,7 +126,8 @@ public class MypageService {
         user.updateProfile(
                 request.getName(),
                 request.getNickname(),
-                request.getMobilePhone(),
+                PhoneNumberFormatter.formatTelephone(request.getTelephone()),
+                PhoneNumberFormatter.formatMobilePhone(request.getMobilePhone()),
                 request.getEmail(),
                 request.isAlarmConsent()
         );

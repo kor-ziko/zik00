@@ -9,6 +9,9 @@ import com.zik00.shop.service.auth.RegistrationService;
 import com.zik00.shop.service.auth.JwtSessionService;
 import com.zik00.shop.service.auth.JwtCookieService;
 import com.zik00.shop.service.auth.InvalidJwtException;
+import com.zik00.shop.service.auth.OAuthLoginCompletionService;
+import com.zik00.shop.config.WebClientOrigins;
+import java.io.IOException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -21,6 +24,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -30,17 +34,23 @@ public class AuthApiController {
     private final RegistrationService registrationService;
     private final JwtSessionService jwtSessionService;
     private final JwtCookieService jwtCookieService;
+    private final OAuthLoginCompletionService oAuthLoginCompletionService;
+    private final String frontendBaseUrl;
 
     public AuthApiController(
             AuthenticatedUserService authenticatedUserService,
             RegistrationService registrationService,
             JwtSessionService jwtSessionService,
-            JwtCookieService jwtCookieService
+            JwtCookieService jwtCookieService,
+            OAuthLoginCompletionService oAuthLoginCompletionService,
+            WebClientOrigins webClientOrigins
     ) {
         this.authenticatedUserService = authenticatedUserService;
         this.registrationService = registrationService;
         this.jwtSessionService = jwtSessionService;
         this.jwtCookieService = jwtCookieService;
+        this.oAuthLoginCompletionService = oAuthLoginCompletionService;
+        this.frontendBaseUrl = webClientOrigins.clientBaseUrl();
     }
 
     @GetMapping("/session")
@@ -48,7 +58,8 @@ public class AuthApiController {
         var user = authenticatedUserService.getCurrentUser();
         return new AuthSessionResponse(
                 true,
-                registrationService.isRegistrationComplete(user)
+                registrationService.isRegistrationComplete(user),
+                user.getNickname()
         );
     }
 
@@ -57,16 +68,29 @@ public class AuthApiController {
         return Map.of("headerName", csrfToken.getHeaderName(), "token", csrfToken.getToken());
     }
 
-    @PostMapping("/refresh")
-    public ResponseEntity<Void> refresh(HttpServletRequest request, HttpServletResponse response) {
-        jwtSessionService.refresh(request, response);
-        return ResponseEntity.noContent().build();
+    @GetMapping("/oauth/complete")
+    public void completeOAuthLogin(
+            @RequestParam("code") String code,
+            HttpServletResponse response
+    ) throws IOException {
+        try {
+            String destination = oAuthLoginCompletionService.complete(code, response);
+            response.sendRedirect(frontendBaseUrl + destination);
+        } catch (InvalidJwtException exception) {
+            jwtCookieService.clearTokens(response);
+            response.sendRedirect(frontendBaseUrl + "/login?error=oauth-completion");
+        }
     }
 
-    @PostMapping("/logout")
-    public ResponseEntity<Void> logout(HttpServletRequest request, HttpServletResponse response) {
-        jwtSessionService.logout(request, response);
-        return ResponseEntity.noContent().build();
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refresh(HttpServletRequest request, HttpServletResponse response) {
+        try {
+            jwtSessionService.refresh(request, response);
+            return ResponseEntity.noContent().build();
+        } catch (InvalidJwtException exception) {
+            jwtCookieService.clearTokens(response);
+            return ResponseEntity.status(401).body(new ApiErrorResponse(List.of(exception.getMessage())));
+        }
     }
 
     @PostMapping("/additional-info")
@@ -89,16 +113,7 @@ public class AuthApiController {
         return ResponseEntity.badRequest().body(new ApiErrorResponse(List.of(exception.getMessage())));
     }
 
-    @ExceptionHandler(InvalidJwtException.class)
-    public ResponseEntity<ApiErrorResponse> invalidJwt(
-            InvalidJwtException exception,
-            HttpServletResponse response
-    ) {
-        jwtCookieService.clearTokens(response);
-        return ResponseEntity.status(401).body(new ApiErrorResponse(List.of(exception.getMessage())));
-    }
-
-    public record AuthSessionResponse(boolean authenticated, boolean registrationComplete) {
+    public record AuthSessionResponse(boolean authenticated, boolean registrationComplete, String nickname) {
     }
 
     public record ApiErrorResponse(List<String> messages) {

@@ -104,6 +104,29 @@ img {
   color: var(--ink);
 }
 
+.member-greeting {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.utility-link-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.utility-link-button:hover {
+  color: var(--ink);
+}
+
+.utility-link-button:disabled {
+  cursor: wait;
+  opacity: .65;
+}
+
 .language-button {
   display: inline-flex;
   align-items: center;
@@ -968,8 +991,7 @@ img {
   }
 
   .utility-inner > span,
-  .utility-inner nav a:nth-child(2),
-  .utility-inner nav a:nth-child(3) {
+  .utility-support-link {
     display: none;
   }
 
