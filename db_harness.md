@@ -239,7 +239,9 @@ Google OAuth 성공
   → 서비스 JWT Access Token + Refresh Token 발급
   → JWT Access Token은 JSON 응답으로 전달하고 React 메모리에만 저장
   → Refresh Token 원본은 HttpOnly Cookie, 해시는 Redis TTL 키로 저장
-  → 최초 회원이면 additional-info 입력 후 user + addresses 갱신
+  → 최초 회원이면 Redis 임시 가입 상태만 생성
+  → 필수 약관 동의 후 detail 입력 가능
+  → detail 입력 완료 시 user + addresses를 최초 저장
 ```
 
 ## 스키마 관리 시 주의사항

@@ -9,12 +9,6 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class GoogleOAuth2UserService extends DefaultOAuth2UserService {
-    private final GoogleAccountService googleAccountService;
-
-    public GoogleOAuth2UserService(GoogleAccountService googleAccountService) {
-        this.googleAccountService = googleAccountService;
-    }
-
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
         OAuth2User oauthUser = super.loadUser(userRequest);
@@ -26,11 +20,6 @@ public class GoogleOAuth2UserService extends DefaultOAuth2UserService {
         if (subject == null || subject.isBlank()) {
             throw new OAuth2AuthenticationException(new OAuth2Error("invalid_user_info"));
         }
-        googleAccountService.findOrCreate(
-                subject,
-                oauthUser.getAttribute("email"),
-                oauthUser.getAttribute("name")
-        );
         return oauthUser;
     }
 }

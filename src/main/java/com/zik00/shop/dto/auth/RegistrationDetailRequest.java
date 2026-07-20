@@ -1,7 +1,6 @@
 package com.zik00.shop.dto.auth;
 
 import java.time.LocalDate;
-
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Past;
@@ -12,7 +11,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class AdditionalInfoRequest {
+public class RegistrationDetailRequest {
     @NotBlank(message = "이름(한자)을 입력해주세요.")
     @Size(max = 100, message = "이름은 100자 이하로 입력해주세요.")
     private String nameKanji;
@@ -64,5 +63,4 @@ public class AdditionalInfoRequest {
     )
     private String mobilePhone;
 
-    private boolean alarmConsent;
 }

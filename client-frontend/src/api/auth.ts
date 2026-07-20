@@ -12,7 +12,7 @@ export type AddressResult = {
   detailAddress: string;
 };
 
-export type AdditionalInfoPayload = {
+export type RegistrationDetailPayload = {
   nameKanji: string;
   nameKatakana: string;
   birthDate: string;
@@ -24,13 +24,21 @@ export type AdditionalInfoPayload = {
   detailAddress: string;
   telephone: string;
   mobilePhone: string;
-  alarmConsent: boolean;
 };
 
 type CsrfResponse = { headerName: string; token: string };
 type ApiErrorResponse = { messages?: string[] };
 type AccessTokenResponse = { accessToken: string; expiresAt: string };
-type OAuthCompleteResponse = AccessTokenResponse & { destination: string };
+type OAuthCompleteResponse = {
+  accessToken: string | null;
+  expiresAt: string | null;
+  destination: string;
+};
+type TermsSessionResponse = { accepted: boolean; alarmConsent: boolean };
+type TermsAgreementPayload = {
+  accepted: boolean;
+  alarmConsent: boolean;
+};
 
 let refreshInFlight: Promise<boolean> | null = null;
 
@@ -115,7 +123,7 @@ export async function completeOAuthLogin(code: string): Promise<OAuthCompleteRes
   });
   if (!response.ok) throw await readError(response);
   const result = await response.json() as OAuthCompleteResponse;
-  setMemoryAccessToken(result.accessToken);
+  setMemoryAccessToken(result.accessToken ?? null);
   return result;
 }
 
@@ -132,10 +140,20 @@ export async function searchJapaneseAddress(postalCode: string): Promise<Address
   return response.json() as Promise<AddressResult[]>;
 }
 
-export async function submitAdditionalInfo(payload: AdditionalInfoPayload): Promise<void> {
-  const csrf = await getCsrfToken();
+export async function getRegistrationDetailSession(): Promise<void> {
+  const response = await fetch('/api/auth/detail', { credentials: 'include' });
+  if (!response.ok) throw await readError(response);
+}
 
-  const response = await fetchAuthenticated('/api/auth/additional-info', {
+export async function getRegistrationTerms(): Promise<TermsSessionResponse> {
+  const response = await fetch('/api/auth/terms', { credentials: 'include' });
+  if (!response.ok) throw await readError(response);
+  return response.json() as Promise<TermsSessionResponse>;
+}
+
+export async function acceptRegistrationTerms(payload: TermsAgreementPayload): Promise<void> {
+  const csrf = await getCsrfToken();
+  const response = await fetch('/api/auth/terms', {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -145,6 +163,23 @@ export async function submitAdditionalInfo(payload: AdditionalInfoPayload): Prom
     body: JSON.stringify(payload),
   });
   if (!response.ok) throw await readError(response);
+}
+
+export async function submitRegistrationDetail(payload: RegistrationDetailPayload): Promise<void> {
+  const csrf = await getCsrfToken();
+
+  const response = await fetch('/api/auth/detail', {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      [csrf.headerName]: csrf.token,
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw await readError(response);
+  const result = await response.json() as AccessTokenResponse;
+  setMemoryAccessToken(result.accessToken);
 }
 
 export async function logout(): Promise<void> {

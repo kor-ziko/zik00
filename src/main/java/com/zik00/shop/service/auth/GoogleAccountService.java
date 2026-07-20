@@ -2,6 +2,7 @@ package com.zik00.shop.service.auth;
 
 import com.zik00.shop.domain.User;
 import com.zik00.shop.repository.UserRepository;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,11 +16,9 @@ public class GoogleAccountService {
         this.authenticatedUserService = authenticatedUserService;
     }
 
-    @Transactional
-    public User findOrCreate(String subject, String email, String googleName) {
+    @Transactional(readOnly = true)
+    public Optional<User> findExisting(String subject) {
         String loginId = authenticatedUserService.toGoogleLoginId(subject);
-        return userRepository.findByLoginId(loginId).orElseGet(() -> userRepository.save(
-                User.createGoogleUser(loginId, email, googleName)
-        ));
+        return userRepository.findByLoginId(loginId);
     }
 }

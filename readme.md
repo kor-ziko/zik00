@@ -58,12 +58,7 @@ admin / admin1234!
 설정 방법
 https://goldenrabbit.co.kr/articles/o4WsLGIBrgPikDI5ZA8M
 
-.env파일 format이다. .gitignore을 통해서 업로드 안되게 해놓았으므로 .env파일을 생성해서 아래 포멧을 넣고 각 data를 넣어주면 된다.
-```
-Google Cloud Console OAuth 2.0 Client credentials
-GOOGLE_CLIENT_ID=change_user_client_id
-GOOGLE_CLIENT_SECRET=change_secret
-```
+.gitignore을 통해서 업로드 안되게 해놓았으므로 .env파일을 생성해서 아래 포멧을 넣고 각 data를 넣어주면 된다. 포멧은 아래 작성햊둠
 
 # redis 설정
 설치 방법 wsl에다가 하는거

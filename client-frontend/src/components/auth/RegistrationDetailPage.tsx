@@ -1,12 +1,12 @@
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
-import { Check, ChevronRight, LoaderCircle, MapPin, Search, ShieldCheck, UserRound } from 'lucide-react';
+import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, Check, ChevronRight, LoaderCircle, MapPin, Search, UserRound } from 'lucide-react';
 import {
   ApiError,
-  type AdditionalInfoPayload,
+  type RegistrationDetailPayload,
   type AddressResult,
-  getAuthSession,
+  getRegistrationDetailSession,
   searchJapaneseAddress,
-  submitAdditionalInfo,
+  submitRegistrationDetail,
 } from '../../api/auth';
 import AuthShell from './AuthShell';
 
@@ -20,10 +20,10 @@ const prefectures = [
   '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県',
 ];
 
-const initialForm: AdditionalInfoPayload = {
+const initialForm: RegistrationDetailPayload = {
   nameKanji: '', nameKatakana: '', birthDate: '', gender: '', nickname: '',
   zipCode: '', province: '', baseAddress: '', detailAddress: '',
-  telephone: '', mobilePhone: '', alarmConsent: false,
+  telephone: '', mobilePhone: '',
 };
 
 function formatTelephone(value: string) {
@@ -45,26 +45,35 @@ function yesterday() {
   return date.toISOString().slice(0, 10);
 }
 
-function AdditionalInfoPage() {
+function RegistrationDetailPage() {
   const [form, setForm] = useState(initialForm);
   const [addresses, setAddresses] = useState<AddressResult[]>([]);
   const [checkingSession, setCheckingSession] = useState(true);
+  const [sessionError, setSessionError] = useState('');
   const [searchingAddress, setSearchingAddress] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [addressMessage, setAddressMessage] = useState('');
+  const submittingRef = useRef(false);
   const maxBirthDate = useMemo(yesterday, []);
 
   useEffect(() => {
-    getAuthSession()
-      .then((session) => {
-        if (session.registrationComplete) window.location.replace('/');
+    getRegistrationDetailSession()
+      .catch((error) => {
+        if (error instanceof ApiError && error.status === 409) {
+          window.location.replace('/login/terms');
+          return;
+        }
+        if (error instanceof ApiError && error.status === 401) {
+          window.location.replace('/login?reason=registration-expired');
+          return;
+        }
+        setSessionError('가입 정보를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.');
       })
-      .catch(() => window.location.replace('/login'))
       .finally(() => setCheckingSession(false));
   }, []);
 
-  const update = (name: keyof AdditionalInfoPayload, value: string) => {
+  const update = (name: keyof RegistrationDetailPayload, value: string) => {
     setForm((current) => ({ ...current, [name]: value }));
   };
 
@@ -105,19 +114,25 @@ function AdditionalInfoPage() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setErrors([]);
     setSubmitting(true);
     try {
-      await submitAdditionalInfo(form);
+      await submitRegistrationDetail(form);
       window.location.replace('/');
     } catch (error) {
       if (error instanceof ApiError) {
-        if (error.status === 401) window.location.replace('/login');
+        if (error.status === 401) {
+          window.location.replace('/login?reason=registration-expired');
+          return;
+        }
         setErrors(error.messages);
       } else {
         setErrors(['회원정보 저장 중 오류가 발생했습니다. 다시 시도해주세요.']);
       }
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -126,8 +141,20 @@ function AdditionalInfoPage() {
     return <div className="auth-loading"><LoaderCircle className="spin" aria-hidden="true" /><span>로그인 정보를 확인하고 있습니다.</span></div>;
   }
 
+  if (sessionError) {
+    return (
+      <AuthShell>
+        <main className="auth-container oauth-callback-page">
+          <h1>가입 정보를 확인하지 못했습니다.</h1>
+          <p className="form-alert" role="alert">{sessionError}</p>
+          <a href="/login">로그인으로 돌아가기</a>
+        </main>
+      </AuthShell>
+    );
+  }
+
   return (
-    <AuthShell step="회원가입 1 / 1">
+    <AuthShell step="회원가입 3 / 4">
       <main className="auth-container additional-layout">
         <header className="additional-heading">
           <div><p className="auth-kicker">COMPLETE YOUR PROFILE</p><h1>회원정보를 완성해주세요.</h1></div>
@@ -135,7 +162,13 @@ function AdditionalInfoPage() {
         </header>
 
         <div className="signup-progress" aria-label="가입 진행 단계">
-          <span className="done"><Check size={14} /> Google 인증</span><i /><span className="active">추가정보 입력</span><i /><span>가입 완료</span>
+          <span className="done"><Check size={14} /> Google 인증</span>
+          <i />
+          <span className="done"><Check size={14} /> 약관동의</span>
+          <i />
+          <span className="active">추가정보 입력</span>
+          <i />
+          <span>가입 완료</span>
         </div>
 
         <form className="additional-form" onSubmit={handleSubmit}>
@@ -152,26 +185,27 @@ function AdditionalInfoPage() {
               <label><span>일반전화 <b>*</b></span><input required type="tel" maxLength={13} value={form.telephone} onChange={(e) => update('telephone', e.target.value)} onBlur={(e) => update('telephone', formatTelephone(e.target.value))} placeholder="02-123-1234" autoComplete="tel" /></label>
               <label><span>휴대전화 <b>*</b></span><input required type="tel" maxLength={13} value={form.mobilePhone} onChange={(e) => update('mobilePhone', e.target.value)} onBlur={(e) => update('mobilePhone', formatMobilePhone(e.target.value))} placeholder="090-1234-1234" autoComplete="tel-national" /></label>
             </div>
-            <label className="consent-field"><input type="checkbox" checked={form.alarmConsent} onChange={(e) => setForm((current) => ({ ...current, alarmConsent: e.target.checked }))} /><span>이벤트 및 알림 수신에 동의합니다. (선택)</span></label>
           </section>
 
           <section className="form-section" aria-labelledby="address-title">
             <div className="form-section-heading"><span><MapPin size={21} /></span><div><h2 id="address-title">기본 배송지</h2><p>일본 내 상품을 받을 주소를 등록해주세요.</p></div></div>
-            <div className="postal-search-row">
-              <label><span>우편번호 <b>*</b></span><input required value={form.zipCode} onChange={(e) => { update('zipCode', e.target.value); update('baseAddress', ''); }} placeholder="100-0005" inputMode="numeric" /></label>
-              <button type="button" onClick={handleAddressSearch} disabled={searchingAddress}>{searchingAddress ? <LoaderCircle className="spin" size={18} /> : <Search size={18} />} 주소 조회</button>
-            </div>
-            {addressMessage && <p className="address-message" aria-live="polite">{addressMessage}</p>}
-            {addresses.length > 0 && <div className="address-result-list">{addresses.map((address) => <button type="button" key={`${address.zipCode}-${address.detailAddress}`} onClick={() => selectAddress(address)}><MapPin size={17} /><span><strong>{address.zipCode}</strong>{address.province} {address.detailAddress}</span><ChevronRight size={17} /></button>)}</div>}
-            <div className="form-grid">
-              <label><span>도도부현 <b>*</b></span><select required value={form.province} onChange={(e) => update('province', e.target.value)}><option value="">선택해주세요</option>{prefectures.map((item) => <option value={item} key={item}>{item}</option>)}</select></label>
-              <label><span>조회 주소 <b>*</b></span><input required readOnly value={form.baseAddress} placeholder="우편번호로 주소를 조회해주세요" /></label>
-              <label><span>상세 주소 <b>*</b></span><input required maxLength={150} value={form.detailAddress} onChange={(e) => update('detailAddress', e.target.value)} placeholder="1-2-3 ○○マンション 101号室" autoComplete="street-address" /></label>
+            <div className="address-fields">
+              <div className="postal-search-row">
+                <label><span>우편번호 <b>*</b></span><input required value={form.zipCode} onChange={(e) => { update('zipCode', e.target.value); update('baseAddress', ''); }} placeholder="100-0005" inputMode="numeric" /></label>
+                <button type="button" onClick={handleAddressSearch} disabled={searchingAddress}>{searchingAddress ? <LoaderCircle className="spin" size={18} /> : <Search size={18} />} 주소 조회</button>
+              </div>
+              {addressMessage && <p className="address-message" aria-live="polite">{addressMessage}</p>}
+              {addresses.length > 0 && <div className="address-result-list">{addresses.map((address) => <button type="button" key={`${address.zipCode}-${address.detailAddress}`} onClick={() => selectAddress(address)}><MapPin size={17} /><span><strong>{address.zipCode}</strong>{address.province} {address.detailAddress}</span><ChevronRight size={17} /></button>)}</div>}
+              <div className="form-grid">
+                <label><span>도도부현 <b>*</b></span><select required value={form.province} onChange={(e) => update('province', e.target.value)}><option value="">선택해주세요</option>{prefectures.map((item) => <option value={item} key={item}>{item}</option>)}</select></label>
+                <label><span>조회 주소 <b>*</b></span><input required readOnly value={form.baseAddress} placeholder="우편번호로 주소를 조회해주세요" /></label>
+                <label><span>상세 주소 <b>*</b></span><input required maxLength={150} value={form.detailAddress} onChange={(e) => update('detailAddress', e.target.value)} placeholder="1-2-3 ○○マンション 101号室" autoComplete="street-address" /></label>
+              </div>
             </div>
           </section>
 
           <div className="form-submit-row">
-            <p><ShieldCheck size={18} /><span>입력하신 정보는 회원 관리와 배송 목적으로만 안전하게 사용됩니다.</span></p>
+            <a className="detail-back-button" href="/login/terms"><ArrowLeft size={18} /> 약관동의로 돌아가기</a>
             <button className="complete-button" type="submit" disabled={submitting}>{submitting ? <><LoaderCircle className="spin" size={19} /> 저장 중</> : <>가입 완료 <ChevronRight size={20} /></>}</button>
           </div>
         </form>
@@ -180,4 +214,4 @@ function AdditionalInfoPage() {
   );
 }
 
-export default AdditionalInfoPage;
+export default RegistrationDetailPage;

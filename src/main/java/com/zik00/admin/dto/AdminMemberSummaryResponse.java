@@ -3,6 +3,7 @@ package com.zik00.admin.dto;
 import com.zik00.shop.domain.User;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.function.UnaryOperator;
 
 // @dev 유저 간락 정보 보이기
 public record AdminMemberSummaryResponse(
@@ -22,14 +23,14 @@ public record AdminMemberSummaryResponse(
     private static final String DEFAULT_ROLE = "USER";
     private static final String DEFAULT_STATUS = "ACTIVE";
 
-    public static AdminMemberSummaryResponse from(User user) {
+    public static AdminMemberSummaryResponse from(User user, UnaryOperator<String> decrypt) {
         return new AdminMemberSummaryResponse(
                 user.getMemberId(),
-                user.getEmail(),
-                user.getName(),
+                decrypt.apply(user.getEmail()),
+                decrypt.apply(user.getName()),
                 user.getNickname(),
                 user.getUserId(),
-                phoneOf(user),
+                decrypt.apply(phoneOf(user)),
                 DEFAULT_PROVIDER,
                 DEFAULT_ROLE,
                 DEFAULT_STATUS,

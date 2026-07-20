@@ -75,13 +75,17 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/admin/auth/csrf").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/admin/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/auth/detail").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/detail").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/auth/terms").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/terms").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/auth/**", "/api/mypage/**", "/signup/**", "/mypage/**").authenticated()
                         .anyRequest().denyAll()
                 )
                 .formLogin(formLogin -> formLogin.disable())
                 .httpBasic(httpBasic -> httpBasic.disable())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .requestCache(cache -> cache.disable())
                 .exceptionHandling(exceptions -> exceptions.defaultAuthenticationEntryPointFor(
                         new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),

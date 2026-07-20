@@ -27,11 +27,6 @@ public class AuthenticatedUserService {
                 .orElseThrow(() -> new IllegalStateException("로그인 회원을 찾을 수 없습니다."));
     }
 
-    public User findGoogleUser(String googleSubject) {
-        return userRepository.findByLoginId(toGoogleLoginId(googleSubject))
-                .orElseThrow(() -> new IllegalStateException("Google 로그인 회원을 찾을 수 없습니다."));
-    }
-
     public String toGoogleLoginId(String googleSubject) {
         if (googleSubject == null || googleSubject.isBlank()) {
             throw new IllegalArgumentException("Google 계정 식별자가 없습니다.");

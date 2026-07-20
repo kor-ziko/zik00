@@ -6,7 +6,8 @@ import QuickMenu from './components/layout/QuickMenu';
 import SiteFooter from './components/layout/SiteFooter';
 import SiteHeader from './components/layout/SiteHeader';
 import LoginPage from './components/auth/LoginPage';
-import AdditionalInfoPage from './components/auth/AdditionalInfoPage';
+import RegistrationDetailPage from './components/auth/RegistrationDetailPage';
+import RegistrationTermsPage from './components/auth/RegistrationTermsPage';
 import MypagePage from './components/mypage/MypagePage';
 import OAuthCallbackPage from './components/auth/OAuthCallbackPage';
 
@@ -19,7 +20,8 @@ function App() {
     return () => window.removeEventListener('popstate', updatePath);
   }, []);
   if (path === '/login') return <LoginPage />;
-  if (path === '/login/additional-info') return <AdditionalInfoPage />;
+  if (path === '/login/terms') return <RegistrationTermsPage />;
+  if (path === '/login/detail') return <RegistrationDetailPage />;
   if (path === '/oauth/callback') return <OAuthCallbackPage />;
   if (path === '/mypage' || path.startsWith('/mypage/')) return <MypagePage />;
 

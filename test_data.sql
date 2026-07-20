@@ -1,5 +1,5 @@
 -- 현재 Spring Boot JPA 엔티티 기준 통합 스키마와 개발용 시드 데이터
--- 개인정보 시드 값은 애플리케이션 시작 시 PII_MIGRATE_PLAINTEXT_ON_STARTUP=true로 암호화한다.
+-- 개발 환경의 고정 PII_ENCRYPTION_KEYS(v1)로 암호화한 개인정보 시드 데이터
 CREATE DATABASE IF NOT EXISTS shop
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_unicode_ci;
@@ -13,6 +13,7 @@ SET @tester3_user_id = 4;
 
 -- access_id는 회원 생성 시 UUID()로 각각 발급한다.
 -- 아래 UPSERT에서는 access_id를 갱신하지 않아 SQL 재실행으로 기존 JWT sub가 바뀌지 않는다.
+-- login_id는 Google sub 조회와 UNIQUE 로그인을 위한 검색 키이므로 암호화하지 않는다.
 
 CREATE TABLE IF NOT EXISTS `user` (
   user_id BIGINT NOT NULL AUTO_INCREMENT,
@@ -206,17 +207,17 @@ INSERT INTO `user` (
 ) VALUES (
   @demo_user_id,
   UUID(),
-  '김테스트',
-  'キム テスト',
-  '1990-05-14',
-  '남자',
+  'enc:v1:y4tY-RWIkjBfCPUUMwBqlrxZX_F_vT3fnlil7g8VotzL7vvXW4kczw',
+  'enc:v1:Cj8PfPOWPXFW1o35N6rEvN6TEc9YAXBJ6KKy-baroEWKLzQkeLUzgEnL3tQ',
+  'enc:v1:uVWf_dKA-WXak6ajhv0WnXQhcDchMZRpti40a-ST0laHd-EBpDI',
+  'enc:v1:jkFej_nengq7UF4MAff6gpPjNuNQ-TqkxBPwmuYvjqVrnA',
   '테스터01',
-  '02-1234-5678',
+  'enc:v1:9-cGc-gelTvlJUNDJkAyKCIjv--DUZfOn9X_CpN7KO_Dsdb19gLsBQ',
   'testuser01',
   50000,
   1200,
-  '090-1234-5678',
-  'testuser01@example.com',
+  'enc:v1:Ml0_6uX10O4-w5WGLYVN_nl4XoDArHNEoiNyrCEzRuY4C0Gid9RznIQ',
+  'enc:v1:tL9K3w6IcRejJYJnczqetNO988Xj6NNo6EgazD9R_hcWimSskffV8yXYsgG1UX-IBfQ',
   3,
   '2026-07-07',
   '테스트용 일반회원, 연락처/주문 이력 포함',
@@ -260,17 +261,17 @@ INSERT INTO `user` (
   (
     @tester1_user_id,
     UUID(),
+    'enc:v1:PqhK9vvE22EnOvr0BG1L5nJSB4_DPFE4Y-ptr0rbXPZWKUoQFeE',
+    'enc:v1:xRus8IeKsXc5MCZl-q8l6_M4pSSTEhVMX9gGwBSlSW04_Sm2d5m-QiNb0at0cOU',
+    'enc:v1:tn1b3MEhG2XmTvMihJg-gqB-_ZIouTWL-hZVXBK4BKQZsx5X14c',
+    'enc:v1:s7wO3QY1-ynRAq1ffWJY5XeJ5Jf13thpv5---M0GQCcvMQ',
     '테스터1',
-    'テスター イチ',
-    '1995-01-01',
-    '남자',
-    '테스터1',
-    '02-1000-0001',
+    'enc:v1:QKuG9V-cTvEOZZcah06aCI7GE1fmKlUGWDqVpvWE49SrzuloxDPgAw',
     'tester1',
     10000,
     100,
-    '090-1000-0001',
-    'tester1@example.com',
+    'enc:v1:yX_M4jxMC4IsHBkKmU6gU3ieRpcb7ZrcyfCslyEPIQxHgnBkAn15Z-g',
+    'enc:v1:dqMKbJMSlLwlWEUFLICJ6hDjPBfM14A8Jt8FU3utGO_molbrOH6LNK0HgK50pz0',
     1,
     '2026-07-08',
     '관리자 회원관리 테스트용 회원 1',
@@ -279,17 +280,17 @@ INSERT INTO `user` (
   (
     @tester2_user_id,
     UUID(),
+    'enc:v1:pe9D_YLLSgMGLasG7HwQESN1Sw_hgS7mIqAeTIKud4QT3HC5tXo',
+    'enc:v1:Jv8z30HygDSQr_ELCA7uoBNPuawXMPaf3RzGIGAv-hzd098pUFClzrq4h-E',
+    'enc:v1:0hAa6nU8WTjCEZIgCK3sGV-iAK3trz12Tp5R14XQuKaWAlLjBUI',
+    'enc:v1:Mzk_0WLeT2fyyAaI6rMIfSevohTQwrpFhtQmxiGtRvY_OQ',
     '테스터2',
-    'テスター ニ',
-    '1996-02-02',
-    '여자',
-    '테스터2',
-    '02-1000-0002',
+    'enc:v1:mvzAAoU7Ry6dyjjkvwvMnxuY9_MDMlJDKDokeAd3t5FBUrj1piWqhQ',
     'tester2',
     20000,
     200,
-    '090-1000-0002',
-    'tester2@example.com',
+    'enc:v1:KCfOatvIfOteGAH_6BfKji84ZNmFT5gA9FjYf85lA0-Pu8kdSei_gPw',
+    'enc:v1:cNHAln1VbujkYrMRAB_IXuQqfhxzx0N0-VCFZUbmgE2zd3tc9UnBYTZ5QzVHwbU',
     2,
     '2026-07-08',
     '관리자 회원관리 테스트용 회원 2',
@@ -298,17 +299,17 @@ INSERT INTO `user` (
   (
     @tester3_user_id,
     UUID(),
+    'enc:v1:G7ek4K7eN-aNPqWs_-bhlQZvJANGDXdaxw10PAYRQtkGS_xVRx0',
+    'enc:v1:rhZxDcMoO74LtNXuqNlbqm7Mcbu1McU_U-TewCfcdrbFqGd51661zHWHvmWr4Xc',
+    'enc:v1:2blnSrsdfICi1-vhbvSOj2Q2SKNd8NIPpGT2e_A9u2eA4yZ2czg',
+    'enc:v1:q0wVb2U7mcEoz9tlsqINpp0_OigQmb3WGS1xySalh5ZmAQ',
     '테스터3',
-    'テスター サン',
-    '1997-03-03',
-    '기타',
-    '테스터3',
-    '02-1000-0003',
+    'enc:v1:n9T9HibxkcsNtJp3bS8Z8AsVqI6X3S3PGqbwpA8gpjfhI_iqBQKmLA',
     'tester3',
     30000,
     300,
-    '090-1000-0003',
-    'tester3@example.com',
+    'enc:v1:iBcLJRLF8ILcP-pkBxgos-iBTJbc-WSvh8Z8J_iNnx-_cfWu5hpnvyQ',
+    'enc:v1:YtqGw7MKhQNlcNWdFF5rJoVSbtqfkScuo_kJLMDQPe076RNQnuu_49FJWko7LDY',
     3,
     '2026-07-08',
     '관리자 회원관리 테스트용 회원 3',
@@ -344,12 +345,12 @@ INSERT INTO addresses (
 ) VALUES (
   1,
   @demo_user_id,
-  '집',
-  '김테스트',
-  '090-1234-5678',
+  'enc:v1:LjddRM51oM_x6-DsTNVpNYYq3PByByefzt5ah8g_HA',
+  'enc:v1:YVz-e0WG_yrdUpuP9c0eMNewo95pZgeS6LlOvGT9Xup8HtL5Wc8ZTg',
+  'enc:v1:nZ5VQcHVyC8kRmMTEn-GPW2l-1r4lSH9c9VCdUTNZsef8GEBM-JxVF4',
   '100-0005',
   '東京都',
-  '千代田区丸の内 113232',
+  'enc:v1:3BpKN-2ulUalI8SdmG04aZGfoYtApjT6knC0YGfRIfbqvovyQcpn1v4ZVkbDaNdBVZvBHjqHe3I',
   1
 ) ON DUPLICATE KEY UPDATE
   user_id = VALUES(user_id),

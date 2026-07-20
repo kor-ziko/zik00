@@ -4,16 +4,19 @@ import java.util.List;
 import java.util.Map;
 import java.time.Instant;
 
-import com.zik00.shop.dto.auth.AdditionalInfoRequest;
+import com.zik00.shop.dto.auth.RegistrationDetailRequest;
 import com.zik00.shop.service.auth.AuthenticatedUserService;
 import com.zik00.shop.service.auth.RegistrationService;
 import com.zik00.shop.service.auth.JwtSessionService;
 import com.zik00.shop.service.auth.JwtCookieService;
 import com.zik00.shop.service.auth.InvalidJwtException;
 import com.zik00.shop.service.auth.OAuthLoginCompletionService;
+import com.zik00.shop.service.auth.PendingGoogleRegistrationService;
+import com.zik00.shop.service.auth.RegistrationTermsRequiredException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.validation.FieldError;
@@ -33,19 +36,22 @@ public class AuthApiController {
     private final JwtSessionService jwtSessionService;
     private final JwtCookieService jwtCookieService;
     private final OAuthLoginCompletionService oAuthLoginCompletionService;
+    private final PendingGoogleRegistrationService pendingRegistrationService;
 
     public AuthApiController(
             AuthenticatedUserService authenticatedUserService,
             RegistrationService registrationService,
             JwtSessionService jwtSessionService,
             JwtCookieService jwtCookieService,
-            OAuthLoginCompletionService oAuthLoginCompletionService
+            OAuthLoginCompletionService oAuthLoginCompletionService,
+            PendingGoogleRegistrationService pendingRegistrationService
     ) {
         this.authenticatedUserService = authenticatedUserService;
         this.registrationService = registrationService;
         this.jwtSessionService = jwtSessionService;
         this.jwtCookieService = jwtCookieService;
         this.oAuthLoginCompletionService = oAuthLoginCompletionService;
+        this.pendingRegistrationService = pendingRegistrationService;
     }
 
     @GetMapping("/session")
@@ -93,10 +99,46 @@ public class AuthApiController {
         }
     }
 
-    @PostMapping("/additional-info")
-    public ResponseEntity<Void> completeRegistration(@Valid @RequestBody AdditionalInfoRequest request) {
-        registrationService.completeRegistration(request);
+    @GetMapping("/terms")
+    public TermsSessionResponse registrationTerms(HttpServletRequest request) {
+        var pending = pendingRegistrationService.require(request);
+        return new TermsSessionResponse(pending.termsAccepted(), pending.alarmConsent());
+    }
+
+    @PostMapping("/terms")
+    public ResponseEntity<Void> acceptRegistrationTerms(
+            @Valid @RequestBody TermsAgreementRequest request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse response
+    ) {
+        pendingRegistrationService.require(httpRequest);
+        pendingRegistrationService.acceptTerms(httpRequest, response, request.alarmConsent());
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/detail")
+    public DetailSessionResponse registrationDetail(HttpServletRequest request) {
+        pendingRegistrationService.requireTermsAccepted(request);
+        return new DetailSessionResponse(true);
+    }
+
+    @PostMapping("/detail")
+    public AccessTokenResponse completeRegistration(
+            @Valid @RequestBody RegistrationDetailRequest request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse response
+    ) {
+        PendingGoogleRegistrationService.AcceptedGoogleRegistration pending =
+                pendingRegistrationService.requireTermsAccepted(httpRequest);
+        RegistrationService.PreparedRegistration detail = registrationService.prepareRegistration(request);
+        PendingGoogleRegistrationService.AcceptedGoogleRegistration consumed =
+                pendingRegistrationService.consumeTermsAccepted(httpRequest, response);
+        if (!pending.account().subject().equals(consumed.account().subject())) {
+            throw new InvalidJwtException("가입 요청 정보가 일치하지 않습니다. Google 로그인을 다시 진행해주세요.");
+        }
+        var user = registrationService.completeGoogleRegistration(consumed, detail);
+        JwtSessionService.AccessTokenResult token = jwtSessionService.issue(user, response);
+        return new AccessTokenResponse(token.accessToken(), token.expiresAt());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -113,6 +155,16 @@ public class AuthApiController {
         return ResponseEntity.badRequest().body(new ApiErrorResponse(List.of(exception.getMessage())));
     }
 
+    @ExceptionHandler(InvalidJwtException.class)
+    public ResponseEntity<ApiErrorResponse> invalidRegistration(InvalidJwtException exception) {
+        return ResponseEntity.status(401).body(new ApiErrorResponse(List.of(exception.getMessage())));
+    }
+
+    @ExceptionHandler(RegistrationTermsRequiredException.class)
+    public ResponseEntity<ApiErrorResponse> termsRequired(RegistrationTermsRequiredException exception) {
+        return ResponseEntity.status(409).body(new ApiErrorResponse(List.of(exception.getMessage())));
+    }
+
     public record AuthSessionResponse(boolean authenticated, boolean registrationComplete, String nickname) {
     }
 
@@ -123,6 +175,18 @@ public class AuthApiController {
     }
 
     public record OAuthCompleteResponse(String accessToken, Instant expiresAt, String destination) {
+    }
+
+    public record DetailSessionResponse(boolean pending) {
+    }
+
+    public record TermsSessionResponse(boolean accepted, boolean alarmConsent) {
+    }
+
+    public record TermsAgreementRequest(
+            @AssertTrue(message = "필수 약관에 모두 동의해주세요.") boolean accepted,
+            boolean alarmConsent
+    ) {
     }
 
     public record ApiErrorResponse(List<String> messages) {

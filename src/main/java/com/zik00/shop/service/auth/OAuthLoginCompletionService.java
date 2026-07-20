@@ -17,34 +17,40 @@ import org.springframework.stereotype.Service;
 public class OAuthLoginCompletionService {
     private static final Duration CODE_TTL = Duration.ofMinutes(2);
     private static final String KEY_PREFIX = "shop:auth:oauth-completion:";
-    private static final String VALUE_SEPARATOR = "\n";
+    private static final String EXISTING = "existing";
+    private static final String REGISTRATION = "registration";
+    private static final String SEPARATOR = "\n";
 
     private final UserRepository userRepository;
     private final JwtSessionService jwtSessionService;
+    private final JwtCookieService jwtCookieService;
+    private final PendingGoogleRegistrationService pendingRegistrationService;
     private final StringRedisTemplate redisTemplate;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public OAuthLoginCompletionService(
             UserRepository userRepository,
             JwtSessionService jwtSessionService,
+            JwtCookieService jwtCookieService,
+            PendingGoogleRegistrationService pendingRegistrationService,
             StringRedisTemplate redisTemplate
     ) {
         this.userRepository = userRepository;
         this.jwtSessionService = jwtSessionService;
+        this.jwtCookieService = jwtCookieService;
+        this.pendingRegistrationService = pendingRegistrationService;
         this.redisTemplate = redisTemplate;
     }
 
-    public String prepare(User user, String destination) {
-        String safeDestination = normalizeDestination(destination);
-        byte[] randomBytes = new byte[32];
-        secureRandom.nextBytes(randomBytes);
-        String code = Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
-        redisTemplate.opsForValue().set(
-                key(code),
-                user.getAccessId() + VALUE_SEPARATOR + safeDestination,
-                CODE_TTL
-        );
-        return code;
+    public String prepareExisting(User user) {
+        return prepare(EXISTING + SEPARATOR + user.getAccessId());
+    }
+
+    public String prepareRegistration(String subject, String email, String googleName) {
+        return prepare(REGISTRATION + SEPARATOR
+                + encodePart(subject) + SEPARATOR
+                + encodePart(email) + SEPARATOR
+                + encodePart(googleName));
     }
 
     public CompletionResult complete(String code, HttpServletResponse response) {
@@ -53,32 +59,61 @@ public class OAuthLoginCompletionService {
         }
 
         String storedValue = redisTemplate.opsForValue().getAndDelete(key(code));
-        PendingLogin pendingLogin = decode(storedValue);
-        if (pendingLogin == null) {
+        if (storedValue == null) {
             throw invalidCompletionCode();
         }
 
-        User user = userRepository.findByAccessId(pendingLogin.accessId())
-                .orElseThrow(() -> new InvalidJwtException("OAuth 로그인 회원을 찾을 수 없습니다."));
-        JwtSessionService.AccessTokenResult token = jwtSessionService.issue(user, response);
-        return new CompletionResult(token.accessToken(), token.expiresAt(), pendingLogin.destination());
+        String[] parts = storedValue.split(SEPARATOR, -1);
+        if (parts.length == 2 && EXISTING.equals(parts[0])) {
+            User user = userRepository.findByAccessId(parts[1])
+                    .orElseThrow(() -> new InvalidJwtException("OAuth 로그인 회원을 찾을 수 없습니다."));
+            pendingRegistrationService.clear(response);
+            JwtSessionService.AccessTokenResult token = jwtSessionService.issue(user, response);
+            return new CompletionResult(token.accessToken(), token.expiresAt(), "/");
+        }
+
+        if (parts.length == 4 && REGISTRATION.equals(parts[0])) {
+            PendingGoogleRegistrationService.PendingGoogleAccount account = decodeAccount(parts);
+            jwtCookieService.clearRefreshToken(response);
+            pendingRegistrationService.issue(account, response);
+            return new CompletionResult(null, null, "/login/terms");
+        }
+
+        throw invalidCompletionCode();
     }
 
-    private PendingLogin decode(String value) {
-        if (value == null) {
-            return null;
-        }
-        int separatorIndex = value.indexOf(VALUE_SEPARATOR);
-        if (separatorIndex <= 0 || separatorIndex == value.length() - 1) {
-            return null;
-        }
-        String accessId = value.substring(0, separatorIndex);
-        String destination = normalizeDestination(value.substring(separatorIndex + 1));
-        return new PendingLogin(accessId, destination);
+    private String prepare(String value) {
+        byte[] randomBytes = new byte[32];
+        secureRandom.nextBytes(randomBytes);
+        String code = Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
+        redisTemplate.opsForValue().set(key(code), value, CODE_TTL);
+        return code;
     }
 
-    private String normalizeDestination(String destination) {
-        return "/login/additional-info".equals(destination) ? destination : "/";
+    private PendingGoogleRegistrationService.PendingGoogleAccount decodeAccount(String[] parts) {
+        try {
+            String subject = decodePart(parts[1]);
+            if (subject.isBlank()) {
+                throw invalidCompletionCode();
+            }
+            return new PendingGoogleRegistrationService.PendingGoogleAccount(
+                    subject,
+                    decodePart(parts[2]),
+                    decodePart(parts[3])
+            );
+        } catch (IllegalArgumentException exception) {
+            throw invalidCompletionCode();
+        }
+    }
+
+    private String encodePart(String value) {
+        String normalized = value == null ? "" : value;
+        return Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(normalized.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private String decodePart(String value) {
+        return new String(Base64.getUrlDecoder().decode(value), StandardCharsets.UTF_8);
     }
 
     private String key(String code) {
@@ -106,8 +141,5 @@ public class OAuthLoginCompletionService {
     }
 
     public record CompletionResult(String accessToken, Instant expiresAt, String destination) {
-    }
-
-    private record PendingLogin(String accessId, String destination) {
     }
 }

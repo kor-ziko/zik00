@@ -17,8 +17,8 @@ public class AuthController {
         return "redirect:" + frontendBaseUrl + "/login";
     }
 
-    @GetMapping("/signup/additional-info")
-    public String additionalInfo() {
-        return "redirect:" + frontendBaseUrl + "/login/additional-info";
+    @GetMapping("/signup/detail")
+    public String detail() {
+        return "redirect:" + frontendBaseUrl + "/login/detail";
     }
 }

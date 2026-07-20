@@ -1,6 +1,7 @@
 package com.zik00.admin.dto;
 
 import com.zik00.shop.domain.DeliveryAddress;
+import java.util.function.UnaryOperator;
 
 // @dev - 관리자 로그인 성공/실패 처리
 public record AdminMemberAddressResponse(
@@ -14,14 +15,17 @@ public record AdminMemberAddressResponse(
         boolean isDefault
 ) {
 
-    public static AdminMemberAddressResponse from(DeliveryAddress address) {
+    public static AdminMemberAddressResponse from(
+            DeliveryAddress address,
+            UnaryOperator<String> decrypt
+    ) {
         return new AdminMemberAddressResponse(
                 address.getId(),
-                address.getReceiverName(),
-                address.getReceiverPhone(),
+                decrypt.apply(address.getReceiverName()),
+                decrypt.apply(address.getReceiverPhone()),
                 address.getZipCode(),
-                joinAddress(address.getProvince(), address.getDetailAddress()),
-                address.getAddressName(),
+                joinAddress(address.getProvince(), decrypt.apply(address.getDetailAddress())),
+                decrypt.apply(address.getAddressName()),
                 "JP",
                 address.isDefaultAddress()
         );

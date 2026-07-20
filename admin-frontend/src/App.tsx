@@ -254,7 +254,7 @@ function LoginPage({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   if (adminSession) {
-    return <Navigate to="/admin/members" replace />;
+    return <Navigate to="/admin/agency" replace />;
   }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {

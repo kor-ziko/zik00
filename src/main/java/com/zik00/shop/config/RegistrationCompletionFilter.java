@@ -27,7 +27,7 @@ public class RegistrationCompletionFilter extends OncePerRequestFilter {
                 && authentication.isAuthenticated()
                 && !"anonymousUser".equals(authentication.getPrincipal())
                 && !registrationService.isCurrentUserRegistrationComplete()) {
-            response.sendRedirect(request.getContextPath() + "/signup/additional-info");
+            response.sendRedirect(request.getContextPath() + "/signup/detail");
             return;
         }
         filterChain.doFilter(request, response);

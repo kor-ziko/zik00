@@ -11,6 +11,7 @@ function LoginPage() {
   const params = new URLSearchParams(window.location.search);
   const hasError = params.has('error');
   const loggedOut = params.has('logout');
+  const registrationExpired = params.get('reason') === 'registration-expired';
 
   return (
     <AuthShell>
@@ -37,6 +38,11 @@ function LoginPage() {
           <h2 id="login-title">로그인</h2>
           <p className="login-panel-copy">Google 계정 하나로 빠르고 간편하게 시작할 수 있습니다.</p>
           {hasError && <p className="form-alert" role="alert">Google 로그인에 실패했습니다. 잠시 후 다시 시도해주세요.</p>}
+          {registrationExpired && (
+            <p className="form-alert" role="alert">
+              가입 가능 시간이 만료되었거나 이미 처리된 요청입니다. Google 로그인을 다시 진행해주세요.
+            </p>
+          )}
           {loggedOut && <p className="form-notice" role="status">로그아웃되었습니다.</p>}
           <a className="google-login-button" href="/oauth2/authorization/google">
             <span className="google-mark" aria-hidden="true">G</span>
