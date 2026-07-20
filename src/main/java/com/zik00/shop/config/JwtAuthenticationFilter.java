@@ -6,6 +6,7 @@ import java.util.List;
 import com.zik00.shop.repository.UserRepository;
 import com.zik00.shop.service.auth.InvalidJwtException;
 import com.zik00.shop.service.auth.JwtService;
+import com.zik00.shop.service.auth.RedisRefreshTokenStore;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,13 +20,16 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
     private final UserRepository userRepository;
+    private final RedisRefreshTokenStore refreshTokenStore;
 
     public JwtAuthenticationFilter(
             JwtService jwtService,
-            UserRepository userRepository
+            UserRepository userRepository,
+            RedisRefreshTokenStore refreshTokenStore
     ) {
         this.jwtService = jwtService;
         this.userRepository = userRepository;
+        this.refreshTokenStore = refreshTokenStore;
     }
 
     @Override
@@ -49,6 +53,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private void authenticate(String token, HttpServletRequest request) {
         try {
             JwtService.JwtClaims claims = jwtService.validate(token, JwtService.ACCESS);
+            if (refreshTokenStore.isAccessTokenRevoked(claims.tokenId())) {
+                return;
+            }
             userRepository.findByAccessId(claims.accessId()).ifPresent(user -> {
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                         user.getAccessId(),

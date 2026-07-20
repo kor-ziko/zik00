@@ -3,6 +3,7 @@ package com.zik00.shop.config;
 import com.zik00.shop.service.auth.GoogleOAuth2UserService;
 import com.zik00.shop.service.auth.RegistrationService;
 import com.zik00.shop.service.auth.JwtService;
+import com.zik00.shop.service.auth.RedisRefreshTokenStore;
 import com.zik00.shop.repository.UserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -30,6 +31,7 @@ public class SecurityConfig {
     private final WebClientOrigins webClientOrigins;
     private final JwtService jwtService;
     private final UserRepository userRepository;
+    private final RedisRefreshTokenStore refreshTokenStore;
 
     public SecurityConfig(
             GoogleOAuth2UserService googleOAuth2UserService,
@@ -37,6 +39,7 @@ public class SecurityConfig {
             RegistrationService registrationService,
             JwtService jwtService,
             UserRepository userRepository,
+            RedisRefreshTokenStore refreshTokenStore,
             WebClientOrigins webClientOrigins
     ) {
         this.googleOAuth2UserService = googleOAuth2UserService;
@@ -45,6 +48,7 @@ public class SecurityConfig {
         this.webClientOrigins = webClientOrigins;
         this.jwtService = jwtService;
         this.userRepository = userRepository;
+        this.refreshTokenStore = refreshTokenStore;
     }
 
     @Bean
@@ -93,7 +97,7 @@ public class SecurityConfig {
                         OAuth2LoginAuthenticationFilter.class
                 )
                 .addFilterBefore(
-                        new JwtAuthenticationFilter(jwtService, userRepository),
+                        new JwtAuthenticationFilter(jwtService, userRepository, refreshTokenStore),
                         UsernamePasswordAuthenticationFilter.class
                 )
                 .addFilterBefore(

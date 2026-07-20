@@ -111,19 +111,8 @@ DELIMITER ;
 CALL normalize_user_profile_columns();
 DROP PROCEDURE normalize_user_profile_columns;
 
-CREATE TABLE IF NOT EXISTS oauth_access_tokens (
-  oauth_token_id BIGINT NOT NULL AUTO_INCREMENT,
-  user_id BIGINT NOT NULL,
-  provider VARCHAR(30) NOT NULL,
-  access_token_encrypted TEXT NOT NULL,
-  issued_at DATETIME(6) NULL,
-  expires_at DATETIME(6) NULL,
-  scopes VARCHAR(1000) NULL,
-  updated_at DATETIME(6) NOT NULL,
-  PRIMARY KEY (oauth_token_id),
-  UNIQUE KEY uk_oauth_access_tokens_user_provider (user_id, provider),
-  KEY idx_oauth_access_tokens_expiry (expires_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- Google Access Token은 로그인 판별에 사용하지 않으므로 DB에 저장하지 않는다.
+DROP TABLE IF EXISTS oauth_access_tokens;
 
 -- Refresh Token 상태는 Redis TTL 키로 관리한다.
 DROP TABLE IF EXISTS refresh_tokens;

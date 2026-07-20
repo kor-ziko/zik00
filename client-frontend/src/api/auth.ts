@@ -149,11 +149,14 @@ export async function submitAdditionalInfo(payload: AdditionalInfoPayload): Prom
 
 export async function logout(): Promise<void> {
   const csrf = await getCsrfToken();
+  const headers = new Headers({ [csrf.headerName]: csrf.token });
+  const accessToken = getMemoryAccessToken();
+  if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
   try {
     const response = await fetch('/logout', {
       method: 'POST',
       credentials: 'include',
-      headers: { [csrf.headerName]: csrf.token },
+      headers,
     });
     if (!response.ok) throw await readError(response);
   } finally {

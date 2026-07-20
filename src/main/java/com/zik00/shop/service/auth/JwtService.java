@@ -58,15 +58,30 @@ public class JwtService {
     }
 
     public JwtPair issue(String accessId) {
+        return issue(accessId, UUID.randomUUID().toString());
+    }
+
+    public JwtPair rotate(String accessId, String familyId) {
+        return issue(accessId, familyId);
+    }
+
+    private JwtPair issue(String accessId, String familyId) {
         if (accessId == null || accessId.isBlank()) {
             throw new IllegalArgumentException("JWT subject must not be blank.");
         }
+        if (familyId == null || familyId.isBlank()) {
+            throw new IllegalArgumentException("JWT token family must not be blank.");
+        }
         Instant now = Instant.now();
+        IssuedToken accessToken = createToken(accessId, familyId, ACCESS, now, now.plus(accessTtl));
+        IssuedToken refreshToken = createToken(accessId, familyId, REFRESH, now, now.plus(refreshTtl));
         return new JwtPair(
-                createToken(accessId, ACCESS, now, now.plus(accessTtl)),
-                createToken(accessId, REFRESH, now, now.plus(refreshTtl)),
+                accessToken.value(),
+                refreshToken.value(),
                 now.plus(accessTtl),
-                now.plus(refreshTtl)
+                now.plus(refreshTtl),
+                accessToken.tokenId(),
+                familyId
         );
     }
 
@@ -96,12 +111,13 @@ public class JwtService {
             String type = payload.path("type").asString();
             String tokenIssuer = payload.path("iss").asString();
             String tokenId = payload.path("jti").asString();
+            String familyId = payload.path("sid").asString();
             Instant expiresAt = Instant.ofEpochSecond(payload.path("exp").asLong());
-            if (accessId.isBlank() || tokenId.isBlank() || !issuer.equals(tokenIssuer)
+            if (accessId.isBlank() || tokenId.isBlank() || familyId.isBlank() || !issuer.equals(tokenIssuer)
                     || !expectedType.equals(type) || !Instant.now().isBefore(expiresAt)) {
                 throw new InvalidJwtException("JWT가 만료되었거나 사용할 수 없습니다.");
             }
-            return new JwtClaims(accessId, tokenId, type, expiresAt);
+            return new JwtClaims(accessId, tokenId, familyId, type, expiresAt);
         } catch (JacksonException | IllegalArgumentException exception) {
             throw new InvalidJwtException("JWT를 해석할 수 없습니다.", exception);
         }
@@ -111,18 +127,28 @@ public class JwtService {
         return toHex(sha256(token));
     }
 
-    private String createToken(String accessId, String type, Instant issuedAt, Instant expiresAt) {
+    private IssuedToken createToken(
+            String accessId,
+            String familyId,
+            String type,
+            Instant issuedAt,
+            Instant expiresAt
+    ) {
         try {
+            String tokenId = UUID.randomUUID().toString();
             Map<String, Object> claims = new LinkedHashMap<>();
             claims.put("iss", issuer);
             claims.put("sub", accessId);
             claims.put("type", type);
-            claims.put("jti", UUID.randomUUID().toString());
+            claims.put("jti", tokenId);
+            claims.put("sid", familyId);
             claims.put("iat", issuedAt.getEpochSecond());
             claims.put("exp", expiresAt.getEpochSecond());
             String payload = base64Url(objectMapper.writeValueAsString(claims));
             String unsignedToken = HEADER + "." + payload;
-            return unsignedToken + "." + Base64.getUrlEncoder().withoutPadding().encodeToString(sign(unsignedToken));
+            String value = unsignedToken + "."
+                    + Base64.getUrlEncoder().withoutPadding().encodeToString(sign(unsignedToken));
+            return new IssuedToken(value, tokenId);
         } catch (JacksonException exception) {
             throw new IllegalStateException("JWT 생성에 실패했습니다.", exception);
         }
@@ -228,9 +254,19 @@ public class JwtService {
         return result.toString();
     }
 
-    public record JwtPair(String accessToken, String refreshToken, Instant accessExpiresAt, Instant refreshExpiresAt) {
+    private record IssuedToken(String value, String tokenId) {
     }
 
-    public record JwtClaims(String accessId, String tokenId, String type, Instant expiresAt) {
+    public record JwtPair(
+            String accessToken,
+            String refreshToken,
+            Instant accessExpiresAt,
+            Instant refreshExpiresAt,
+            String accessTokenId,
+            String familyId
+    ) {
+    }
+
+    public record JwtClaims(String accessId, String tokenId, String familyId, String type, Instant expiresAt) {
     }
 }

@@ -80,7 +80,7 @@ REDIS_DATABASE=0
 REDIS_PASSWORD=
 ```
 
-확인 명령은 `redis-cli ping`이며 `PONG`이 반환되어야 한다. Refresh Token 원문은 HttpOnly 쿠키에만 있고, Redis에는 `shop:auth:refresh:{tokenHash}` 키와 TTL만 저장된다.
+확인 명령은 `redis-cli ping`이며 `PONG`이 반환되어야 한다. Refresh Token 원문은 HttpOnly 쿠키에만 저장한다. Redis는 Refresh Token 해시, Token Family, 사용 완료 토큰과 Access Token `jti` 블랙리스트를 TTL과 함께 관리한다.
 
 # .env 파일 format
 ```
@@ -91,9 +91,6 @@ GOOGLE_CLIENT_SECRET={your}
 # Spring datasource
 SPRING_DATASOURCE_USERNAME={your}
 SPRING_DATASOURCE_PASSWORD={your}
-
-# OAuth token encryption
-OAUTH_TOKEN_ENCRYPTION_KEY={your}
 
 # JWT RS256 key pair (PKCS#8 private key / X.509 public key)
 JWT_PRIVATE_KEY={your}
