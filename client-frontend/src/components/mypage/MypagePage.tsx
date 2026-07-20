@@ -11,7 +11,7 @@ import {
   deleteDeliveryAddress, getMypageDashboard, getMypageSection, updateDeliveryAddress,
   updateMypageProfile,
 } from '../../api/mypage';
-import { searchJapaneseAddress } from '../../api/auth';
+import { fetchAuthenticated, searchJapaneseAddress } from '../../api/auth';
 import SiteFooter from '../layout/SiteFooter';
 import SiteHeader from '../layout/SiteHeader';
 
@@ -36,6 +36,32 @@ const date = (value?: string) => value ? value.replaceAll('-', '.') : '-';
 
 function EmptyState({ children }: { children: string }) {
   return <div className="mypage-empty"><PackageCheck size={34} /><p>{children}</p></div>;
+}
+
+function AuthenticatedImage({ src, alt }: { src: string; alt: string }) {
+  const [objectUrl, setObjectUrl] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    let createdUrl = '';
+    fetchAuthenticated(src)
+      .then((response) => {
+        if (!response.ok) throw new Error('이미지를 불러오지 못했습니다.');
+        return response.blob();
+      })
+      .then((blob) => {
+        if (!active) return;
+        createdUrl = URL.createObjectURL(blob);
+        setObjectUrl(createdUrl);
+      })
+      .catch(() => setObjectUrl(''));
+    return () => {
+      active = false;
+      if (createdUrl) URL.revokeObjectURL(createdUrl);
+    };
+  }, [src]);
+
+  return objectUrl ? <img src={objectUrl} alt={alt} loading="lazy" /> : <div className="inquiry-image-loading"><LoaderCircle className="spin" size={20} /></div>;
 }
 
 function OrderList({ orders }: { orders: Purchase[] }) {
@@ -123,7 +149,7 @@ function InquirySection({ threads, onCreated }: { threads: InquiryThread[]; onCr
       {images.length > 0 && <ul className="inquiry-file-list">{images.map((image) => <li key={`${image.name}-${image.lastModified}`}><span>{image.name}</span><button type="button" aria-label={`${image.name} 삭제`} onClick={() => setImages((current) => current.filter((item) => item !== image))}><X size={14} /></button></li>)}</ul>}
       <div className="inquiry-form-actions"><button type="button" onClick={() => setOpen(false)}>취소</button><button type="submit" disabled={submitting}>{submitting ? <><LoaderCircle className="spin" size={17} /> 등록 중</> : '문의 등록'}</button></div>
     </form>}
-    {threads.length ? <div className="inquiry-list">{threads.map((thread) => <details key={thread.inquiry.inquiryId}><summary><span className={thread.inquiry.status ? 'answered' : ''}>{thread.inquiry.status ? '답변완료' : '답변대기'}</span><strong>{thread.inquiry.title}</strong><time>{thread.inquiry.createdAt}</time><ChevronRight size={18} /></summary><div className="inquiry-body"><p>{thread.inquiry.content}</p>{thread.images.length > 0 && <div className="inquiry-image-grid">{thread.images.map((image) => <div className="inquiry-image-item" key={image.imageUuid}><img src={image.imageUrl} alt={`${thread.inquiry.title} 첨부 이미지`} loading="lazy" /></div>)}</div>}{thread.comments.map((comment) => <article key={comment.commentId}><b>{comment.writerType === 'ADMIN' ? 'ZIK:00 답변' : comment.writerName}</b><p>{comment.content}</p>{comment.images.length > 0 && <div className="inquiry-image-grid">{comment.images.map((image) => <div className="inquiry-image-item" key={image.imageUuid}><img src={image.imageUrl} alt="문의 답변 첨부 이미지" loading="lazy" /></div>)}</div>}<small>{comment.createdAt}</small></article>)}</div></details>)}</div> : <EmptyState>등록한 문의가 없습니다.</EmptyState>}
+    {threads.length ? <div className="inquiry-list">{threads.map((thread) => <details key={thread.inquiry.inquiryId}><summary><span className={thread.inquiry.status ? 'answered' : ''}>{thread.inquiry.status ? '답변완료' : '답변대기'}</span><strong>{thread.inquiry.title}</strong><time>{thread.inquiry.createdAt}</time><ChevronRight size={18} /></summary><div className="inquiry-body"><p>{thread.inquiry.content}</p>{thread.images.length > 0 && <div className="inquiry-image-grid">{thread.images.map((image) => <div className="inquiry-image-item" key={image.imageUuid}><AuthenticatedImage src={image.imageUrl} alt={`${thread.inquiry.title} 첨부 이미지`} /></div>)}</div>}{thread.comments.map((comment) => <article key={comment.commentId}><b>{comment.writerType === 'ADMIN' ? 'ZIK:00 답변' : comment.writerName}</b><p>{comment.content}</p>{comment.images.length > 0 && <div className="inquiry-image-grid">{comment.images.map((image) => <div className="inquiry-image-item" key={image.imageUuid}><AuthenticatedImage src={image.imageUrl} alt="문의 답변 첨부 이미지" /></div>)}</div>}<small>{comment.createdAt}</small></article>)}</div></details>)}</div> : <EmptyState>등록한 문의가 없습니다.</EmptyState>}
   </section>;
 }
 
@@ -206,7 +232,7 @@ function AddressManager({ profile, addresses, onSaved }: { profile: MypageProfil
   return <section className="mypage-content-panel address-card">
     <header><div><span>DELIVERY ADDRESS</span><h2>배송지</h2></div><button className="mypage-edit-button" type="button" onClick={() => { setManaging((current) => !current); setEditingId(null); setMessage(''); }}><Pencil size={15} />{managing ? '수정 완료' : '배송지 수정'}</button></header>
     {message && <p className="profile-form-message">{message}</p>}
-    {addresses.length ? addresses.map((address) => <article key={address.id}><div><MapPin size={20} /><strong>{address.addressName}</strong>{address.defaultAddress && <b>기본</b>}</div><p>{address.receiverName} · {address.receiverPhone}</p><p>〒{address.zipCode} {address.province} {address.detailAddress}</p>{managing && <div className="address-item-actions"><button type="button" onClick={() => startEdit(address)}><Pencil size={13} />수정</button><button type="button" onClick={() => remove(address.id)}><Trash2 size={13} />삭제</button></div>}</article>) : !editingId && <EmptyState>등록된 배송지가 없습니다.</EmptyState>}
+    {addresses.length ? <div className="address-list-react">{addresses.map((address) => <article key={address.id}><div><MapPin size={20} /><strong>{address.addressName}</strong>{address.defaultAddress && <b>기본</b>}</div><p>{address.receiverName} · {address.receiverPhone}</p><p>〒{address.zipCode} {address.province} {address.detailAddress}</p>{managing && <div className="address-item-actions"><button type="button" onClick={() => startEdit(address)}><Pencil size={13} />수정</button><button type="button" onClick={() => remove(address.id)}><Trash2 size={13} />삭제</button></div>}</article>)}</div> : !editingId && <EmptyState>등록된 배송지가 없습니다.</EmptyState>}
     {managing && editingId === null && <button className="address-add-button" type="button" onClick={startNew}><Plus size={16} />새 배송지 등록</button>}
     {managing && editingId !== null && <form className="address-edit-form-react" onSubmit={save}>
       <div className="address-form-grid"><label><span>배송지명</span><input required maxLength={100} value={form.addressName} onChange={(event) => setForm({ ...form, addressName: event.target.value })} placeholder="집" /></label><label><span>수령인</span><input required maxLength={100} value={form.receiverName} onChange={(event) => setForm({ ...form, receiverName: event.target.value })} /></label><label><span>수령인 연락처</span><input required type="tel" maxLength={50} value={form.receiverPhone} onChange={(event) => setForm({ ...form, receiverPhone: event.target.value })} /></label></div>

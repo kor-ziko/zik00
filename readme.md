@@ -55,10 +55,51 @@ password: ${SPRING_DATASOURCE_PASSWORD:1q2w3e}
 admin / admin1234!
 
 # OAuth 관련
+설정 방법
+https://goldenrabbit.co.kr/articles/o4WsLGIBrgPikDI5ZA8M
+
 .env파일 format이다. .gitignore을 통해서 업로드 안되게 해놓았으므로 .env파일을 생성해서 아래 포멧을 넣고 각 data를 넣어주면 된다.
+```
 Google Cloud Console OAuth 2.0 Client credentials
 GOOGLE_CLIENT_ID=change_user_client_id
 GOOGLE_CLIENT_SECRET=change_secret
+```
+
+# redis 설정
+설치 방법 wsl에다가 하는거
+https://chooobb.tistory.com/33
+
+Spring Boot 실행 전에 Redis가 `localhost:6379`에서 실행 중이어야 한다.
+
+```properties
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_DATABASE=0
+# 운영 환경에서 인증을 사용하는 경우에만 설정
+REDIS_PASSWORD=
+```
+
+확인 명령은 `redis-cli ping`이며 `PONG`이 반환되어야 한다. Refresh Token 원문은 HttpOnly 쿠키에만 있고, Redis에는 `shop:auth:refresh:{tokenHash}` 키와 TTL만 저장된다.
+
+# .env 파일 format
+Google Cloud Console OAuth 2.0 Client credentials
+```
+GOOGLE_CLIENT_ID={}
+GOOGLE_CLIENT_SECRET={}
+```
+
+JWT RS256 key pair (PKCS#8 private key / X.509 public key)
+```
+JWT_PRIVATE_KEY={}
+JWT_PUBLIC_KEY={}
+```
+
+Redis refresh token store
+```
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_DATABASE=0
+```
 
 # 작업 내용
 work.md에서 옮김

@@ -2,16 +2,19 @@ package com.zik00.shop.service.auth;
 
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
+import java.security.KeyFactory;
 import java.security.MessageDigest;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.Signature;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
-
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -23,26 +26,27 @@ import tools.jackson.databind.ObjectMapper;
 public class JwtService {
     public static final String ACCESS = "access";
     public static final String REFRESH = "refresh";
-    private static final String HEADER = base64Url("{\"alg\":\"HS256\",\"typ\":\"JWT\"}");
+    private static final String ALGORITHM = "RS256";
+    private static final String HEADER = base64Url("{\"alg\":\"RS256\",\"typ\":\"JWT\"}");
 
     private final ObjectMapper objectMapper;
-    private final SecretKeySpec signingKey;
+    private final PrivateKey privateKey;
+    private final PublicKey publicKey;
     private final Duration accessTtl;
     private final Duration refreshTtl;
     private final String issuer;
 
     public JwtService(
             ObjectMapper objectMapper,
-            @Value("${shop.jwt.secret}") String secret,
+            @Value("${shop.jwt.private-key}") String privateKeyValue,
+            @Value("${shop.jwt.public-key}") String publicKeyValue,
             @Value("${shop.jwt.access-token-ttl:PT15M}") Duration accessTtl,
             @Value("${shop.jwt.refresh-token-ttl:P14D}") Duration refreshTtl,
             @Value("${shop.jwt.issuer:zik00-shop}") String issuer
     ) {
-        if (secret == null || secret.length() < 32) {
-            throw new IllegalStateException("JWT secret must be at least 32 characters.");
-        }
         this.objectMapper = objectMapper;
-        this.signingKey = new SecretKeySpec(sha256("zik00-jwt-v1\0" + secret), "HmacSHA256");
+        this.privateKey = readPrivateKey(privateKeyValue);
+        this.publicKey = readPublicKey(publicKeyValue);
         this.accessTtl = accessTtl;
         this.refreshTtl = refreshTtl;
         this.issuer = issuer;
@@ -64,9 +68,14 @@ public class JwtService {
             if (parts.length != 3) {
                 throw new InvalidJwtException("JWT 형식이 올바르지 않습니다.");
             }
-            byte[] expectedSignature = sign(parts[0] + "." + parts[1]);
-            byte[] actualSignature = Base64.getUrlDecoder().decode(parts[2]);
-            if (!MessageDigest.isEqual(expectedSignature, actualSignature)) {
+
+            JsonNode header = objectMapper.readTree(Base64.getUrlDecoder().decode(parts[0]));
+            if (!ALGORITHM.equals(header.path("alg").asString())
+                    || !"JWT".equals(header.path("typ").asString())) {
+                throw new InvalidJwtException("RS256 알고리즘으로 서명된 JWT만 사용할 수 있습니다.");
+            }
+
+            if (!verify(parts[0] + "." + parts[1], Base64.getUrlDecoder().decode(parts[2]))) {
                 throw new InvalidJwtException("JWT 서명이 올바르지 않습니다.");
             }
 
@@ -109,12 +118,53 @@ public class JwtService {
 
     private byte[] sign(String value) {
         try {
-            Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(signingKey);
-            return mac.doFinal(value.getBytes(StandardCharsets.UTF_8));
+            Signature signature = Signature.getInstance("SHA256withRSA");
+            signature.initSign(privateKey);
+            signature.update(value.getBytes(StandardCharsets.UTF_8));
+            return signature.sign();
         } catch (GeneralSecurityException exception) {
             throw new IllegalStateException("JWT 서명에 실패했습니다.", exception);
         }
+    }
+
+    private boolean verify(String value, byte[] signatureValue) {
+        try {
+            Signature signature = Signature.getInstance("SHA256withRSA");
+            signature.initVerify(publicKey);
+            signature.update(value.getBytes(StandardCharsets.UTF_8));
+            return signature.verify(signatureValue);
+        } catch (GeneralSecurityException exception) {
+            throw new InvalidJwtException("JWT 서명을 검증할 수 없습니다.", exception);
+        }
+    }
+
+    private static PrivateKey readPrivateKey(String value) {
+        try {
+            byte[] encoded = decodeKey(value, "PRIVATE KEY");
+            return KeyFactory.getInstance("RSA").generatePrivate(new PKCS8EncodedKeySpec(encoded));
+        } catch (GeneralSecurityException | IllegalArgumentException exception) {
+            throw new IllegalStateException("JWT_PRIVATE_KEY는 PKCS#8 형식의 RSA 개인키여야 합니다.", exception);
+        }
+    }
+
+    private static PublicKey readPublicKey(String value) {
+        try {
+            byte[] encoded = decodeKey(value, "PUBLIC KEY");
+            return KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(encoded));
+        } catch (GeneralSecurityException | IllegalArgumentException exception) {
+            throw new IllegalStateException("JWT_PUBLIC_KEY는 X.509 형식의 RSA 공개키여야 합니다.", exception);
+        }
+    }
+
+    private static byte[] decodeKey(String value, String keyType) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException("JWT RSA key is empty");
+        }
+        String normalized = value.replace("\\n", "\n")
+                .replace("-----BEGIN " + keyType + "-----", "")
+                .replace("-----END " + keyType + "-----", "")
+                .replaceAll("\\s", "");
+        return Base64.getDecoder().decode(normalized);
     }
 
     private static byte[] sha256(String value) {

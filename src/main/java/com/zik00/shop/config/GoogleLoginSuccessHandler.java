@@ -46,6 +46,6 @@ public class GoogleLoginSuccessHandler implements AuthenticationSuccessHandler {
         if (request.getSession(false) != null) {
             request.getSession(false).invalidate();
         }
-        response.sendRedirect(frontendBaseUrl + "/api/auth/oauth/complete?code=" + completionCode);
+        response.sendRedirect(frontendBaseUrl + "/oauth/callback?code=" + completionCode);
     }
 }

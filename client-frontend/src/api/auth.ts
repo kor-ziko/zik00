@@ -1,3 +1,5 @@
+import { getMemoryAccessToken, setMemoryAccessToken } from '../auth/AuthMemory';
+
 export type AuthSession = {
   authenticated: boolean;
   registrationComplete: boolean;
@@ -27,6 +29,8 @@ export type AdditionalInfoPayload = {
 
 type CsrfResponse = { headerName: string; token: string };
 type ApiErrorResponse = { messages?: string[] };
+type AccessTokenResponse = { accessToken: string; expiresAt: string };
+type OAuthCompleteResponse = AccessTokenResponse & { destination: string };
 
 let refreshInFlight: Promise<boolean> | null = null;
 
@@ -62,7 +66,13 @@ async function performAccessTokenRefresh(): Promise<boolean> {
       credentials: 'include',
       headers: { [csrf.headerName]: csrf.token },
     });
-    return response.ok;
+    if (!response.ok) {
+      setMemoryAccessToken(null);
+      return false;
+    }
+    const body = await response.json() as AccessTokenResponse;
+    setMemoryAccessToken(body.accessToken);
+    return true;
   } catch {
     return false;
   }
@@ -79,12 +89,34 @@ function refreshAccessToken(): Promise<boolean> {
 }
 
 export async function fetchAuthenticated(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-  const options = { ...init, credentials: 'include' as const };
-  let response = await fetch(input, options);
+  const authenticatedOptions = () => {
+    const headers = new Headers(init?.headers);
+    const accessToken = getMemoryAccessToken();
+    if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
+    return { ...init, headers, credentials: 'include' as const };
+  };
+  let response = await fetch(input, authenticatedOptions());
   if (response.status === 401 && await refreshAccessToken()) {
-    response = await fetch(input, options);
+    response = await fetch(input, authenticatedOptions());
   }
   return response;
+}
+
+export async function completeOAuthLogin(code: string): Promise<OAuthCompleteResponse> {
+  const csrf = await getCsrfToken();
+  const response = await fetch('/api/auth/oauth/complete', {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      [csrf.headerName]: csrf.token,
+    },
+    body: JSON.stringify({ code }),
+  });
+  if (!response.ok) throw await readError(response);
+  const result = await response.json() as OAuthCompleteResponse;
+  setMemoryAccessToken(result.accessToken);
+  return result;
 }
 
 export async function getAuthSession(): Promise<AuthSession> {
@@ -117,10 +149,14 @@ export async function submitAdditionalInfo(payload: AdditionalInfoPayload): Prom
 
 export async function logout(): Promise<void> {
   const csrf = await getCsrfToken();
-  const response = await fetch('/logout', {
-    method: 'POST',
-    credentials: 'include',
-    headers: { [csrf.headerName]: csrf.token },
-  });
-  if (!response.ok) throw await readError(response);
+  try {
+    const response = await fetch('/logout', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { [csrf.headerName]: csrf.token },
+    });
+    if (!response.ok) throw await readError(response);
+  } finally {
+    setMemoryAccessToken(null);
+  }
 }

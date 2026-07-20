@@ -5,7 +5,6 @@ import java.util.List;
 
 import com.zik00.shop.repository.UserRepository;
 import com.zik00.shop.service.auth.InvalidJwtException;
-import com.zik00.shop.service.auth.JwtCookieService;
 import com.zik00.shop.service.auth.JwtService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -14,20 +13,18 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
-    private final JwtCookieService cookieService;
     private final UserRepository userRepository;
 
     public JwtAuthenticationFilter(
             JwtService jwtService,
-            JwtCookieService cookieService,
             UserRepository userRepository
     ) {
         this.jwtService = jwtService;
-        this.cookieService = cookieService;
         this.userRepository = userRepository;
     }
 
@@ -35,9 +32,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
-            cookieService.readAccessToken(request).ifPresent(token -> authenticate(token, request));
+            readBearerToken(request).ifPresent(token -> authenticate(token, request));
         }
         filterChain.doFilter(request, response);
+    }
+
+    private java.util.Optional<String> readBearerToken(HttpServletRequest request) {
+        String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
+        if (authorization == null || !authorization.startsWith("Bearer ")) {
+            return java.util.Optional.empty();
+        }
+        String token = authorization.substring(7).trim();
+        return token.isEmpty() ? java.util.Optional.empty() : java.util.Optional.of(token);
     }
 
     private void authenticate(String token, HttpServletRequest request) {

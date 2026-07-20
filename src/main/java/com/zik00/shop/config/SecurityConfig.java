@@ -2,7 +2,6 @@ package com.zik00.shop.config;
 
 import com.zik00.shop.service.auth.GoogleOAuth2UserService;
 import com.zik00.shop.service.auth.RegistrationService;
-import com.zik00.shop.service.auth.JwtCookieService;
 import com.zik00.shop.service.auth.JwtService;
 import com.zik00.shop.repository.UserRepository;
 import org.springframework.context.annotation.Bean;
@@ -30,7 +29,6 @@ public class SecurityConfig {
     private final RegistrationService registrationService;
     private final WebClientOrigins webClientOrigins;
     private final JwtService jwtService;
-    private final JwtCookieService jwtCookieService;
     private final UserRepository userRepository;
 
     public SecurityConfig(
@@ -38,7 +36,6 @@ public class SecurityConfig {
             GoogleLoginSuccessHandler googleLoginSuccessHandler,
             RegistrationService registrationService,
             JwtService jwtService,
-            JwtCookieService jwtCookieService,
             UserRepository userRepository,
             WebClientOrigins webClientOrigins
     ) {
@@ -47,7 +44,6 @@ public class SecurityConfig {
         this.registrationService = registrationService;
         this.webClientOrigins = webClientOrigins;
         this.jwtService = jwtService;
-        this.jwtCookieService = jwtCookieService;
         this.userRepository = userRepository;
     }
 
@@ -68,9 +64,9 @@ public class SecurityConfig {
                         ).denyAll()
                         .requestMatchers(
                                 "/login", "/oauth2/**", "/login/oauth2/**",
-                                "/css/**", "/js/**", "/api/japan-postal-codes",
+                                "/api/japan-postal-codes",
                                 "/api/auth/csrf", "/api/auth/refresh", "/api/auth/oauth/complete",
-                                "/admin/**", "/api/admin/**", "/", "/index.html", "/error"
+                                "/admin/**", "/api/admin/**", "/", "/error"
                         ).permitAll()
                         .requestMatchers("/api/auth/**", "/api/mypage/**", "/signup/**", "/mypage/**").authenticated()
                         .anyRequest().permitAll()
@@ -97,7 +93,7 @@ public class SecurityConfig {
                         OAuth2LoginAuthenticationFilter.class
                 )
                 .addFilterBefore(
-                        new JwtAuthenticationFilter(jwtService, jwtCookieService, userRepository),
+                        new JwtAuthenticationFilter(jwtService, userRepository),
                         UsernamePasswordAuthenticationFilter.class
                 )
                 .addFilterBefore(

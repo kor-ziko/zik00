@@ -12,19 +12,19 @@ import { type AuthSession, getAuthSession, logout } from '../../api/auth';
 import SearchBox from '../search/SearchBox';
 
 const navigationItems = [
-  ['베스트', '#best'],
-  ['신상품', '#new'],
-  ['K-뷰티', '#beauty'],
-  ['패션', '#fashion'],
-  ['식품', '#food'],
-  ['리빙', '#living'],
-  ['디지털', '#digital'],
-  ['기획전', '#events'],
+  ['베스트', '/#best'],
+  ['신상품', '/#new'],
+  ['K-뷰티', '/#beauty'],
+  ['패션', '/#fashion'],
+  ['식품', '/#food'],
+  ['리빙', '/#living'],
+  ['디지털', '/#digital'],
+  ['기획전', '/#events'],
 ];
 
 function Brand() {
   return (
-    <a className="brand" href="#top" aria-label="ZIK:00 홈">
+    <a className="brand" href="/#top" aria-label="ZIK:00 홈">
       <span>ZIK</span><strong>:00</strong>
     </a>
   );
@@ -63,7 +63,7 @@ function SiteHeader() {
           <nav aria-label="회원 메뉴">
             {sessionChecked && session?.authenticated ? (
               <>
-                <span className="member-greeting">{session.nickname || '회원'} 안녕하세요.</span>
+                <span className="member-greeting">{session.nickname || '회원'}님, 안녕하세요.</span>
                 <button className="utility-link-button" type="button" onClick={handleLogout} disabled={loggingOut}>
                   {loggingOut ? '로그아웃 중' : '로그아웃'}
                 </button>

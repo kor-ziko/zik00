@@ -35,7 +35,7 @@ public class OAuthLoginCompletionService {
         return code;
     }
 
-    public String complete(String code, HttpServletResponse response) {
+    public CompletionResult complete(String code, HttpServletResponse response) {
         PendingLogin pendingLogin = code == null ? null : pendingLogins.remove(code);
         if (pendingLogin == null || !Instant.now().isBefore(pendingLogin.expiresAt())) {
             throw new InvalidJwtException("OAuth 로그인 완료 코드가 만료되었거나 유효하지 않습니다.");
@@ -48,8 +48,11 @@ public class OAuthLoginCompletionService {
                 ? pendingLogin.destination()
                 : "/";
 
-        jwtSessionService.issue(user, response);
-        return destination;
+        JwtSessionService.AccessTokenResult token = jwtSessionService.issue(user, response);
+        return new CompletionResult(token.accessToken(), token.expiresAt(), destination);
+    }
+
+    public record CompletionResult(String accessToken, Instant expiresAt, String destination) {
     }
 
     private record PendingLogin(String accessId, String destination, Instant expiresAt) {

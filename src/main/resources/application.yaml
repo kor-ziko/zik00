@@ -16,6 +16,15 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME:root}
     password: ${SPRING_DATASOURCE_PASSWORD:1q2w3e}
     driver-class-name: com.mysql.cj.jdbc.Driver
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      database: ${REDIS_DATABASE:0}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2s
+      repositories:
+        enabled: false
   jpa:
     hibernate:
       ddl-auto: validate
@@ -37,7 +46,8 @@ spring:
 
 shop:
   jwt:
-    secret: ${JWT_SECRET:${GOOGLE_CLIENT_SECRET:local-jwt-secret-change-me-at-least-32-characters}}
+    private-key: ${JWT_PRIVATE_KEY}
+    public-key: ${JWT_PUBLIC_KEY}
     issuer: zik00-shop
     access-token-ttl: PT15M
     refresh-token-ttl: P14D

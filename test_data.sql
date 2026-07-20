@@ -125,17 +125,8 @@ CREATE TABLE IF NOT EXISTS oauth_access_tokens (
   KEY idx_oauth_access_tokens_expiry (expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS refresh_tokens (
-  refresh_token_id BIGINT NOT NULL AUTO_INCREMENT,
-  user_id BIGINT NOT NULL,
-  token_hash VARCHAR(64) NOT NULL,
-  expires_at DATETIME(6) NOT NULL,
-  created_at DATETIME(6) NOT NULL,
-  revoked_at DATETIME(6) NULL,
-  PRIMARY KEY (refresh_token_id),
-  UNIQUE KEY uk_refresh_tokens_token_hash (token_hash),
-  KEY idx_refresh_tokens_user_active (user_id, revoked_at, expires_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- Refresh Token 상태는 Redis TTL 키로 관리한다.
+DROP TABLE IF EXISTS refresh_tokens;
 
 DELIMITER //
 CREATE PROCEDURE drop_legacy_user_address_columns()
