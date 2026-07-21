@@ -51,7 +51,7 @@ spring:
             client-secret: ${GOOGLE_CLIENT_SECRET}
             redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/login/oauth2/code/google}
             scope:
-              - profile
+              - openid
               - email
           kakao:
             provider: kakao
@@ -61,7 +61,6 @@ spring:
             authorization-grant-type: authorization_code
             redirect-uri: ${KAKAO_REDIRECT_URI:http://localhost:8080/login/oauth2/code/kakao}
             scope:
-              - profile_nickname
               - account_email
             client-name: Kakao
           line:
@@ -73,7 +72,6 @@ spring:
             redirect-uri: ${LINE_REDIRECT_URI:http://localhost:8080/login/oauth2/code/line}
             scope:
               - openid
-              - profile
               - email
             client-name: LINE
         provider:

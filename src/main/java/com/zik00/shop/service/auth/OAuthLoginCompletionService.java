@@ -3,13 +3,8 @@ package com.zik00.shop.service.auth;
 import com.zik00.shop.domain.User;
 import com.zik00.shop.repository.UserRepository;
 import jakarta.servlet.http.HttpServletResponse;
-import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
-import java.security.MessageDigest;
-import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Base64;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -26,32 +21,34 @@ public class OAuthLoginCompletionService {
     private final JwtCookieService jwtCookieService;
     private final PendingOAuthRegistrationService pendingRegistrationService;
     private final StringRedisTemplate redisTemplate;
-    private final SecureRandom secureRandom = new SecureRandom();
+    private final OpaqueTokenCodec tokenCodec;
 
     public OAuthLoginCompletionService(
             UserRepository userRepository,
             JwtSessionService jwtSessionService,
             JwtCookieService jwtCookieService,
             PendingOAuthRegistrationService pendingRegistrationService,
-            StringRedisTemplate redisTemplate
+            StringRedisTemplate redisTemplate,
+            OpaqueTokenCodec tokenCodec
     ) {
         this.userRepository = userRepository;
         this.jwtSessionService = jwtSessionService;
         this.jwtCookieService = jwtCookieService;
         this.pendingRegistrationService = pendingRegistrationService;
         this.redisTemplate = redisTemplate;
+        this.tokenCodec = tokenCodec;
     }
 
     public String prepareExisting(User user) {
         return prepare(EXISTING + SEPARATOR + user.getAccessId());
     }
 
-    public String prepareRegistration(String provider, String subject, String email, String displayName) {
+    public String prepareRegistration(OAuthProfile profile) {
         return prepare(REGISTRATION + SEPARATOR
-                + encodePart(provider) + SEPARATOR
-                + encodePart(subject) + SEPARATOR
-                + encodePart(email) + SEPARATOR
-                + encodePart(displayName));
+                + encodePart(profile.provider()) + SEPARATOR
+                + encodePart(profile.subject()) + SEPARATOR
+                + encodePart(profile.email()) + SEPARATOR
+                + encodePart(profile.displayName()));
     }
 
     public CompletionResult complete(String code, HttpServletResponse response) {
@@ -74,7 +71,7 @@ public class OAuthLoginCompletionService {
         }
 
         if ((parts.length == 4 || parts.length == 5) && REGISTRATION.equals(parts[0])) {
-            PendingOAuthRegistrationService.PendingOAuthAccount account = decodeAccount(parts);
+            OAuthProfile account = decodeAccount(parts);
             jwtCookieService.clearRefreshToken(response);
             pendingRegistrationService.issue(account, response);
             return new CompletionResult(null, null, "/login/terms");
@@ -84,14 +81,12 @@ public class OAuthLoginCompletionService {
     }
 
     private String prepare(String value) {
-        byte[] randomBytes = new byte[32];
-        secureRandom.nextBytes(randomBytes);
-        String code = Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
+        String code = tokenCodec.newToken();
         redisTemplate.opsForValue().set(key(code), value, CODE_TTL);
         return code;
     }
 
-    private PendingOAuthRegistrationService.PendingOAuthAccount decodeAccount(String[] parts) {
+    private OAuthProfile decodeAccount(String[] parts) {
         try {
             boolean legacyGoogleValue = parts.length == 4;
             String provider = legacyGoogleValue ? "google" : decodePart(parts[1]);
@@ -100,7 +95,7 @@ public class OAuthLoginCompletionService {
             if (subject.isBlank()) {
                 throw invalidCompletionCode();
             }
-            return new PendingOAuthRegistrationService.PendingOAuthAccount(
+            return new OAuthProfile(
                     provider,
                     subject,
                     decodePart(parts[subjectIndex + 1]),
@@ -112,33 +107,15 @@ public class OAuthLoginCompletionService {
     }
 
     private String encodePart(String value) {
-        String normalized = value == null ? "" : value;
-        return Base64.getUrlEncoder().withoutPadding()
-                .encodeToString(normalized.getBytes(StandardCharsets.UTF_8));
+        return tokenCodec.encode(value);
     }
 
     private String decodePart(String value) {
-        return new String(Base64.getUrlDecoder().decode(value), StandardCharsets.UTF_8);
+        return tokenCodec.decode(value);
     }
 
     private String key(String code) {
-        return KEY_PREFIX + toHex(sha256(code));
-    }
-
-    private byte[] sha256(String value) {
-        try {
-            return MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
-        } catch (GeneralSecurityException exception) {
-            throw new IllegalStateException("OAuth 로그인 코드를 해시할 수 없습니다.", exception);
-        }
-    }
-
-    private String toHex(byte[] value) {
-        StringBuilder result = new StringBuilder(value.length * 2);
-        for (byte item : value) {
-            result.append(String.format("%02x", item));
-        }
-        return result.toString();
+        return tokenCodec.redisKey(KEY_PREFIX, code);
     }
 
     private InvalidJwtException invalidCompletionCode() {

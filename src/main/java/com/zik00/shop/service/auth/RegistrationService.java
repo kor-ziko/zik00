@@ -65,15 +65,16 @@ public class RegistrationService {
             PendingOAuthRegistrationService.AcceptedOAuthRegistration acceptedRegistration,
             PreparedRegistration detail
     ) {
-        PendingOAuthRegistrationService.PendingOAuthAccount oauthAccount = acceptedRegistration.account();
-        String loginId = authenticatedUserService.toOAuthLoginId(oauthAccount.provider(), oauthAccount.subject());
+        OAuthProfile oauthAccount = acceptedRegistration.account();
+        String loginId = oauthAccount.loginId();
         User user = userRepository.findByLoginId(loginId)
                 .orElseGet(() -> User.createOAuthUser(
                         loginId,
-                        oauthAccount.email(),
-                        oauthAccount.displayName()
+                        oauthAccount.email()
                 ));
-        if (isRegistrationComplete(user)) {
+        boolean hasDeliveryAddress = user.getMemberId() > 0
+                && deliveryAddressRepository.existsByMemberId(user.getMemberId());
+        if (user.hasCompletedRegistration() && hasDeliveryAddress) {
             return user;
         }
 
@@ -87,9 +88,9 @@ public class RegistrationService {
                 detail.mobilePhone(),
                 acceptedRegistration.alarmConsent()
         );
-        user = userRepository.saveAndFlush(user);
+        user = userRepository.save(user);
 
-        if (!deliveryAddressRepository.existsByMemberId(user.getMemberId())) {
+        if (!hasDeliveryAddress) {
             deliveryAddressRepository.save(new DeliveryAddress(
                     0,
                     user.getMemberId(),

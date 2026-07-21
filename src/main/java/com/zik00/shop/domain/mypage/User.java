@@ -139,9 +139,9 @@ public class User {
         this.email = normalizedEmail;
     }
 
-    public static User createOAuthUser(String loginId, String email, String displayName) {
+    public static User createOAuthUser(String loginId, String email) {
         return new User(
-                normalizeValue(displayName),
+                "",
                 null,
                 "",
                 "",

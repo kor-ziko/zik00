@@ -41,7 +41,6 @@ public class OAuthReauthenticationRequestResolver implements OAuth2Authorization
         String prompt = switch (registrationId) {
             case "google" -> "select_account";
             case "kakao" -> "login";
-            case "line" -> "consent";
             default -> null;
         };
         if (prompt == null) {

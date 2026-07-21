@@ -3,13 +3,8 @@ package com.zik00.shop.service.auth;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
-import java.security.MessageDigest;
-import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,24 +21,23 @@ public class PendingOAuthRegistrationService {
     private static final String KEY_PREFIX = "shop:auth:pending-registration:";
     private static final Duration TTL = Duration.ofMinutes(30);
     private static final String SEPARATOR = ".";
-    private static final java.util.Set<String> SUPPORTED_PROVIDERS = java.util.Set.of("google", "kakao", "line");
 
     private final StringRedisTemplate redisTemplate;
     private final boolean secure;
-    private final SecureRandom secureRandom = new SecureRandom();
+    private final OpaqueTokenCodec tokenCodec;
 
     public PendingOAuthRegistrationService(
             StringRedisTemplate redisTemplate,
+            OpaqueTokenCodec tokenCodec,
             @Value("${shop.jwt.cookie-secure:false}") boolean secure
     ) {
         this.redisTemplate = redisTemplate;
+        this.tokenCodec = tokenCodec;
         this.secure = secure;
     }
 
-    public void issue(PendingOAuthAccount account, HttpServletResponse response) {
-        byte[] randomBytes = new byte[32];
-        secureRandom.nextBytes(randomBytes);
-        String token = Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
+    public void issue(OAuthProfile account, HttpServletResponse response) {
+        String token = tokenCodec.newToken();
         redisTemplate.opsForValue().set(key(token), encode(new PendingRegistration(account, false, false)), TTL);
         clearLegacyCookie(response);
         writeCookie(response, token, TTL, COOKIE_PATH);
@@ -115,7 +109,7 @@ public class PendingOAuthRegistrationService {
     }
 
     private String encode(PendingRegistration pending) {
-        PendingOAuthAccount account = pending.account();
+        OAuthProfile account = pending.account();
         return encodePart(account.provider()) + SEPARATOR
                 + encodePart(account.subject()) + SEPARATOR
                 + encodePart(account.email()) + SEPARATOR
@@ -139,22 +133,19 @@ public class PendingOAuthRegistrationService {
             throw invalidRegistration();
         }
         try {
-            PendingOAuthAccount account = legacyGoogleValue
-                    ? new PendingOAuthAccount(
+            OAuthProfile account = legacyGoogleValue
+                    ? new OAuthProfile(
                             "google",
                             decodePart(parts[0]),
                             decodePart(parts[1]),
                             decodePart(parts[2])
                     )
-                    : new PendingOAuthAccount(
+                    : new OAuthProfile(
                             decodePart(parts[0]),
                             decodePart(parts[1]),
                             decodePart(parts[2]),
                             decodePart(parts[3])
                     );
-            if (!SUPPORTED_PROVIDERS.contains(account.provider()) || account.subject().isBlank()) {
-                throw invalidRegistration();
-            }
             return new PendingRegistration(
                     account,
                     "1".equals(parts[termsIndex]),
@@ -166,13 +157,11 @@ public class PendingOAuthRegistrationService {
     }
 
     private String encodePart(String value) {
-        String normalized = value == null ? "" : value;
-        return Base64.getUrlEncoder().withoutPadding()
-                .encodeToString(normalized.getBytes(StandardCharsets.UTF_8));
+        return tokenCodec.encode(value);
     }
 
     private String decodePart(String value) {
-        return new String(Base64.getUrlDecoder().decode(value), StandardCharsets.UTF_8);
+        return tokenCodec.decode(value);
     }
 
     private void clearLegacyCookie(HttpServletResponse response) {
@@ -191,39 +180,20 @@ public class PendingOAuthRegistrationService {
     }
 
     private String key(String token) {
-        return KEY_PREFIX + toHex(sha256(token));
-    }
-
-    private byte[] sha256(String value) {
-        try {
-            return MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
-        } catch (GeneralSecurityException exception) {
-            throw new IllegalStateException("가입 토큰을 해시할 수 없습니다.", exception);
-        }
-    }
-
-    private String toHex(byte[] value) {
-        StringBuilder result = new StringBuilder(value.length * 2);
-        for (byte item : value) {
-            result.append(String.format("%02x", item));
-        }
-        return result.toString();
+        return tokenCodec.redisKey(KEY_PREFIX, token);
     }
 
     private InvalidJwtException invalidRegistration() {
         return new InvalidJwtException("가입 정보가 만료되었거나 이미 사용되었습니다. OAuth 로그인을 다시 진행해주세요.");
     }
 
-    public record PendingOAuthAccount(String provider, String subject, String email, String displayName) {
-    }
-
     public record PendingRegistration(
-            PendingOAuthAccount account,
+            OAuthProfile account,
             boolean termsAccepted,
             boolean alarmConsent
     ) {
     }
 
-    public record AcceptedOAuthRegistration(PendingOAuthAccount account, boolean alarmConsent) {
+    public record AcceptedOAuthRegistration(OAuthProfile account, boolean alarmConsent) {
     }
 }
