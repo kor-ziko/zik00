@@ -12,12 +12,16 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Component
 public class OAuthLoginSuccessHandler implements AuthenticationSuccessHandler {
+    private static final Logger log = LoggerFactory.getLogger(OAuthLoginSuccessHandler.class);
     private final OAuthAccountService oauthAccountService;
     private final RegistrationService registrationService;
     private final String frontendBaseUrl;
@@ -45,7 +49,15 @@ public class OAuthLoginSuccessHandler implements AuthenticationSuccessHandler {
         OAuth2User oauthUser = oauthAuthentication.getPrincipal();
         String provider = oauthAuthentication.getAuthorizedClientRegistrationId();
         String subject = authentication.getName();
-        String email = requireEmail(provider, oauthUser);
+        String email = oauthEmail(provider, oauthUser);
+        if (!isValidEmail(email)) {
+            log.warn("OAuth provider {} did not return email. Attribute keys: {}",
+                    provider, oauthUser.getAttributes().keySet());
+            invalidateSession(request);
+            response.sendRedirect(frontendBaseUrl
+                    + "/login?error&reason=oauth-email-missing&provider=" + provider);
+            return;
+        }
         User existingUser = oauthAccountService.findExisting(provider, subject).orElse(null);
         String completionCode;
         if (existingUser != null && registrationService.isRegistrationComplete(existingUser)) {
@@ -59,9 +71,7 @@ public class OAuthLoginSuccessHandler implements AuthenticationSuccessHandler {
                     oauthName(provider, oauthUser)
             );
         }
-        if (request.getSession(false) != null) {
-            request.getSession(false).invalidate();
-        }
+        invalidateSession(request);
         response.sendRedirect(frontendBaseUrl + "/oauth/callback?code=" + completionCode);
     }
 
@@ -69,16 +79,24 @@ public class OAuthLoginSuccessHandler implements AuthenticationSuccessHandler {
         if ("kakao".equals(provider)) {
             return nestedText(oauthUser.getAttribute("kakao_account"), "email");
         }
+        if (oauthUser instanceof OidcUser oidcUser) {
+            String idTokenEmail = text(oidcUser.getIdToken().getClaim("email"));
+            if (!idTokenEmail.isBlank()) {
+                return idTokenEmail;
+            }
+        }
         return text(oauthUser.getAttribute("email"));
     }
 
-    private String requireEmail(String provider, OAuth2User oauthUser) {
-        String email = oauthEmail(provider, oauthUser);
+    private boolean isValidEmail(String email) {
         int at = email.indexOf('@');
-        if (email.length() > 255 || at <= 0 || at == email.length() - 1) {
-            throw new IllegalStateException(provider + " OAuth 계정에서 이메일을 제공받지 못했습니다.");
+        return email.length() <= 255 && at > 0 && at < email.length() - 1;
+    }
+
+    private void invalidateSession(HttpServletRequest request) {
+        if (request.getSession(false) != null) {
+            request.getSession(false).invalidate();
         }
-        return email;
     }
 
     private String oauthName(String provider, OAuth2User oauthUser) {

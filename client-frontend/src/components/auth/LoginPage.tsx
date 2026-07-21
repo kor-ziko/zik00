@@ -15,6 +15,7 @@ function LoginPage() {
   const hasError = params.has('error');
   const loggedOut = params.has('logout');
   const registrationExpired = params.get('reason') === 'registration-expired';
+  const oauthEmailMissing = params.get('reason') === 'oauth-email-missing';
 
   return (
     <AuthShell>
@@ -40,10 +41,15 @@ function LoginPage() {
           <p className="auth-kicker">MEMBER LOGIN</p>
           <h2 id="login-title">로그인</h2>
           <p className="login-panel-copy">소셜 계정으로 빠르고 간편하게 시작할 수 있습니다.</p>
-          {hasError && <p className="form-alert" role="alert">소셜 로그인에 실패했습니다. 잠시 후 다시 시도해주세요.</p>}
+          {hasError && !oauthEmailMissing && <p className="form-alert" role="alert">소셜 로그인에 실패했습니다. 잠시 후 다시 시도해주세요.</p>}
           {registrationExpired && (
             <p className="form-alert" role="alert">
               가입 가능 시간이 만료되었거나 이미 처리된 요청입니다. 소셜 로그인을 다시 진행해주세요.
+            </p>
+          )}
+          {oauthEmailMissing && (
+            <p className="form-alert" role="alert">
+              소셜 계정에서 이메일을 제공받지 못했습니다. 계정에 이메일을 등록하고 이메일 제공에 동의해주세요.
             </p>
           )}
           {loggedOut && <p className="form-notice" role="status">로그아웃되었습니다.</p>}

@@ -31,9 +31,12 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Configuration
 public class SecurityConfig {
+    private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
     private final OAuthUserService oauthUserService;
     private final OAuthLoginSuccessHandler oauthLoginSuccessHandler;
     private final RegistrationService registrationService;
@@ -109,8 +112,11 @@ public class SecurityConfig {
                                 .authorizationRequestResolver(authorizationRequestResolver))
                         .userInfoEndpoint(userInfo -> userInfo.userService(oauthUserService))
                         .successHandler(oauthLoginSuccessHandler)
-                        .failureHandler((request, response, exception) ->
-                                response.sendRedirect(webClientOrigins.clientBaseUrl() + "/error?status=401"))
+                        .failureHandler((request, response, exception) -> {
+                            log.error("OAuth login failed: {}", exception.getMessage(), exception);
+                            response.sendRedirect(webClientOrigins.clientBaseUrl()
+                                    + "/login?error&reason=oauth-failed");
+                        })
                 )
                 .logout(logout -> logout.disable())
                 .addFilterAfter(
