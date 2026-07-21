@@ -131,9 +131,17 @@ public class User {
         this.alarmConsent = alarmConsent;
     }
 
-    public static User createGoogleUser(String loginId, String email, String googleName) {
+    public void updateOAuthEmail(String email) {
+        String normalizedEmail = normalizeValue(email);
+        if (normalizedEmail.isEmpty()) {
+            throw new IllegalArgumentException("OAuth 이메일이 비어 있습니다.");
+        }
+        this.email = normalizedEmail;
+    }
+
+    public static User createOAuthUser(String loginId, String email, String displayName) {
         return new User(
-                normalizeValue(googleName),
+                normalizeValue(displayName),
                 null,
                 "",
                 "",

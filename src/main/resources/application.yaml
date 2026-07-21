@@ -53,6 +53,41 @@ spring:
             scope:
               - profile
               - email
+          kakao:
+            provider: kakao
+            client-id: ${KAKAO_CLIENT_ID}
+            client-secret: ${KAKAO_CLIENT_SECRET}
+            client-authentication-method: client_secret_post
+            authorization-grant-type: authorization_code
+            redirect-uri: ${KAKAO_REDIRECT_URI:http://localhost:8080/login/oauth2/code/kakao}
+            scope:
+              - profile_nickname
+              - account_email
+            client-name: Kakao
+          line:
+            provider: line
+            client-id: ${LINE_CHANNEL_ID}
+            client-secret: ${LINE_CHANNEL_SECRET}
+            client-authentication-method: client_secret_post
+            authorization-grant-type: authorization_code
+            redirect-uri: ${LINE_REDIRECT_URI:http://localhost:8080/login/oauth2/code/line}
+            scope:
+              - openid
+              - profile
+              - email
+            client-name: LINE
+        provider:
+          kakao:
+            authorization-uri: https://kauth.kakao.com/oauth/authorize
+            token-uri: https://kauth.kakao.com/oauth/token
+            user-info-uri: https://kapi.kakao.com/v2/user/me
+            user-name-attribute: id
+          line:
+            issuer-uri: https://access.line.me
+            authorization-uri: https://access.line.me/oauth2/v2.1/authorize
+            token-uri: https://api.line.me/oauth2/v2.1/token
+            user-info-uri: https://api.line.me/oauth2/v2.1/userinfo
+            user-name-attribute: sub
 
 shop:
   jwt:

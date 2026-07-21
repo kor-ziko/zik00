@@ -24,7 +24,7 @@ public class OAuthLoginCompletionService {
     private final UserRepository userRepository;
     private final JwtSessionService jwtSessionService;
     private final JwtCookieService jwtCookieService;
-    private final PendingGoogleRegistrationService pendingRegistrationService;
+    private final PendingOAuthRegistrationService pendingRegistrationService;
     private final StringRedisTemplate redisTemplate;
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -32,7 +32,7 @@ public class OAuthLoginCompletionService {
             UserRepository userRepository,
             JwtSessionService jwtSessionService,
             JwtCookieService jwtCookieService,
-            PendingGoogleRegistrationService pendingRegistrationService,
+            PendingOAuthRegistrationService pendingRegistrationService,
             StringRedisTemplate redisTemplate
     ) {
         this.userRepository = userRepository;
@@ -46,11 +46,12 @@ public class OAuthLoginCompletionService {
         return prepare(EXISTING + SEPARATOR + user.getAccessId());
     }
 
-    public String prepareRegistration(String subject, String email, String googleName) {
+    public String prepareRegistration(String provider, String subject, String email, String displayName) {
         return prepare(REGISTRATION + SEPARATOR
+                + encodePart(provider) + SEPARATOR
                 + encodePart(subject) + SEPARATOR
                 + encodePart(email) + SEPARATOR
-                + encodePart(googleName));
+                + encodePart(displayName));
     }
 
     public CompletionResult complete(String code, HttpServletResponse response) {
@@ -72,8 +73,8 @@ public class OAuthLoginCompletionService {
             return new CompletionResult(token.accessToken(), token.expiresAt(), "/");
         }
 
-        if (parts.length == 4 && REGISTRATION.equals(parts[0])) {
-            PendingGoogleRegistrationService.PendingGoogleAccount account = decodeAccount(parts);
+        if ((parts.length == 4 || parts.length == 5) && REGISTRATION.equals(parts[0])) {
+            PendingOAuthRegistrationService.PendingOAuthAccount account = decodeAccount(parts);
             jwtCookieService.clearRefreshToken(response);
             pendingRegistrationService.issue(account, response);
             return new CompletionResult(null, null, "/login/terms");
@@ -90,16 +91,20 @@ public class OAuthLoginCompletionService {
         return code;
     }
 
-    private PendingGoogleRegistrationService.PendingGoogleAccount decodeAccount(String[] parts) {
+    private PendingOAuthRegistrationService.PendingOAuthAccount decodeAccount(String[] parts) {
         try {
-            String subject = decodePart(parts[1]);
+            boolean legacyGoogleValue = parts.length == 4;
+            String provider = legacyGoogleValue ? "google" : decodePart(parts[1]);
+            int subjectIndex = legacyGoogleValue ? 1 : 2;
+            String subject = decodePart(parts[subjectIndex]);
             if (subject.isBlank()) {
                 throw invalidCompletionCode();
             }
-            return new PendingGoogleRegistrationService.PendingGoogleAccount(
+            return new PendingOAuthRegistrationService.PendingOAuthAccount(
+                    provider,
                     subject,
-                    decodePart(parts[2]),
-                    decodePart(parts[3])
+                    decodePart(parts[subjectIndex + 1]),
+                    decodePart(parts[subjectIndex + 2])
             );
         } catch (IllegalArgumentException exception) {
             throw invalidCompletionCode();

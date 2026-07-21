@@ -5,12 +5,24 @@ import ServiceStrip from './components/home/ServiceStrip';
 import QuickMenu from './components/layout/QuickMenu';
 import SiteFooter from './components/layout/SiteFooter';
 import SiteHeader from './components/layout/SiteHeader';
+import ErrorPage from './components/error/ErrorPage';
 
 const LoginPage = lazy(() => import('./components/auth/LoginPage'));
 const RegistrationDetailPage = lazy(() => import('./components/auth/RegistrationDetailPage'));
 const RegistrationTermsPage = lazy(() => import('./components/auth/RegistrationTermsPage'));
 const MypagePage = lazy(() => import('./components/mypage/MypagePage'));
 const OAuthCallbackPage = lazy(() => import('./components/auth/OAuthCallbackPage'));
+
+const mypagePaths = new Set([
+  '/mypage',
+  '/mypage/home',
+  '/mypage/orders',
+  '/mypage/deliveries',
+  '/mypage/inquiries',
+  '/mypage/coupons',
+  '/mypage/deposits',
+  '/mypage/profile',
+]);
 
 function PageLoader() {
   return <div className="auth-loading" role="status" aria-live="polite">Loading...</div>;
@@ -28,9 +40,11 @@ function App() {
   if (path === '/login/terms') return <Suspense fallback={<PageLoader />}><RegistrationTermsPage /></Suspense>;
   if (path === '/login/detail') return <Suspense fallback={<PageLoader />}><RegistrationDetailPage /></Suspense>;
   if (path === '/oauth/callback') return <Suspense fallback={<PageLoader />}><OAuthCallbackPage /></Suspense>;
-  if (path === '/mypage' || path.startsWith('/mypage/')) {
+  if (mypagePaths.has(path)) {
     return <Suspense fallback={<PageLoader />}><MypagePage /></Suspense>;
   }
+  if (path === '/error') return <ErrorPage />;
+  if (path !== '/') return <ErrorPage status={404} />;
 
   return (
     <div className="app-shell">

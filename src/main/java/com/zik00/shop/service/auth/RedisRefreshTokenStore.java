@@ -15,6 +15,9 @@ public class RedisRefreshTokenStore {
     private static final String USED_REFRESH_PREFIX = "shop:auth:used-refresh:";
     private static final String FAMILY_PREFIX = "shop:auth:family:";
     private static final String FAMILY_ACCESS_PREFIX = "shop:auth:family-access:";
+    private static final String FAMILY_OWNER_PREFIX = "shop:auth:family-owner:";
+    private static final String FAMILY_USED_REFRESH_PREFIX = "shop:auth:family-used-refresh:";
+    private static final String USER_FAMILIES_PREFIX = "shop:auth:user-families:";
     private static final String ACTIVE_ACCESS_PREFIX = "shop:auth:active-access:";
     private static final String BLOCKED_ACCESS_PREFIX = "shop:auth:blocked-access:";
     private static final String REVOKED_FAMILY_PREFIX = "shop:auth:revoked-family:";
@@ -35,6 +38,9 @@ public class RedisRefreshTokenStore {
             redis.call('sadd', KEYS[4], ARGV[4])
             redis.call('pexpire', KEYS[4], ARGV[1])
             redis.call('psetex', KEYS[5], ARGV[5], '1')
+            redis.call('psetex', KEYS[6], ARGV[1], ARGV[7])
+            redis.call('sadd', KEYS[7], ARGV[8])
+            redis.call('pexpire', KEYS[7], ARGV[1])
             return 1
             """, Long.class);
 
@@ -43,6 +49,8 @@ public class RedisRefreshTokenStore {
             if stored then
                 redis.call('del', KEYS[1])
                 redis.call('psetex', KEYS[2], ARGV[1], ARGV[2])
+                redis.call('sadd', KEYS[3], ARGV[3])
+                redis.call('pexpire', KEYS[3], ARGV[1])
                 return 'CONSUMED\\n' .. stored
             end
             local reusedFamily = redis.call('get', KEYS[2])
@@ -58,6 +66,10 @@ public class RedisRefreshTokenStore {
             if currentRefreshHash then
                 redis.call('del', ARGV[2] .. currentRefreshHash)
             end
+            local usedRefreshHashes = redis.call('smembers', KEYS[5])
+            for _, refreshHash in ipairs(usedRefreshHashes) do
+                redis.call('del', ARGV[7] .. refreshHash)
+            end
             local accessTokenIds = redis.call('smembers', KEYS[3])
             for _, tokenId in ipairs(accessTokenIds) do
                 if redis.call('exists', ARGV[3] .. tokenId) == 1 then
@@ -67,6 +79,16 @@ public class RedisRefreshTokenStore {
             end
             redis.call('del', KEYS[2])
             redis.call('del', KEYS[3])
+            local ownerAccessId = redis.call('get', KEYS[4])
+            if ownerAccessId then
+                local userFamiliesKey = ARGV[8] .. ownerAccessId
+                redis.call('srem', userFamiliesKey, ARGV[6])
+                if redis.call('scard', userFamiliesKey) == 0 then
+                    redis.call('del', userFamiliesKey)
+                end
+            end
+            redis.call('del', KEYS[4])
+            redis.call('del', KEYS[5])
             return #accessTokenIds
             """, Long.class);
 
@@ -94,14 +116,18 @@ public class RedisRefreshTokenStore {
                         refreshKey(refreshTokenHash),
                         familyKey(pair.familyId()),
                         familyAccessKey(pair.familyId()),
-                        activeAccessKey(pair.accessTokenId())
+                        activeAccessKey(pair.accessTokenId()),
+                        familyOwnerKey(pair.familyId()),
+                        userFamiliesKey(accessId)
                 ),
                 Long.toString(refreshTtlMillis),
                 accessId + VALUE_SEPARATOR + pair.familyId(),
                 refreshTokenHash,
                 pair.accessTokenId(),
                 Long.toString(accessTtlMillis),
-                ACTIVE_ACCESS_PREFIX
+                ACTIVE_ACCESS_PREFIX,
+                accessId,
+                pair.familyId()
         );
         if (!Long.valueOf(1L).equals(saved)) {
             throw new InvalidJwtException("폐기된 로그인 세션에서는 토큰을 발급할 수 없습니다.");
@@ -111,9 +137,14 @@ public class RedisRefreshTokenStore {
     public ConsumeResult consume(String tokenHash, String familyId, Instant expiresAt) {
         String result = redisTemplate.execute(
                 CONSUME_SCRIPT,
-                List.of(refreshKey(tokenHash), usedRefreshKey(tokenHash)),
+                List.of(
+                        refreshKey(tokenHash),
+                        usedRefreshKey(tokenHash),
+                        familyUsedRefreshKey(familyId)
+                ),
                 Long.toString(ttlMillis(expiresAt, "Refresh Token")),
-                familyId
+                familyId,
+                tokenHash
         );
         if (result == null || "MISSING".equals(result)) {
             return ConsumeResult.missing();
@@ -141,14 +172,31 @@ public class RedisRefreshTokenStore {
                 List.of(
                         revokedFamilyKey(familyId),
                         familyKey(familyId),
-                        familyAccessKey(familyId)
+                        familyAccessKey(familyId),
+                        familyOwnerKey(familyId),
+                        familyUsedRefreshKey(familyId)
                 ),
                 Long.toString(refreshTtl.toMillis()),
                 REFRESH_PREFIX,
                 ACTIVE_ACCESS_PREFIX,
                 BLOCKED_ACCESS_PREFIX,
-                Long.toString(accessTtl.toMillis())
+                Long.toString(accessTtl.toMillis()),
+                familyId,
+                USED_REFRESH_PREFIX,
+                USER_FAMILIES_PREFIX
         );
+    }
+
+    public void revokeAllForUser(String accessId) {
+        if (accessId == null || accessId.isBlank()) {
+            return;
+        }
+        var familyIds = redisTemplate.opsForSet().members(userFamiliesKey(accessId));
+        if (familyIds == null || familyIds.isEmpty()) {
+            return;
+        }
+        familyIds.forEach(this::revokeFamily);
+        redisTemplate.delete(userFamiliesKey(accessId));
     }
 
     public boolean isAccessTokenRevoked(String tokenId) {
@@ -177,6 +225,18 @@ public class RedisRefreshTokenStore {
 
     private String familyAccessKey(String familyId) {
         return FAMILY_ACCESS_PREFIX + familyId;
+    }
+
+    private String familyOwnerKey(String familyId) {
+        return FAMILY_OWNER_PREFIX + familyId;
+    }
+
+    private String familyUsedRefreshKey(String familyId) {
+        return FAMILY_USED_REFRESH_PREFIX + familyId;
+    }
+
+    private String userFamiliesKey(String accessId) {
+        return USER_FAMILIES_PREFIX + accessId;
     }
 
     private String activeAccessKey(String tokenId) {

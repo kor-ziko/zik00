@@ -41,6 +41,8 @@ type TermsAgreementPayload = {
 };
 
 let refreshInFlight: Promise<boolean> | null = null;
+let logoutInProgress = false;
+let authGeneration = 0;
 let csrfInFlight: Promise<CsrfResponse> | null = null;
 let sessionInFlight: Promise<AuthSession> | null = null;
 let detailSessionInFlight: Promise<void> | null = null;
@@ -83,6 +85,8 @@ export async function getCsrfToken(): Promise<CsrfResponse> {
 }
 
 async function performAccessTokenRefresh(): Promise<boolean> {
+  if (logoutInProgress) return false;
+  const requestedGeneration = authGeneration;
   try {
     const csrf = await getCsrfToken();
     const response = await fetch('/api/auth/refresh', {
@@ -90,7 +94,7 @@ async function performAccessTokenRefresh(): Promise<boolean> {
       credentials: 'include',
       headers: { [csrf.headerName]: csrf.token },
     });
-    if (!response.ok) {
+    if (!response.ok || logoutInProgress || requestedGeneration !== authGeneration) {
       setMemoryAccessToken(null);
       return false;
     }
@@ -120,7 +124,7 @@ export async function fetchAuthenticated(input: RequestInfo | URL, init?: Reques
     return { ...init, headers, credentials: 'include' as const };
   };
   let response = await fetch(input, authenticatedOptions());
-  if (response.status === 401 && await refreshAccessToken()) {
+  if (response.status === 401 && !logoutInProgress && await refreshAccessToken()) {
     response = await fetch(input, authenticatedOptions());
   }
   return response;
@@ -250,6 +254,9 @@ export async function logout(): Promise<void> {
   const headers = new Headers({ [csrf.headerName]: csrf.token });
   const accessToken = getMemoryAccessToken();
   if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
+  logoutInProgress = true;
+  authGeneration += 1;
+  setMemoryAccessToken(null);
   try {
     const response = await fetch('/logout', {
       method: 'POST',
@@ -259,5 +266,7 @@ export async function logout(): Promise<void> {
     if (!response.ok) throw await readError(response);
   } finally {
     setMemoryAccessToken(null);
+    sessionInFlight = null;
+    logoutInProgress = false;
   }
 }

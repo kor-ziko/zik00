@@ -39,11 +39,11 @@ function LoginPage() {
           <div className="login-panel-accent" aria-hidden="true"><span /><span /><span /></div>
           <p className="auth-kicker">MEMBER LOGIN</p>
           <h2 id="login-title">로그인</h2>
-          <p className="login-panel-copy">Google 계정 하나로 빠르고 간편하게 시작할 수 있습니다.</p>
-          {hasError && <p className="form-alert" role="alert">Google 로그인에 실패했습니다. 잠시 후 다시 시도해주세요.</p>}
+          <p className="login-panel-copy">소셜 계정으로 빠르고 간편하게 시작할 수 있습니다.</p>
+          {hasError && <p className="form-alert" role="alert">소셜 로그인에 실패했습니다. 잠시 후 다시 시도해주세요.</p>}
           {registrationExpired && (
             <p className="form-alert" role="alert">
-              가입 가능 시간이 만료되었거나 이미 처리된 요청입니다. Google 로그인을 다시 진행해주세요.
+              가입 가능 시간이 만료되었거나 이미 처리된 요청입니다. 소셜 로그인을 다시 진행해주세요.
             </p>
           )}
           {loggedOut && <p className="form-notice" role="status">로그아웃되었습니다.</p>}
@@ -52,11 +52,22 @@ function LoginPage() {
             <span>Google로 계속하기</span>
             <ArrowRight size={19} aria-hidden="true" />
           </a>
+          <div className="social-login-buttons">
+            <a className="social-login-button kakao" href="/oauth2/authorization/kakao">
+              <span className="social-login-mark" aria-hidden="true">K</span>
+              <span>Kakao로 계속하기</span>
+              <ArrowRight size={19} aria-hidden="true" />
+            </a>
+            <a className="social-login-button line" href="/oauth2/authorization/line">
+              <span className="social-login-mark line-mark" aria-hidden="true">LINE</span>
+              <span>LINE으로 계속하기</span>
+              <ArrowRight size={19} aria-hidden="true" />
+            </a>
+          </div>
           <div className="login-divider"><span>처음 방문하셨나요?</span></div>
           <p className="login-first-visit">
-            Google 로그인 후 이름과 배송 정보를 입력하면 회원가입이 바로 완료됩니다.
+            소셜 로그인 후 이름과 배송 정보를 입력하면 회원가입이 바로 완료됩니다.
           </p>
-          <p className="login-terms">계속하면 ZIK:00의 이용약관 및 개인정보 처리방침에 동의하게 됩니다.</p>
         </section>
       </main>
     </AuthShell>

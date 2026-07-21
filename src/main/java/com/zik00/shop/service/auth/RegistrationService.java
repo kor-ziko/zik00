@@ -61,17 +61,17 @@ public class RegistrationService {
     }
 
     @Transactional
-    public User completeGoogleRegistration(
-            PendingGoogleRegistrationService.AcceptedGoogleRegistration acceptedRegistration,
+    public User completeOAuthRegistration(
+            PendingOAuthRegistrationService.AcceptedOAuthRegistration acceptedRegistration,
             PreparedRegistration detail
     ) {
-        PendingGoogleRegistrationService.PendingGoogleAccount googleAccount = acceptedRegistration.account();
-        String loginId = authenticatedUserService.toGoogleLoginId(googleAccount.subject());
+        PendingOAuthRegistrationService.PendingOAuthAccount oauthAccount = acceptedRegistration.account();
+        String loginId = authenticatedUserService.toOAuthLoginId(oauthAccount.provider(), oauthAccount.subject());
         User user = userRepository.findByLoginId(loginId)
-                .orElseGet(() -> User.createGoogleUser(
+                .orElseGet(() -> User.createOAuthUser(
                         loginId,
-                        googleAccount.email(),
-                        googleAccount.googleName()
+                        oauthAccount.email(),
+                        oauthAccount.displayName()
                 ));
         if (isRegistrationComplete(user)) {
             return user;

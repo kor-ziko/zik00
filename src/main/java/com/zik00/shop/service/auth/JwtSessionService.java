@@ -5,6 +5,7 @@ import com.zik00.shop.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpHeaders;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -27,6 +28,7 @@ public class JwtSessionService {
     }
 
     public AccessTokenResult issue(User user, HttpServletResponse response) {
+        refreshTokenStore.revokeAllForUser(user.getAccessId());
         JwtService.JwtPair pair = jwtService.issue(user.getAccessId());
         persist(user, pair, response);
         return new AccessTokenResult(pair.accessToken(), pair.accessExpiresAt());
@@ -82,12 +84,17 @@ public class JwtSessionService {
                     .ifPresent(token -> revokeTokenFamily(token, JwtService.ACCESS));
         } finally {
             cookieService.clearRefreshToken(response);
+            if (request.getSession(false) != null) {
+                request.getSession(false).invalidate();
+            }
+            SecurityContextHolder.clearContext();
         }
     }
 
     private void revokeTokenFamily(String token, String expectedType) {
         try {
             JwtService.JwtClaims claims = jwtService.validate(token, expectedType);
+            refreshTokenStore.revokeAllForUser(claims.accessId());
             refreshTokenStore.revokeFamily(claims.familyId());
         } catch (InvalidJwtException ignored) {
             // 이미 만료되거나 변조된 토큰은 서버 세션을 식별하는 데 사용하지 않는다.

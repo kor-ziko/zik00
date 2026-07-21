@@ -1,0 +1,113 @@
+package com.zik00.shop.config;
+
+import java.io.IOException;
+import java.util.Map;
+
+import com.zik00.shop.domain.User;
+import com.zik00.shop.service.auth.OAuthAccountService;
+import com.zik00.shop.service.auth.RegistrationService;
+import com.zik00.shop.service.auth.OAuthLoginCompletionService;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.stereotype.Component;
+
+@Component
+public class OAuthLoginSuccessHandler implements AuthenticationSuccessHandler {
+    private final OAuthAccountService oauthAccountService;
+    private final RegistrationService registrationService;
+    private final String frontendBaseUrl;
+    private final OAuthLoginCompletionService loginCompletionService;
+
+    public OAuthLoginSuccessHandler(
+            OAuthAccountService oauthAccountService,
+            RegistrationService registrationService,
+            OAuthLoginCompletionService loginCompletionService,
+            WebClientOrigins webClientOrigins
+    ) {
+        this.oauthAccountService = oauthAccountService;
+        this.registrationService = registrationService;
+        this.loginCompletionService = loginCompletionService;
+        this.frontendBaseUrl = webClientOrigins.clientBaseUrl();
+    }
+
+    @Override
+    public void onAuthenticationSuccess(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            Authentication authentication
+    ) throws IOException, ServletException {
+        OAuth2AuthenticationToken oauthAuthentication = (OAuth2AuthenticationToken) authentication;
+        OAuth2User oauthUser = oauthAuthentication.getPrincipal();
+        String provider = oauthAuthentication.getAuthorizedClientRegistrationId();
+        String subject = authentication.getName();
+        String email = requireEmail(provider, oauthUser);
+        User existingUser = oauthAccountService.findExisting(provider, subject).orElse(null);
+        String completionCode;
+        if (existingUser != null && registrationService.isRegistrationComplete(existingUser)) {
+            oauthAccountService.saveEmailIfMissing(existingUser, email);
+            completionCode = loginCompletionService.prepareExisting(existingUser);
+        } else {
+            completionCode = loginCompletionService.prepareRegistration(
+                    provider,
+                    subject,
+                    email,
+                    oauthName(provider, oauthUser)
+            );
+        }
+        if (request.getSession(false) != null) {
+            request.getSession(false).invalidate();
+        }
+        response.sendRedirect(frontendBaseUrl + "/oauth/callback?code=" + completionCode);
+    }
+
+    private String oauthEmail(String provider, OAuth2User oauthUser) {
+        if ("kakao".equals(provider)) {
+            return nestedText(oauthUser.getAttribute("kakao_account"), "email");
+        }
+        return text(oauthUser.getAttribute("email"));
+    }
+
+    private String requireEmail(String provider, OAuth2User oauthUser) {
+        String email = oauthEmail(provider, oauthUser);
+        int at = email.indexOf('@');
+        if (email.length() > 255 || at <= 0 || at == email.length() - 1) {
+            throw new IllegalStateException(provider + " OAuth 계정에서 이메일을 제공받지 못했습니다.");
+        }
+        return email;
+    }
+
+    private String oauthName(String provider, OAuth2User oauthUser) {
+        if ("kakao".equals(provider)) {
+            String nickname = nestedText(oauthUser.getAttribute("kakao_account"), "profile", "nickname");
+            if (!nickname.isBlank()) {
+                return nickname;
+            }
+            return nestedText(oauthUser.getAttribute("properties"), "nickname");
+        }
+        if ("line".equals(provider)) {
+            String name = text(oauthUser.getAttribute("name"));
+            return name.isBlank() ? text(oauthUser.getAttribute("displayName")) : name;
+        }
+        return text(oauthUser.getAttribute("name"));
+    }
+
+    private String nestedText(Object value, String... path) {
+        Object current = value;
+        for (String key : path) {
+            if (!(current instanceof Map<?, ?> values)) {
+                return "";
+            }
+            current = values.get(key);
+        }
+        return text(current);
+    }
+
+    private String text(Object value) {
+        return value == null ? "" : value.toString().trim();
+    }
+}

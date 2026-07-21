@@ -19,19 +19,20 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Service;
 
 @Service
-public class PendingGoogleRegistrationService {
+public class PendingOAuthRegistrationService {
     private static final String COOKIE_NAME = "zik_pending_registration";
     private static final String COOKIE_PATH = "/api/auth";
     private static final String LEGACY_COOKIE_PATH = "/api/auth/detail";
     private static final String KEY_PREFIX = "shop:auth:pending-registration:";
     private static final Duration TTL = Duration.ofMinutes(30);
     private static final String SEPARATOR = ".";
+    private static final java.util.Set<String> SUPPORTED_PROVIDERS = java.util.Set.of("google", "kakao", "line");
 
     private final StringRedisTemplate redisTemplate;
     private final boolean secure;
     private final SecureRandom secureRandom = new SecureRandom();
 
-    public PendingGoogleRegistrationService(
+    public PendingOAuthRegistrationService(
             StringRedisTemplate redisTemplate,
             @Value("${shop.jwt.cookie-secure:false}") boolean secure
     ) {
@@ -39,7 +40,7 @@ public class PendingGoogleRegistrationService {
         this.secure = secure;
     }
 
-    public void issue(PendingGoogleAccount account, HttpServletResponse response) {
+    public void issue(PendingOAuthAccount account, HttpServletResponse response) {
         byte[] randomBytes = new byte[32];
         secureRandom.nextBytes(randomBytes);
         String token = Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
@@ -72,22 +73,22 @@ public class PendingGoogleRegistrationService {
         clearLegacyCookie(response);
     }
 
-    public AcceptedGoogleRegistration requireTermsAccepted(HttpServletRequest request) {
+    public AcceptedOAuthRegistration requireTermsAccepted(HttpServletRequest request) {
         PendingRegistration pending = require(request);
         if (!pending.termsAccepted()) {
             throw new RegistrationTermsRequiredException();
         }
-        return new AcceptedGoogleRegistration(pending.account(), pending.alarmConsent());
+        return new AcceptedOAuthRegistration(pending.account(), pending.alarmConsent());
     }
 
-    public AcceptedGoogleRegistration consumeTermsAccepted(HttpServletRequest request, HttpServletResponse response) {
+    public AcceptedOAuthRegistration consumeTermsAccepted(HttpServletRequest request, HttpServletResponse response) {
         String token = readToken(request).orElseThrow(this::invalidRegistration);
         PendingRegistration pending = decodeRequired(redisTemplate.opsForValue().getAndDelete(key(token)));
         clear(response);
         if (!pending.termsAccepted()) {
             throw new RegistrationTermsRequiredException();
         }
-        return new AcceptedGoogleRegistration(pending.account(), pending.alarmConsent());
+        return new AcceptedOAuthRegistration(pending.account(), pending.alarmConsent());
     }
 
     public void clear(HttpServletResponse response) {
@@ -114,10 +115,11 @@ public class PendingGoogleRegistrationService {
     }
 
     private String encode(PendingRegistration pending) {
-        PendingGoogleAccount account = pending.account();
-        return encodePart(account.subject()) + SEPARATOR
+        PendingOAuthAccount account = pending.account();
+        return encodePart(account.provider()) + SEPARATOR
+                + encodePart(account.subject()) + SEPARATOR
                 + encodePart(account.email()) + SEPARATOR
-                + encodePart(account.googleName()) + SEPARATOR
+                + encodePart(account.displayName()) + SEPARATOR
                 + (pending.termsAccepted() ? "1" : "0") + SEPARATOR
                 + (pending.alarmConsent() ? "1" : "0");
     }
@@ -127,24 +129,36 @@ public class PendingGoogleRegistrationService {
             throw invalidRegistration();
         }
         String[] parts = value.split("\\.", -1);
-        if ((parts.length != 4 && parts.length != 5)
-                || !("0".equals(parts[3]) || "1".equals(parts[3]))
-                || (parts.length == 5 && !("0".equals(parts[4]) || "1".equals(parts[4])))) {
+        boolean legacyGoogleValue = parts.length == 4 || parts.length == 5;
+        int termsIndex = legacyGoogleValue ? 3 : 4;
+        int alarmIndex = legacyGoogleValue ? 4 : 5;
+        if ((!legacyGoogleValue && parts.length != 6)
+                || !("0".equals(parts[termsIndex]) || "1".equals(parts[termsIndex]))
+                || (parts.length > alarmIndex
+                && !("0".equals(parts[alarmIndex]) || "1".equals(parts[alarmIndex])))) {
             throw invalidRegistration();
         }
         try {
-            PendingGoogleAccount account = new PendingGoogleAccount(
-                    decodePart(parts[0]),
-                    decodePart(parts[1]),
-                    decodePart(parts[2])
-            );
-            if (account.subject().isBlank()) {
+            PendingOAuthAccount account = legacyGoogleValue
+                    ? new PendingOAuthAccount(
+                            "google",
+                            decodePart(parts[0]),
+                            decodePart(parts[1]),
+                            decodePart(parts[2])
+                    )
+                    : new PendingOAuthAccount(
+                            decodePart(parts[0]),
+                            decodePart(parts[1]),
+                            decodePart(parts[2]),
+                            decodePart(parts[3])
+                    );
+            if (!SUPPORTED_PROVIDERS.contains(account.provider()) || account.subject().isBlank()) {
                 throw invalidRegistration();
             }
             return new PendingRegistration(
                     account,
-                    "1".equals(parts[3]),
-                    parts.length == 5 && "1".equals(parts[4])
+                    "1".equals(parts[termsIndex]),
+                    parts.length > alarmIndex && "1".equals(parts[alarmIndex])
             );
         } catch (IllegalArgumentException exception) {
             throw invalidRegistration();
@@ -197,19 +211,19 @@ public class PendingGoogleRegistrationService {
     }
 
     private InvalidJwtException invalidRegistration() {
-        return new InvalidJwtException("가입 정보가 만료되었거나 이미 사용되었습니다. Google 로그인을 다시 진행해주세요.");
+        return new InvalidJwtException("가입 정보가 만료되었거나 이미 사용되었습니다. OAuth 로그인을 다시 진행해주세요.");
     }
 
-    public record PendingGoogleAccount(String subject, String email, String googleName) {
+    public record PendingOAuthAccount(String provider, String subject, String email, String displayName) {
     }
 
     public record PendingRegistration(
-            PendingGoogleAccount account,
+            PendingOAuthAccount account,
             boolean termsAccepted,
             boolean alarmConsent
     ) {
     }
 
-    public record AcceptedGoogleRegistration(PendingGoogleAccount account, boolean alarmConsent) {
+    public record AcceptedOAuthRegistration(PendingOAuthAccount account, boolean alarmConsent) {
     }
 }

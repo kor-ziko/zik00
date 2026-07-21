@@ -11,7 +11,7 @@ import com.zik00.shop.service.auth.JwtSessionService;
 import com.zik00.shop.service.auth.JwtCookieService;
 import com.zik00.shop.service.auth.InvalidJwtException;
 import com.zik00.shop.service.auth.OAuthLoginCompletionService;
-import com.zik00.shop.service.auth.PendingGoogleRegistrationService;
+import com.zik00.shop.service.auth.PendingOAuthRegistrationService;
 import com.zik00.shop.service.auth.RegistrationTermsRequiredException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -36,7 +36,7 @@ public class AuthApiController {
     private final JwtSessionService jwtSessionService;
     private final JwtCookieService jwtCookieService;
     private final OAuthLoginCompletionService oAuthLoginCompletionService;
-    private final PendingGoogleRegistrationService pendingRegistrationService;
+    private final PendingOAuthRegistrationService pendingRegistrationService;
 
     public AuthApiController(
             AuthenticatedUserService authenticatedUserService,
@@ -44,7 +44,7 @@ public class AuthApiController {
             JwtSessionService jwtSessionService,
             JwtCookieService jwtCookieService,
             OAuthLoginCompletionService oAuthLoginCompletionService,
-            PendingGoogleRegistrationService pendingRegistrationService
+            PendingOAuthRegistrationService pendingRegistrationService
     ) {
         this.authenticatedUserService = authenticatedUserService;
         this.registrationService = registrationService;
@@ -128,15 +128,15 @@ public class AuthApiController {
             HttpServletRequest httpRequest,
             HttpServletResponse response
     ) {
-        PendingGoogleRegistrationService.AcceptedGoogleRegistration pending =
+        PendingOAuthRegistrationService.AcceptedOAuthRegistration pending =
                 pendingRegistrationService.requireTermsAccepted(httpRequest);
         RegistrationService.PreparedRegistration detail = registrationService.prepareRegistration(request);
-        PendingGoogleRegistrationService.AcceptedGoogleRegistration consumed =
+        PendingOAuthRegistrationService.AcceptedOAuthRegistration consumed =
                 pendingRegistrationService.consumeTermsAccepted(httpRequest, response);
         if (!pending.account().subject().equals(consumed.account().subject())) {
-            throw new InvalidJwtException("가입 요청 정보가 일치하지 않습니다. Google 로그인을 다시 진행해주세요.");
+            throw new InvalidJwtException("가입 요청 정보가 일치하지 않습니다. OAuth 로그인을 다시 진행해주세요.");
         }
-        var user = registrationService.completeGoogleRegistration(consumed, detail);
+        var user = registrationService.completeOAuthRegistration(consumed, detail);
         JwtSessionService.AccessTokenResult token = jwtSessionService.issue(user, response);
         return new AccessTokenResponse(token.accessToken(), token.expiresAt());
     }

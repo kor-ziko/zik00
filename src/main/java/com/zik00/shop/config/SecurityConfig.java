@@ -1,7 +1,7 @@
 package com.zik00.shop.config;
 
 import com.zik00.admin.config.AdminSessionAuthenticationFilter;
-import com.zik00.shop.service.auth.GoogleOAuth2UserService;
+import com.zik00.shop.service.auth.OAuthUserService;
 import com.zik00.shop.service.auth.RegistrationService;
 import com.zik00.shop.service.auth.JwtService;
 import com.zik00.shop.service.auth.RedisRefreshTokenStore;
@@ -11,6 +11,13 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.oauth2.client.web.OAuth2LoginAuthenticationFilter;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
+import org.springframework.security.oauth2.client.oidc.authentication.OidcIdTokenDecoderFactory;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
+import org.springframework.security.oauth2.jwt.JwtDecoderFactory;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
@@ -27,8 +34,8 @@ import java.util.List;
 
 @Configuration
 public class SecurityConfig {
-    private final GoogleOAuth2UserService googleOAuth2UserService;
-    private final GoogleLoginSuccessHandler googleLoginSuccessHandler;
+    private final OAuthUserService oauthUserService;
+    private final OAuthLoginSuccessHandler oauthLoginSuccessHandler;
     private final RegistrationService registrationService;
     private final WebClientOrigins webClientOrigins;
     private final JwtService jwtService;
@@ -36,16 +43,16 @@ public class SecurityConfig {
     private final RedisRefreshTokenStore refreshTokenStore;
 
     public SecurityConfig(
-            GoogleOAuth2UserService googleOAuth2UserService,
-            GoogleLoginSuccessHandler googleLoginSuccessHandler,
+            OAuthUserService oauthUserService,
+            OAuthLoginSuccessHandler oauthLoginSuccessHandler,
             RegistrationService registrationService,
             JwtService jwtService,
             UserRepository userRepository,
             RedisRefreshTokenStore refreshTokenStore,
             WebClientOrigins webClientOrigins
     ) {
-        this.googleOAuth2UserService = googleOAuth2UserService;
-        this.googleLoginSuccessHandler = googleLoginSuccessHandler;
+        this.oauthUserService = oauthUserService;
+        this.oauthLoginSuccessHandler = oauthLoginSuccessHandler;
         this.registrationService = registrationService;
         this.webClientOrigins = webClientOrigins;
         this.jwtService = jwtService;
@@ -54,7 +61,10 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            OAuth2AuthorizationRequestResolver authorizationRequestResolver
+    ) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf
@@ -95,10 +105,12 @@ public class SecurityConfig {
                 ))
                 .oauth2Login(oauth2 -> oauth2
                         .loginPage("/login")
-                        .userInfoEndpoint(userInfo -> userInfo.userService(googleOAuth2UserService))
-                        .successHandler(googleLoginSuccessHandler)
+                        .authorizationEndpoint(endpoint -> endpoint
+                                .authorizationRequestResolver(authorizationRequestResolver))
+                        .userInfoEndpoint(userInfo -> userInfo.userService(oauthUserService))
+                        .successHandler(oauthLoginSuccessHandler)
                         .failureHandler((request, response, exception) ->
-                                response.sendRedirect(webClientOrigins.clientBaseUrl() + "/login?error"))
+                                response.sendRedirect(webClientOrigins.clientBaseUrl() + "/error?status=401"))
                 )
                 .logout(logout -> logout.disable())
                 .addFilterAfter(
@@ -119,6 +131,24 @@ public class SecurityConfig {
                 );
 
         return http.build();
+    }
+
+    @Bean
+    public OAuth2AuthorizationRequestResolver authorizationRequestResolver(
+            ClientRegistrationRepository clientRegistrationRepository
+    ) {
+        return new OAuthReauthenticationRequestResolver(clientRegistrationRepository);
+    }
+
+    @Bean
+    public JwtDecoderFactory<ClientRegistration> idTokenDecoderFactory() {
+        OidcIdTokenDecoderFactory factory = new OidcIdTokenDecoderFactory();
+        factory.setJwsAlgorithmResolver(clientRegistration ->
+                "line".equals(clientRegistration.getRegistrationId())
+                        ? MacAlgorithm.HS256
+                        : SignatureAlgorithm.RS256
+        );
+        return factory;
     }
 
     private CorsConfigurationSource corsConfigurationSource() {
