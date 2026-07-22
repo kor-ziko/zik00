@@ -2,7 +2,11 @@ package com.zik00.shop.service.auth;
 
 import com.zik00.shop.domain.User;
 import com.zik00.shop.repository.UserRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.Instant;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -15,6 +19,8 @@ public class OAuthLoginCompletionService {
     private static final String EXISTING = "existing";
     private static final String REGISTRATION = "registration";
     private static final String SEPARATOR = "\n";
+    private static final String SESSION_BINDING_ATTRIBUTE =
+            OAuthLoginCompletionService.class.getName() + ".completion-code";
 
     private final UserRepository userRepository;
     private final JwtSessionService jwtSessionService;
@@ -51,10 +57,24 @@ public class OAuthLoginCompletionService {
                 + encodePart(profile.displayName()));
     }
 
-    public CompletionResult complete(String code, HttpServletResponse response) {
+    public void bindToNewSession(String code, HttpServletRequest request) {
+        HttpSession currentSession = request.getSession(false);
+        if (currentSession != null) {
+            currentSession.invalidate();
+        }
+        request.getSession(true).setAttribute(SESSION_BINDING_ATTRIBUTE, fingerprint(code));
+    }
+
+    public CompletionResult complete(
+            String code,
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
         if (code == null || code.isBlank() || code.length() > 128) {
             throw invalidCompletionCode();
         }
+
+        requireSessionBinding(code, request);
 
         String storedValue = redisTemplate.opsForValue().getAndDelete(key(code));
         if (storedValue == null) {
@@ -116,6 +136,24 @@ public class OAuthLoginCompletionService {
 
     private String key(String code) {
         return tokenCodec.redisKey(KEY_PREFIX, code);
+    }
+
+    private void requireSessionBinding(String code, HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        Object expectedValue = session == null
+                ? null
+                : session.getAttribute(SESSION_BINDING_ATTRIBUTE);
+        if (!(expectedValue instanceof String expected)
+                || !MessageDigest.isEqual(
+                expected.getBytes(StandardCharsets.US_ASCII),
+                fingerprint(code).getBytes(StandardCharsets.US_ASCII))) {
+            throw invalidCompletionCode();
+        }
+        session.removeAttribute(SESSION_BINDING_ATTRIBUTE);
+    }
+
+    private String fingerprint(String code) {
+        return tokenCodec.redisKey("", code);
     }
 
     private InvalidJwtException invalidCompletionCode() {

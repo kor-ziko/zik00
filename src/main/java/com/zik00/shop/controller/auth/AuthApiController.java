@@ -72,11 +72,12 @@ public class AuthApiController {
     @PostMapping("/oauth/complete")
     public ResponseEntity<?> completeOAuthLogin(
             @RequestBody OAuthCompleteRequest request,
+            HttpServletRequest httpRequest,
             HttpServletResponse response
     ) {
         try {
             OAuthLoginCompletionService.CompletionResult result =
-                    oAuthLoginCompletionService.complete(request.code(), response);
+                    oAuthLoginCompletionService.complete(request.code(), httpRequest, response);
             return ResponseEntity.ok(new OAuthCompleteResponse(
                     result.accessToken(),
                     result.expiresAt(),

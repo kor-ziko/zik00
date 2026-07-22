@@ -10,7 +10,8 @@ function OAuthCallbackPage() {
   useEffect(() => {
     if (started.current) return;
     started.current = true;
-    const code = new URLSearchParams(window.location.search).get('code');
+    const code = new URLSearchParams(window.location.hash.slice(1)).get('code');
+    window.history.replaceState({}, '', window.location.pathname);
     if (!code) {
       setError('Google 로그인 완료 코드가 없습니다.');
       return;

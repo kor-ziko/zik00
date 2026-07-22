@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.pyc
+output/
+kream_output.json
+kream_output.errors.log

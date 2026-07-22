@@ -64,8 +64,8 @@ public class OAuthLoginSuccessHandler implements AuthenticationSuccessHandler {
         } else {
             completionCode = loginCompletionService.prepareRegistration(profile);
         }
-        invalidateSession(request);
-        response.sendRedirect(frontendBaseUrl + "/oauth/callback?code=" + completionCode);
+        loginCompletionService.bindToNewSession(completionCode, request);
+        response.sendRedirect(frontendBaseUrl + "/oauth/callback#code=" + completionCode);
     }
 
     private void invalidateSession(HttpServletRequest request) {

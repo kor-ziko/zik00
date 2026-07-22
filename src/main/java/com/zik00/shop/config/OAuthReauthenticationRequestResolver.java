@@ -8,6 +8,7 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestCustomizers;
 
 public class OAuthReauthenticationRequestResolver implements OAuth2AuthorizationRequestResolver {
     private static final String AUTHORIZATION_BASE_URI = "/oauth2/authorization";
@@ -18,6 +19,9 @@ public class OAuthReauthenticationRequestResolver implements OAuth2Authorization
         this.delegate = new DefaultOAuth2AuthorizationRequestResolver(
                 clientRegistrationRepository,
                 AUTHORIZATION_BASE_URI
+        );
+        this.delegate.setAuthorizationRequestCustomizer(
+                OAuth2AuthorizationRequestCustomizers.withPkce()
         );
     }
 
