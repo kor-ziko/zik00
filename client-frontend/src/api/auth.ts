@@ -113,7 +113,7 @@ export async function getCsrfToken(): Promise<CsrfResponse> {
 }
 
 async function performAccessTokenRefresh(): Promise<boolean> {
-  if (logoutInProgress) return false;
+  if (logoutInProgress || !hasBrowserSession()) return false;
   const requestedGeneration = authGeneration;
   try {
     const csrf = await getCsrfToken();
@@ -171,6 +171,11 @@ function logoutExpiredSession(): Promise<void> {
 }
 
 export async function fetchAuthenticated(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  if (!hasBrowserSession()) {
+    clearAccessSession();
+    return new Response(null, { status: 401 });
+  }
+
   const initialAccessSession = hasActiveAccessSession();
   const hadExistingSession = hasBrowserSession() || initialAccessSession;
   let refreshAttempted = false;
