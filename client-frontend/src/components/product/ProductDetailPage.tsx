@@ -11,7 +11,8 @@ import Share2 from 'lucide-react/dist/esm/icons/share-2.js';
 import ShoppingBag from 'lucide-react/dist/esm/icons/shopping-bag.js';
 import Star from 'lucide-react/dist/esm/icons/star.js';
 import Truck from 'lucide-react/dist/esm/icons/truck.js';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { getProductDetail } from '../../api/product';
 import { products, type Product } from '../../data';
 import SiteFooter from '../layout/SiteFooter';
 import SiteHeader from '../layout/SiteHeader';
@@ -141,14 +142,54 @@ function ProductGallery({ product }: { product: Product }) {
 }
 
 function ProductDetailPage({ productId }: ProductDetailPageProps) {
-  const product = products.find((item) => (item.slug ?? String(item.id)) === productId || String(item.id) === productId);
+  const localProduct = products.find((item) => (item.slug ?? String(item.id)) === productId || String(item.id) === productId);
+  const [remoteProduct, setRemoteProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(!localProduct);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [selectedOption, setSelectedOption] = useState('');
   const [liked, setLiked] = useState(false);
   const [notice, setNotice] = useState('');
   const [activeTab, setActiveTab] = useState<DetailTab>('details');
 
-  const detail = product ? detailCopy[String(product.id)] : undefined;
+  const product = localProduct ?? remoteProduct;
+  const detail = product
+    ? detailCopy[String(product.id)] ?? {
+      maker: product.brand || '브랜드 정보 없음',
+      subtitle: product.description || product.name,
+      optionLabel: '상품 옵션',
+      options: [],
+      model: String(product.id),
+      origin: '수집 데이터에 정보 없음',
+      material: '수집 데이터에 정보 없음',
+    }
+    : undefined;
+
+  useEffect(() => {
+    if (localProduct) {
+      setLoading(false);
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    setLoading(true);
+    setLoadFailed(false);
+    setRemoteProduct(null);
+    getProductDetail(productId, controller.signal)
+      .then((value) => {
+        setRemoteProduct(value);
+        setLoadFailed(value === null);
+      })
+      .catch((reason: unknown) => {
+        if (reason instanceof DOMException && reason.name === 'AbortError') return;
+        setLoadFailed(true);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [localProduct, productId]);
   const discount = useMemo(() => {
     if (!product?.originalPrice) return 0;
     return Math.round((1 - product.price / product.originalPrice) * 100);
@@ -161,7 +202,17 @@ function ProductDetailPage({ productId }: ProductDetailPageProps) {
   const reviews = product?.reviews ?? [];
   const reviewCount = reviews.length || product?.reviewCount || 0;
 
-  if (!product || !detail) {
+  if (loading) {
+    return (
+      <div className="app-shell">
+        <SiteHeader />
+        <main className="auth-loading" role="status" aria-live="polite">상품 정보를 불러오는 중입니다.</main>
+        <SiteFooter />
+      </div>
+    );
+  }
+
+  if (!product || !detail || loadFailed) {
     return (
       <div className="app-shell">
         <SiteHeader />

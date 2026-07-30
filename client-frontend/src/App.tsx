@@ -14,6 +14,7 @@ const RegistrationTermsPage = lazy(() => import('./components/auth/RegistrationT
 const MypagePage = lazy(() => import('./components/mypage/MypagePage'));
 const OAuthCallbackPage = lazy(() => import('./components/auth/OAuthCallbackPage'));
 const ProductDetailPage = lazy(() => import('./components/product/ProductDetailPage'));
+const SearchResultsPage = lazy(() => import('./components/search/SearchResultsPage'));
 
 const mypagePaths = new Set([
   '/mypage',
@@ -60,6 +61,9 @@ function App() {
   const productMatch = path.match(/^\/products\/([A-Za-z0-9_-]+)$/);
   if (productMatch) {
     return <Suspense fallback={<PageLoader />}><ProductDetailPage productId={productMatch[1]} /></Suspense>;
+  }
+  if (path === '/search') {
+    return <Suspense fallback={<PageLoader />}><SearchResultsPage /></Suspense>;
   }
   if (path === '/error') return <ErrorPage />;
   if (path !== '/') return <ErrorPage status={404} />;

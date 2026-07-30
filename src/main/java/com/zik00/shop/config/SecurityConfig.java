@@ -84,6 +84,8 @@ public class SecurityConfig {
                                 "/login", "/oauth2/**", "/login/oauth2/**",
                                 "/api/japan-postal-codes",
                                 "/api/product-images/proxy",
+                                "/api/search",
+                                "/api/products/**",
                                 "/api/auth/csrf", "/api/auth/refresh", "/api/auth/oauth/complete",
                                 "/logout", "/error"
                         ).permitAll()

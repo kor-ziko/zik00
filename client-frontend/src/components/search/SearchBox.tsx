@@ -5,10 +5,28 @@ import { popularKeywords } from '../../data';
 import { useRecentSearches } from '../../hooks/useRecentSearches';
 import TrendMark from './TrendMark';
 
-const categories = ['전체', '뷰티', '패션', '식품', '디지털', '리빙'];
+const categories = [
+  { label: '전체', value: '' },
+  { label: '패션의류', value: '패션의류' },
+  { label: '뷰티·미용', value: '뷰티·미용' },
+  { label: '가전', value: '가전' },
+  { label: '생활잡화', value: '생활잡화' },
+  { label: '스포츠·레저', value: '스포츠·레저' },
+  { label: '컬렉터블·완구·취미', value: '컬렉터블·완구·취미' },
+  { label: '도서·음반·콘텐츠', value: '도서·음반·콘텐츠' },
+  { label: '출산·유아동', value: '출산·유아동' },
+  { label: '애견용품', value: '애견용품' },
+  { label: '자동차용품', value: '자동차용품' },
+];
 
 function SearchBox() {
-  const [query, setQuery] = useState('');
+  const initialParams = new URLSearchParams(window.location.search);
+  const [query, setQuery] = useState(() => (
+    window.location.pathname === '/search' ? initialParams.get('q') ?? '' : ''
+  ));
+  const [category, setCategory] = useState(() => (
+    window.location.pathname === '/search' ? initialParams.get('category') ?? '' : ''
+  ));
   const [searchOpen, setSearchOpen] = useState(false);
   const searchAreaRef = useRef<HTMLDivElement>(null);
   const {
@@ -38,11 +56,20 @@ function SearchBox() {
     setQuery(normalized);
     addRecentSearch(normalized);
     setSearchOpen(false);
+    const params = new URLSearchParams({ q: normalized });
+    if (category) params.set('category', category);
+    window.location.assign(`/search?${params.toString()}`);
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    search(query);
+    const normalized = query.trim();
+    if (!normalized) {
+      event.preventDefault();
+      return;
+    }
+    setQuery(normalized);
+    addRecentSearch(normalized);
+    setSearchOpen(false);
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -54,16 +81,22 @@ function SearchBox() {
 
   return (
     <div className="search-area" ref={searchAreaRef}>
-      <form className="search-form" onSubmit={handleSubmit}>
+      <form className="search-form" action="/search" method="get" onSubmit={handleSubmit}>
         <label className="sr-only" htmlFor="product-search">상품 검색</label>
-        <select aria-label="검색 카테고리" defaultValue="전체">
-          {categories.map((category) => (
-            <option key={category}>{category}</option>
+        <select
+          name="category"
+          aria-label="검색 카테고리"
+          value={category}
+          onChange={(event) => setCategory(event.target.value)}
+        >
+          {categories.map((item) => (
+            <option key={item.value} value={item.value}>{item.label}</option>
           ))}
         </select>
         <span className="search-divider" aria-hidden="true" />
         <input
           id="product-search"
+          name="q"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onFocus={() => setSearchOpen(true)}
