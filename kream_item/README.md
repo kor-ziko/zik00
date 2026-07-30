@@ -21,16 +21,22 @@ python -m playwright install chromium
 ```powershell
 python main.py --category "여성 셔츠" --max-per-category 5 --max-products 5
 python main.py --category "여성 셔츠" --category "남성 셔츠" --max-products 20
+python main.py --resume --start-category "남성 점프슈트" --max-per-category 5
 python main.py --list-categories
 ```
 
-기본 출력은 이 모듈 폴더의 `kream_output.json`입니다. 실행 위치와 관계없이
-`C:\Users\user\Desktop\zik\shop\kream_item\kream_output.json`에 저장됩니다.
+기본 출력은 `shop/item_data/kream_output.json`입니다. 실행 위치와 관계없이
+`C:\Users\user\Desktop\zik\shop\item_data\kream_output.json`에 저장됩니다.
 옵션 없이 `python main.py`를 실행하면 전체 분류의 검색 결과를 무한 스크롤 끝까지
 탐색하며 수량 제한 없이 수집합니다. 중복 상품은 한 번만 저장합니다. 상품 25개마다
 결과를 중간 저장하므로 실행 도중에도 `kream_output.json`에서 진행 결과를 볼 수 있습니다.
 전체 수집은 상품 수에 따라 수 시간 이상 걸릴 수 있으며 KREAM의 요청 제한에 영향을
 받을 수 있습니다. 일부만 시험하려면 `--max-per-category`와 `--max-products`를 지정하세요.
+중단된 작업은 `--resume --start-category "중단된 카테고리"`로 기존 JSON에 이어서
+저장할 수 있습니다. 기존 상품 ID는 자동으로 중복 제거됩니다.
+장시간 실행 중 상세 페이지가 연속 실패하면 기본 300초 휴식한 뒤 계속합니다.
+또한 새 상품 100개마다 60초 예방 휴식을 적용합니다. `--failure-cooldown`,
+`--pause-every`, `--pause-seconds`로 값을 조정할 수 있습니다.
 
 ## 필드 원칙
 

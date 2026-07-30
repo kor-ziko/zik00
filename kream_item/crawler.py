@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import random
 import re
@@ -83,10 +84,22 @@ def product_from_payload(payload: dict[str, Any], seed: Category, crawled_at: st
 
 
 class KreamCrawler:
-    def __init__(self, *, headless: bool = True, delay: float = 1.0, retries: int = 2) -> None:
+    def __init__(
+        self,
+        *,
+        headless: bool = True,
+        delay: float = 1.0,
+        retries: int = 2,
+        failure_cooldown: float = 300.0,
+        pause_every: int = 100,
+        pause_seconds: float = 60.0,
+    ) -> None:
         self.headless = headless
         self.delay = max(delay, 0.5)
         self.retries = max(retries, 0)
+        self.failure_cooldown = max(failure_cooldown, 0.0)
+        self.pause_every = max(pause_every, 0)
+        self.pause_seconds = max(pause_seconds, 0.0)
 
     async def discover_batches(
         self, page: Any, category: Category, limit: int
@@ -121,17 +134,66 @@ class KreamCrawler:
             await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
             await page.wait_for_timeout(1_000)
 
-    async def fetch_one(self, page: Any, ref: ProductRef) -> KreamProduct:
+    async def fetch_one(self, context: Any, ref: ProductRef) -> KreamProduct:
         last_error: Exception | None = None
         for attempt in range(self.retries + 1):
+            page = await context.new_page()
             try:
-                await page.goto(ref.url, wait_until="domcontentloaded", timeout=45_000)
-                # JSON-LD script tags are intentionally hidden; wait for DOM attachment.
-                await page.wait_for_selector("script#Product", state="attached", timeout=20_000)
+                response = await page.goto(ref.url, wait_until="commit", timeout=30_000)
+                if response and (response.status in {403, 429} or response.status >= 500):
+                    raise RuntimeError(f"KREAM HTTP {response.status} 응답")
+                # KREAM has both JSON-LD product pages and legacy/meta-only product pages.
+                try:
+                    await page.wait_for_selector(
+                        'script#Product, meta[property="og:title"]',
+                        state="attached",
+                        timeout=15_000,
+                    )
+                except Exception as exc:
+                    title = ""
+                    body = ""
+                    with contextlib.suppress(Exception):
+                        title = await page.title()
+                        body = (await page.locator("body").inner_text(timeout=2_000))[:200]
+                    raise RuntimeError(
+                        f"상품 메타데이터 없음(status={response.status if response else 'none'}, "
+                        f"url={page.url}, title={title!r}, body={body!r})"
+                    ) from exc
+                await page.wait_for_selector("body", state="attached", timeout=10_000)
                 payload = await page.evaluate(
                     r"""
                     () => {
-                      const product = JSON.parse(document.querySelector('script#Product').textContent);
+                      const meta = name => document.querySelector(
+                        `meta[name="${name}"], meta[property="${name}"]`
+                      )?.content;
+                      let product = null;
+                      for (const script of document.querySelectorAll('script[type="application/ld+json"]')) {
+                        try {
+                          const parsed = JSON.parse(script.textContent || 'null');
+                          const candidates = Array.isArray(parsed) ? parsed : [parsed];
+                          product = candidates.find(item => item && item['@type'] === 'Product') || product;
+                        } catch (_) {
+                          // Ignore unrelated or malformed structured-data blocks.
+                        }
+                      }
+                      const productId = meta('product:retailer_item_id')
+                        || location.pathname.match(/\/products\/(\d+)/)?.[1];
+                      if (!product) {
+                        const image = meta('og:image');
+                        product = {
+                          '@type': 'Product',
+                          name: meta('og:title') || document.title,
+                          description: meta('og:description') || meta('description'),
+                          image: image ? [image] : [],
+                          productID: productId,
+                          brand: meta('product:brand') ? {name: meta('product:brand')} : null,
+                          offers: {
+                            price: Number(meta('product:price:amount') || 0),
+                            priceCurrency: meta('product:price:currency') || 'KRW',
+                            availability: meta('product:availability') || ''
+                          }
+                        };
+                      }
                       const texts = [...document.querySelectorAll('p, span')]
                         .map(el => (el.textContent || '').trim()).filter(Boolean);
                       const originals = [...document.querySelectorAll('p.strikethrough')]
@@ -141,11 +203,10 @@ class KreamCrawler:
                         .map(el => (el.textContent || '').trim()).find(v => /^[0-5](?:\\.\\d)?$/.test(v));
                       const sourceCategories = [...document.querySelectorAll('a[href^="/categories/"]')]
                         .map(el => (el.textContent || '').trim()).filter(Boolean);
-                      const meta = name => document.querySelector(`meta[name="${name}"], meta[property="${name}"]`)?.content;
                       const pageTitle = meta('title') || document.title || '';
                       return {
                         product,
-                        productId: meta('product:retailer_item_id'),
+                        productId,
                         displayName: pageTitle.replace(/\s*\|\s*[^|]+\s*\|\s*KREAM\s*$/, '').trim(),
                         originalPrice: originals[0] || null,
                         rating: ratingNode ? Number(ratingNode) : null,
@@ -160,7 +221,24 @@ class KreamCrawler:
             except Exception as exc:  # Playwright exceptions vary by browser version.
                 last_error = exc
                 if attempt < self.retries:
-                    await asyncio.sleep((2**attempt) + random.random())
+                    detail = str(exc).splitlines()[0][:120]
+                    is_throttled = (
+                        "Timeout" in type(exc).__name__
+                        or "HTTP 403" in detail
+                        or "HTTP 429" in detail
+                        or "HTTP 5" in detail
+                    )
+                    wait_seconds = 60 * (attempt + 1) if is_throttled else (2**attempt) + random.random()
+                    print(
+                        f"  상세 재시도 {attempt + 1}/{self.retries}: "
+                        f"KREAM-{ref.product_id} ({type(exc).__name__}: {detail}) "
+                        f"- {wait_seconds:.0f}초 대기",
+                        flush=True,
+                    )
+                    await asyncio.sleep(wait_seconds)
+            finally:
+                with contextlib.suppress(Exception):
+                    await page.close()
         raise RuntimeError(f"상품 수집 실패: {ref.url}: {last_error}") from last_error
 
     async def crawl(
@@ -170,15 +248,17 @@ class KreamCrawler:
         max_products: int,
         checkpoint_every: int = 25,
         checkpoint: Callable[[list[KreamProduct]], None] | None = None,
+        initial_products: Iterable[KreamProduct] = (),
     ) -> tuple[list[KreamProduct], list[str]]:
         try:
             from playwright.async_api import async_playwright
         except ImportError as exc:
             raise RuntimeError("playwright가 없습니다. requirements.txt를 설치하세요.") from exc
 
-        results: list[KreamProduct] = []
+        results: list[KreamProduct] = list(initial_products)
+        initial_count = len(results)
         errors: list[str] = []
-        seen: set[str] = set()
+        seen: set[str] = {product.productId.removeprefix("KREAM-") for product in results}
         async with async_playwright() as playwright:
             try:
                 browser = await playwright.chromium.launch(headless=self.headless)
@@ -194,7 +274,7 @@ class KreamCrawler:
                 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36",
             )
             discovery_page = await context.new_page()
-            detail_page = await context.new_page()
+            consecutive_failures = 0
             try:
                 for category in categories:
                     if max_products > 0 and len(results) >= max_products:
@@ -209,21 +289,50 @@ class KreamCrawler:
                         async for refs in self.discover_batches(discovery_page, category, category_limit):
                             category_found += len(refs)
                             print(f"  검색 발견: {category_found}개", flush=True)
+                            duplicate_count = 0
                             for ref in refs:
                                 if ref.product_id in seen:
+                                    duplicate_count += 1
                                     continue
                                 if max_products > 0 and len(results) >= max_products:
                                     break
-                                seen.add(ref.product_id)
                                 try:
-                                    product = await self.fetch_one(detail_page, ref)
+                                    print(f"  상세 확인: KREAM-{ref.product_id}", flush=True)
+                                    product = await self.fetch_one(context, ref)
                                     results.append(product)
+                                    seen.add(ref.product_id)
+                                    consecutive_failures = 0
                                     print(f"수집 {len(results)}개: {product.name}", flush=True)
-                                    if checkpoint and len(results) % max(checkpoint_every, 1) == 0:
+                                    new_count = len(results) - initial_count
+                                    if checkpoint and new_count % max(checkpoint_every, 1) == 0:
                                         checkpoint(results)
+                                    if (
+                                        self.pause_every > 0
+                                        and new_count > 0
+                                        and new_count % self.pause_every == 0
+                                        and self.pause_seconds > 0
+                                    ):
+                                        print(
+                                            f"  {new_count}개 추가 수집 완료: "
+                                            f"서버 보호를 위해 {self.pause_seconds:.0f}초 휴식합니다.",
+                                            flush=True,
+                                        )
+                                        await asyncio.sleep(self.pause_seconds)
                                 except Exception as exc:
                                     errors.append(str(exc))
+                                    consecutive_failures += 1
+                                    print(f"  상품 실패, 다음으로 이동: KREAM-{ref.product_id}", flush=True)
+                                    if consecutive_failures >= 3 and self.failure_cooldown > 0:
+                                        print(
+                                            f"  연속 실패 {consecutive_failures}회: "
+                                            f"{self.failure_cooldown:.0f}초 휴식 후 계속합니다.",
+                                            flush=True,
+                                        )
+                                        await asyncio.sleep(self.failure_cooldown)
+                                        consecutive_failures = 0
                                 await asyncio.sleep(self.delay + random.random() * 0.3)
+                            if duplicate_count:
+                                print(f"  기존 상품 중복: {duplicate_count}개 건너뜀", flush=True)
                             if max_products > 0 and len(results) >= max_products:
                                 break
                         print(f"카테고리 검색 완료: {category_found}개 발견", flush=True)

@@ -12,6 +12,7 @@ const RegistrationDetailPage = lazy(() => import('./components/auth/Registration
 const RegistrationTermsPage = lazy(() => import('./components/auth/RegistrationTermsPage'));
 const MypagePage = lazy(() => import('./components/mypage/MypagePage'));
 const OAuthCallbackPage = lazy(() => import('./components/auth/OAuthCallbackPage'));
+const ProductDetailPage = lazy(() => import('./components/product/ProductDetailPage'));
 
 const mypagePaths = new Set([
   '/mypage',
@@ -36,12 +37,23 @@ function App() {
     window.addEventListener('popstate', updatePath);
     return () => window.removeEventListener('popstate', updatePath);
   }, []);
+
+  useEffect(() => {
+    if (path === '/products/KREAM-489756') {
+      window.history.replaceState({}, '', '/products/b70e8ae9');
+      setPath('/products/b70e8ae9');
+    }
+  }, [path]);
   if (path === '/login') return <Suspense fallback={<PageLoader />}><LoginPage /></Suspense>;
   if (path === '/login/terms') return <Suspense fallback={<PageLoader />}><RegistrationTermsPage /></Suspense>;
   if (path === '/login/detail') return <Suspense fallback={<PageLoader />}><RegistrationDetailPage /></Suspense>;
   if (path === '/oauth/callback') return <Suspense fallback={<PageLoader />}><OAuthCallbackPage /></Suspense>;
   if (mypagePaths.has(path)) {
     return <Suspense fallback={<PageLoader />}><MypagePage /></Suspense>;
+  }
+  const productMatch = path.match(/^\/products\/([A-Za-z0-9-]+)$/);
+  if (productMatch) {
+    return <Suspense fallback={<PageLoader />}><ProductDetailPage productId={productMatch[1]} /></Suspense>;
   }
   if (path === '/error') return <ErrorPage />;
   if (path !== '/') return <ErrorPage status={404} />;

@@ -36,6 +36,8 @@ pnpm-debug.log*
 # Runtime-generated files
 /uploads/
 *.log
+item_data/kream_output.json
+item_data/kream_output.errors.log
 
 # Operating system metadata
 .DS_Store

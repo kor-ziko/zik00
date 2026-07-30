@@ -15,13 +15,21 @@ export type HeroSlide = {
 };
 
 export type Product = {
-  id: number;
+  id: number | string;
+  slug?: string;
   name: string;
   category: string;
   price: number;
   originalPrice?: number;
   image: string;
+  images?: string[];
   badge?: string;
+  brand?: string;
+  description?: string;
+  currency?: 'JPY' | 'KRW';
+  rating?: number | null;
+  reviewCount?: number;
+  tags?: string[];
 };
 
 export const popularKeywords: PopularKeyword[] = [
@@ -62,15 +70,7 @@ export const heroSlides: HeroSlide[] = [
 ];
 
 export const products: Product[] = [
-  {
-    id: 1,
-    name: '산뜻한 데일리 선케어 로션',
-    category: 'K-뷰티 · 선케어',
-    price: 2380,
-    originalPrice: 2900,
-    image: '/assets/product-suncare.webp',
-    badge: '여름 인기',
-  },
+  kreamFeaturedProduct as Product,
   {
     id: 2,
     name: '충전식 무선 미니 테이블 팬',
@@ -105,3 +105,4 @@ export const products: Product[] = [
     badge: '서울 픽',
   },
 ];
+import kreamFeaturedProduct from './generated/kreamFeaturedProduct.json';
