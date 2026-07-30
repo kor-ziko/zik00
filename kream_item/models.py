@@ -20,8 +20,22 @@ class ProductVariant:
 
 
 @dataclass(slots=True)
+class ProductReview:
+    reviewId: str
+    reviewType: str = "style"
+    author: str | None = None
+    content: str | None = None
+    createdAt: str | None = None
+    rating: float | None = None
+    likeCount: int = 0
+    images: list[str] = field(default_factory=list)
+    reviewUrl: str | None = None
+
+
+@dataclass(slots=True)
 class KreamProduct:
     productId: str
+    sourceUrl: str
     name: str
     category: str
     brand: str | None
@@ -38,10 +52,10 @@ class KreamProduct:
     variants: list[ProductVariant] = field(default_factory=list)
     rating: float | None = None
     reviewCount: int = 0
+    reviews: list[ProductReview] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
     createdAt: str | None = None
     updatedAt: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
-

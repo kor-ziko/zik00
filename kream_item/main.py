@@ -8,7 +8,7 @@ from pathlib import Path
 
 from categories import CATEGORIES, find_category
 from crawler import KreamCrawler, write_json
-from models import KreamProduct
+from models import KreamProduct, ProductReview
 
 
 DEFAULT_OUTPUT = Path(__file__).resolve().parent.parent / "item_data" / "kream_output.json"
@@ -19,14 +19,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--category", action="append", help="수집할 leaf 또는 전체 경로. 여러 번 지정 가능")
     parser.add_argument("--start-category", help="전체 분류 중 이 카테고리부터 마지막까지 수집")
     parser.add_argument("--resume", action="store_true", help="기존 출력 JSON을 유지하며 이어서 수집")
-    parser.add_argument("--max-per-category", type=int, default=0, help="카테고리당 제한. 0은 무제한")
+    parser.add_argument("--max-per-category", type=int, default=5, help="카테고리당 제한. 기본 5, 0은 무제한")
     parser.add_argument("--max-products", type=int, default=0, help="전체 상품 제한. 0은 무제한")
-    parser.add_argument("--checkpoint-every", type=int, default=25, help="중간 저장 주기")
-    parser.add_argument("--delay", type=float, default=1.0, help="상품 요청 간 최소 대기(초, 최솟값 0.5)")
+    parser.add_argument("--checkpoint-every", type=int, default=1, help="중간 저장 주기")
+    parser.add_argument(
+        "--max-reviews-per-product",
+        type=int,
+        default=5,
+        help="상품별 공개 스타일 리뷰 수. 0이면 리뷰를 수집하지 않음",
+    )
+    parser.add_argument("--delay", type=float, default=3.0, help="상품 요청 간 최소 대기(초, 최솟값 0.5)")
     parser.add_argument("--retries", type=int, default=2)
     parser.add_argument("--failure-cooldown", type=float, default=300.0, help="상세 수집 3회 연속 실패 시 대기 시간")
-    parser.add_argument("--pause-every", type=int, default=100, help="이 수만큼 새 상품 수집 후 예방 휴식")
-    parser.add_argument("--pause-seconds", type=float, default=60.0, help="예방 휴식 시간")
+    parser.add_argument("--pause-every", type=int, default=50, help="이 수만큼 새 상품 수집 후 예방 휴식")
+    parser.add_argument("--pause-seconds", type=float, default=180.0, help="예방 휴식 시간")
     parser.add_argument("--headed", action="store_true", help="브라우저 창을 표시")
     parser.add_argument("--list-categories", action="store_true")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
@@ -57,6 +63,16 @@ async def run(args: argparse.Namespace) -> int:
             raw_items = json.loads(args.output.read_text(encoding="utf-8"))
             if not isinstance(raw_items, list):
                 raise ValueError("JSON 최상위 값이 배열이 아닙니다.")
+            for item in raw_items:
+                if not isinstance(item, dict):
+                    raise ValueError("상품 항목이 객체가 아닙니다.")
+                if not item.get("sourceUrl") and item.get("productId"):
+                    source_id = str(item["productId"]).removeprefix("KREAM-")
+                    item["sourceUrl"] = f"https://kream.co.kr/products/{source_id}"
+                item["reviews"] = [
+                    ProductReview(**review) if isinstance(review, dict) else review
+                    for review in item.get("reviews", [])
+                ]
             initial_products = [KreamProduct(**item) for item in raw_items]
             print(f"기존 상품 {len(initial_products)}개를 불러왔습니다.", flush=True)
         except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
@@ -70,6 +86,7 @@ async def run(args: argparse.Namespace) -> int:
         failure_cooldown=args.failure_cooldown,
         pause_every=args.pause_every,
         pause_seconds=args.pause_seconds,
+        max_reviews_per_product=args.max_reviews_per_product,
     )
     if not args.resume:
         write_json([], args.output)

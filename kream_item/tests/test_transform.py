@@ -42,6 +42,7 @@ class TransformTest(unittest.TestCase):
         }
         item = product_from_payload(payload, seed, datetime.now(timezone.utc).isoformat())
         self.assertEqual(item.productId, "KREAM-889991")
+        self.assertEqual(item.sourceUrl, "https://kream.co.kr/products/889991")
         self.assertEqual(item.name, "아모우 켈리 숏츠 크림")
         self.assertEqual(item.price, 98000)
         self.assertEqual(item.discountedPrice, 49000)
@@ -49,6 +50,7 @@ class TransformTest(unittest.TestCase):
         self.assertTrue(item.isAvailable)
         self.assertIsNone(item.stockCount)
         self.assertEqual(item.category, seed.path)
+        self.assertEqual(item.reviews, [])
 
 
 if __name__ == "__main__":

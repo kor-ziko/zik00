@@ -14,9 +14,22 @@ export type HeroSlide = {
   accent: string;
 };
 
+export type ProductReview = {
+  reviewId: string;
+  reviewType?: string;
+  author?: string | null;
+  content?: string | null;
+  createdAt?: string | null;
+  rating?: number | null;
+  likeCount?: number;
+  images?: string[];
+  reviewUrl?: string;
+};
+
 export type Product = {
   id: number | string;
   slug?: string;
+  sourceUrl?: string;
   name: string;
   category: string;
   price: number;
@@ -29,6 +42,7 @@ export type Product = {
   currency?: 'JPY' | 'KRW';
   rating?: number | null;
   reviewCount?: number;
+  reviews?: ProductReview[];
   tags?: string[];
 };
 

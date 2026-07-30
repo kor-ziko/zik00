@@ -1,13 +1,13 @@
 import Check from 'lucide-react/dist/esm/icons/check.js';
 import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down.js';
+import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left.js';
 import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right.js';
+import ExternalLink from 'lucide-react/dist/esm/icons/external-link.js';
 import Heart from 'lucide-react/dist/esm/icons/heart.js';
 import Minus from 'lucide-react/dist/esm/icons/minus.js';
-import PackageCheck from 'lucide-react/dist/esm/icons/package-check.js';
 import Plus from 'lucide-react/dist/esm/icons/plus.js';
 import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw.js';
 import Share2 from 'lucide-react/dist/esm/icons/share-2.js';
-import ShieldCheck from 'lucide-react/dist/esm/icons/shield-check.js';
 import ShoppingBag from 'lucide-react/dist/esm/icons/shopping-bag.js';
 import Star from 'lucide-react/dist/esm/icons/star.js';
 import Truck from 'lucide-react/dist/esm/icons/truck.js';
@@ -27,7 +27,6 @@ type DetailCopy = {
   subtitle: string;
   optionLabel: string;
   options: string[];
-  highlights: string[];
   model: string;
   origin: string;
   material: string;
@@ -39,7 +38,6 @@ const detailCopy: Record<string, DetailCopy> = {
     subtitle: '폴로 랄프 로렌 우먼 케이블 니트 코튼 쇼트 슬리브 스웨터 옐로우 - 25FW(KW5CTSSRLE2YL), 정품 검수 완료, 실시간 시세 확인',
     optionLabel: '상품 옵션',
     options: [],
-    highlights: ['KREAM 정품 검수 완료', '25FW 옐로우 컬러', '코튼 케이블 니트'],
     model: 'KW5CTSSRLE2YL',
     origin: '수집 데이터에 정보 없음',
     material: '코튼 니트 (상품명 기준)',
@@ -49,7 +47,6 @@ const detailCopy: Record<string, DetailCopy> = {
     subtitle: '책상 위 어디서나 시원한 저소음 데스크 팬',
     optionLabel: '색상',
     options: ['클라우드 화이트', '딥 네이비'],
-    highlights: ['최대 20시간 무선 사용', '4단계 풍량 조절', '저소음 BLDC 모터'],
     model: 'FAN MINI 2',
     origin: '대한민국 디자인 / 중국 제조',
     material: 'ABS, 알루미늄',
@@ -59,7 +56,6 @@ const detailCopy: Record<string, DetailCopy> = {
     subtitle: '하루 종일 차갑게 유지하는 대용량 텀블러',
     optionLabel: '색상',
     options: ['오프화이트', '세이지 그린'],
-    highlights: ['24시간 보냉', '900ml 넉넉한 용량', '빨대와 밀폐 캡 포함'],
     model: '메트로 킹 텀블러 900ml',
     origin: '대한민국 디자인 / 중국 제조',
     material: '스테인리스 스틸, 폴리프로필렌',
@@ -69,7 +65,6 @@ const detailCopy: Record<string, DetailCopy> = {
     subtitle: '가볍고 통기성이 좋은 여름 데일리 캡',
     optionLabel: '색상',
     options: ['라이트 데님', '워시드 블랙'],
-    highlights: ['통기성 좋은 메쉬 안감', '사이즈 조절 스트랩', '가벼운 데일리 핏'],
     model: 'SUMMER MESH CAP',
     origin: '대한민국',
     material: '면 100%',
@@ -79,7 +74,6 @@ const detailCopy: Record<string, DetailCopy> = {
     subtitle: '가볍게 높이를 더하는 편안한 스트랩 샌들',
     optionLabel: '사이즈',
     options: ['230', '235', '240', '245'],
-    highlights: ['5cm 플랫폼 굽', '쿠션 인솔', '안정적인 발목 스트랩'],
     model: 'PLATFORM STRAP SANDAL',
     origin: '대한민국',
     material: '합성피혁, 합성고무',
@@ -88,6 +82,11 @@ const detailCopy: Record<string, DetailCopy> = {
 
 function formatPrice(price: number, currency: Product['currency']) {
   return `${currency === 'KRW' ? '₩' : '¥'}${price.toLocaleString()}`;
+}
+
+function displayProductInfo(value?: string) {
+  const normalized = value?.trim();
+  return !normalized || normalized === '수집 데이터에 정보 없음' ? '-' : normalized;
 }
 
 function ProductGallery({ product }: { product: Product }) {
@@ -113,7 +112,29 @@ function ProductGallery({ product }: { product: Product }) {
       </div>
       <div className="detail-main-image">
         <img src={galleryImages[selected]} alt={`${product.name} 이미지 ${selected + 1}`} />
-        <span>{selected + 1} / {galleryImages.length}</span>
+        {galleryImages.length > 1 && (
+          <>
+            <button
+              className="gallery-arrow gallery-arrow-prev"
+              type="button"
+              onClick={() => setSelected((index) => Math.max(0, index - 1))}
+              disabled={selected === 0}
+              aria-label="이전 상품 이미지"
+            >
+              <ChevronLeft size={28} />
+            </button>
+            <button
+              className="gallery-arrow gallery-arrow-next"
+              type="button"
+              onClick={() => setSelected((index) => Math.min(galleryImages.length - 1, index + 1))}
+              disabled={selected === galleryImages.length - 1}
+              aria-label="다음 상품 이미지"
+            >
+              <ChevronRight size={28} />
+            </button>
+          </>
+        )}
+        <span aria-live="polite">{selected + 1} / {galleryImages.length}</span>
       </div>
     </section>
   );
@@ -132,6 +153,13 @@ function ProductDetailPage({ productId }: ProductDetailPageProps) {
     if (!product?.originalPrice) return 0;
     return Math.round((1 - product.price / product.originalPrice) * 100);
   }, [product]);
+  const productUnitPrice = product?.price ?? 0;
+  const localDistributionFeeUnit = product?.id === 'KREAM-489756' ? 18_200 : 0;
+  const productSubtotal = productUnitPrice * quantity;
+  const localDistributionFee = localDistributionFeeUnit;
+  const purchaseTotal = productSubtotal + localDistributionFee;
+  const reviews = product?.reviews ?? [];
+  const reviewCount = reviews.length || product?.reviewCount || 0;
 
   if (!product || !detail) {
     return (
@@ -172,7 +200,14 @@ function ProductDetailPage({ productId }: ProductDetailPageProps) {
           <section className="purchase-panel" aria-labelledby="product-title">
             <div className="product-heading-row">
               <div>
-                <a className="product-maker" href="#seller">{detail.maker}<ChevronRight size={14} /></a>
+                <a
+                  className="product-maker"
+                  href={product.sourceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {detail.maker}<ChevronRight size={14} />
+                </a>
                 <h1 id="product-title">{product.name}</h1>
                 <p>{detail.subtitle}</p>
               </div>
@@ -184,26 +219,25 @@ function ProductDetailPage({ productId }: ProductDetailPageProps) {
               </div>
             </div>
 
-            <button className="rating-line rating-empty" type="button" onClick={() => setActiveTab('reviews')}>
-              <span>등록된 리뷰가 없습니다</span>
-              <strong>리뷰 {product.reviewCount ?? 0}개</strong>
-            </button>
-
             <div className="detail-price">
               {product.originalPrice && <p><del>{formatPrice(product.originalPrice, product.currency)}</del></p>}
               <div>{discount > 0 && <strong>{discount}%</strong>}<b>{formatPrice(product.price, product.currency)}</b></div>
-              <small>kream_output.json 수집 가격 · 실시간 시세는 변경될 수 있습니다.</small>
             </div>
 
-            <div className="purchase-benefits">
-              <div><Truck size={21} /><span><strong>해외배송</strong><b>¥590</b><small>결제 후 5–8일 내 도착 예정</small></span></div>
-              <div><PackageCheck size={21} /><span><strong>서울 검수센터 출고</strong><small>출고 전 상품 상태를 확인합니다.</small></span></div>
-              <div><ShieldCheck size={21} /><span><strong>안심 결제</strong><small>구매 확정 전까지 결제 금액을 보호합니다.</small></span></div>
+            <div className="purchase-shipping">
+              <div className="shipping-estimate">
+                <span className="shipping-title"><Truck size={21} /><strong>배송</strong></span>
+                <span className="shipping-range"><small>약</small><b>12일 ~ 19일</b><small>예상</small></span>
+              </div>
+              <div className="shipping-breakdown">
+                <strong>배송안내</strong>
+                <ol className="shipping-flow" aria-label="배송 진행 단계">
+                  <li><i aria-hidden="true" /><span>판매처 발송</span><b>4~7일</b></li>
+                  <li><i aria-hidden="true" /><span>발송 후 현지 이동</span><b>2~4일</b></li>
+                  <li><i aria-hidden="true" /><span>국제배송 및 수령</span><b>6~8일</b></li>
+                </ol>
+              </div>
             </div>
-
-            <ul className="product-highlights">
-              {detail.highlights.map((highlight) => <li key={highlight}><Check size={15} />{highlight}</li>)}
-            </ul>
 
             {detail.options.length > 0 ? (
               <label className="option-field">
@@ -222,18 +256,39 @@ function ProductDetailPage({ productId }: ProductDetailPageProps) {
 
             {(selectedOption || detail.options.length === 0) && (
               <div className="selected-product">
-                <span><strong>{product.name}</strong><small>{selectedOption || '단일 상품'}</small></span>
+                <span className="selected-product-copy">
+                  <span className="selected-name-tooltip">
+                    <strong tabIndex={0} aria-describedby="selected-product-full-name">{product.name}</strong>
+                    <span id="selected-product-full-name" className="selected-name-popover" role="tooltip">
+                      {product.name}
+                    </span>
+                  </span>
+                  <small>{selectedOption || '단일 상품'}</small>
+                </span>
                 <div className="quantity-control" aria-label="수량 선택">
                   <button type="button" onClick={() => setQuantity((value) => Math.max(1, value - 1))} aria-label="수량 줄이기"><Minus size={14} /></button>
                   <span>{quantity}</span>
                   <button type="button" onClick={() => setQuantity((value) => Math.min(10, value + 1))} aria-label="수량 늘리기"><Plus size={14} /></button>
                 </div>
-                <b>{formatPrice(product.price * quantity, product.currency)}</b>
+                <b>{formatPrice(productSubtotal, product.currency)}</b>
               </div>
             )}
 
             <div className="purchase-total">
-              <span>총 상품금액</span><strong>{formatPrice(product.price * quantity, product.currency)}</strong>
+              <dl className="purchase-price-breakdown">
+                <div>
+                  <dt>상품 가격</dt>
+                  <dd>{formatPrice(productSubtotal, product.currency)}</dd>
+                </div>
+                <div>
+                  <dt><i aria-hidden="true">+</i> 현지 유통비</dt>
+                  <dd>{formatPrice(localDistributionFee, product.currency)}</dd>
+                </div>
+              </dl>
+              <div className="purchase-total-heading">
+                <span>총 상품 금액</span>
+                <strong>{formatPrice(purchaseTotal, product.currency)}</strong>
+              </div>
             </div>
             {notice && <p className="purchase-notice" role="status">{notice}</p>}
             <div className="purchase-actions">
@@ -265,7 +320,7 @@ function ProductDetailPage({ productId }: ProductDetailPageProps) {
               className={activeTab === 'reviews' ? 'active' : ''}
               onClick={() => setActiveTab('reviews')}
             >
-              리뷰 <span>{product.reviewCount ?? 0}</span>
+              리뷰 <span>{reviewCount}</span>
             </button>
             <button
               id="detail-tab-shipping"
@@ -292,31 +347,80 @@ function ProductDetailPage({ productId }: ProductDetailPageProps) {
           {activeTab === 'details' && (
             <>
               <section className="detail-section product-story">
-                <p className="detail-eyebrow">ZIK:00 CURATION</p>
-                <h2>매일 손이 가는<br />한국의 좋은 물건</h2>
+                <h2>{product.name}</h2>
                 <p>{product.description || detail.subtitle}</p>
                 <div className="story-image"><img src={product.images?.[1] || product.image} alt={`${product.name} 상세 이미지`} /></div>
-                <div className="story-points">
-                  {detail.highlights.map((highlight, index) => (
-                    <article key={highlight}><span>0{index + 1}</span><h3>{highlight}</h3><p>일상에서 더 편리하고 기분 좋게 사용할 수 있도록 세심하게 완성했습니다.</p></article>
-                  ))}
-                </div>
               </section>
               <section className="detail-section info-section">
                 <div className="detail-section-heading"><h2>상품정보</h2><p>구매 전 상품 정보를 확인해 주세요.</p></div>
                 <dl className="product-spec-table">
-                  <div><dt>상품명 / 모델명</dt><dd>{detail.model}</dd><dt>브랜드</dt><dd>{detail.maker}</dd></div>
-                  <div><dt>제조국</dt><dd>{detail.origin}</dd><dt>소재 / 주요 성분</dt><dd>{detail.material}</dd></div>
+                  <div><dt>상품명 / 모델명</dt><dd>{displayProductInfo(detail.model)}</dd><dt>브랜드</dt><dd>{displayProductInfo(detail.maker)}</dd></div>
+                  <div><dt>제조국</dt><dd>{displayProductInfo(detail.origin)}</dd><dt>소재 / 주요 성분</dt><dd>{displayProductInfo(detail.material)}</dd></div>
                   <div><dt>품질보증기준</dt><dd>관련 법 및 소비자분쟁해결 기준에 따름</dd><dt>판매자</dt><dd>ZIK:00</dd></div>
                 </dl>
+                {product.sourceUrl && (
+                  <a
+                    className="source-page-link"
+                    href={product.sourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    판매처 원본 페이지 보기 <ExternalLink size={17} />
+                  </a>
+                )}
               </section>
             </>
           )}
 
           {activeTab === 'reviews' && (
             <section className="detail-section review-section">
-              <div className="detail-section-heading"><h2>상품 리뷰 <span>{product.reviewCount ?? 0}</span></h2><button type="button">리뷰 작성</button></div>
-              <div className="review-empty"><Star size={28} /><strong>등록된 상품 리뷰가 없습니다.</strong><p>첫 번째 리뷰를 남겨주세요.</p></div>
+              <div className="detail-section-heading">
+                <h2>상품 리뷰 <span>{reviewCount}</span></h2>
+                <p>KREAM 스타일 리뷰</p>
+              </div>
+              {reviews.length > 0 ? (
+                <div className="review-list">
+                  {reviews.map((review) => (
+                    <article className="review-card" key={review.reviewId}>
+                      <header>
+                        <strong>{review.author || 'KREAM 사용자'}</strong>
+                        {review.rating != null && (
+                          <span className="review-rating" aria-label={`평점 ${review.rating}점`}>
+                            <Star size={14} fill="currentColor" /> {review.rating}
+                          </span>
+                        )}
+                        {review.createdAt && <time>{review.createdAt}</time>}
+                      </header>
+                      {review.images && review.images.length > 0 && (
+                        <div className="review-images">
+                          {review.images.map((image, imageIndex) => (
+                            <img
+                              key={`${review.reviewId}-${imageIndex}`}
+                              src={image}
+                              alt={`${review.author || '사용자'} 리뷰 이미지 ${imageIndex + 1}`}
+                              loading="lazy"
+                            />
+                          ))}
+                        </div>
+                      )}
+                      {review.content && <p>{review.content}</p>}
+                      <footer>
+                        <span><Heart size={15} /> 좋아요 {review.likeCount ?? 0}</span>
+                        {review.reviewUrl && (
+                          <a href={review.reviewUrl} target="_blank" rel="noreferrer">
+                            원문 보기 <ExternalLink size={14} />
+                          </a>
+                        )}
+                      </footer>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="review-empty">
+                  <Star size={28} />
+                  <strong>등록된 상품 리뷰가 없습니다.</strong>
+                </div>
+              )}
             </section>
           )}
 

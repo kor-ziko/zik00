@@ -83,6 +83,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/login", "/oauth2/**", "/login/oauth2/**",
                                 "/api/japan-postal-codes",
+                                "/api/product-images/proxy",
                                 "/api/auth/csrf", "/api/auth/refresh", "/api/auth/oauth/complete",
                                 "/logout", "/error"
                         ).permitAll()

@@ -6,6 +6,7 @@ import QuickMenu from './components/layout/QuickMenu';
 import SiteFooter from './components/layout/SiteFooter';
 import SiteHeader from './components/layout/SiteHeader';
 import ErrorPage from './components/error/ErrorPage';
+import kreamFeaturedProduct from './generated/kreamFeaturedProduct.json';
 
 const LoginPage = lazy(() => import('./components/auth/LoginPage'));
 const RegistrationDetailPage = lazy(() => import('./components/auth/RegistrationDetailPage'));
@@ -24,6 +25,11 @@ const mypagePaths = new Set([
   '/mypage/deposits',
   '/mypage/profile',
 ]);
+const featuredProductPath = `/products/${kreamFeaturedProduct.slug}`;
+const legacyFeaturedProductPaths = new Set([
+  '/products/KREAM-489756',
+  '/products/b70e8ae9',
+]);
 
 function PageLoader() {
   return <div className="auth-loading" role="status" aria-live="polite">Loading...</div>;
@@ -39,9 +45,9 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (path === '/products/KREAM-489756') {
-      window.history.replaceState({}, '', '/products/b70e8ae9');
-      setPath('/products/b70e8ae9');
+    if (legacyFeaturedProductPaths.has(path)) {
+      window.history.replaceState({}, '', featuredProductPath);
+      setPath(featuredProductPath);
     }
   }, [path]);
   if (path === '/login') return <Suspense fallback={<PageLoader />}><LoginPage /></Suspense>;
@@ -51,7 +57,7 @@ function App() {
   if (mypagePaths.has(path)) {
     return <Suspense fallback={<PageLoader />}><MypagePage /></Suspense>;
   }
-  const productMatch = path.match(/^\/products\/([A-Za-z0-9-]+)$/);
+  const productMatch = path.match(/^\/products\/([A-Za-z0-9_-]+)$/);
   if (productMatch) {
     return <Suspense fallback={<PageLoader />}><ProductDetailPage productId={productMatch[1]} /></Suspense>;
   }
