@@ -1,4 +1,4 @@
-import { getMemoryAccessToken, setMemoryAccessToken } from '../auth/AuthMemory';
+import { clearAccessSession, hasActiveAccessSession, setAccessSession } from '../auth/AuthMemory';
 
 export type AuthSession = {
   authenticated: boolean;
@@ -28,9 +28,8 @@ export type RegistrationDetailPayload = {
 
 type CsrfResponse = { headerName: string; token: string };
 type ApiErrorResponse = { messages?: string[] };
-type AccessTokenResponse = { accessToken: string; expiresAt: string };
+type AccessSessionResponse = { expiresAt: string };
 type OAuthCompleteResponse = {
-  accessToken: string | null;
   expiresAt: string | null;
   destination: string;
 };
@@ -41,8 +40,10 @@ type TermsAgreementPayload = {
 };
 
 let refreshInFlight: Promise<boolean> | null = null;
+let expiredSessionInFlight: Promise<void> | null = null;
 let logoutInProgress = false;
 let authGeneration = 0;
+let csrfCache: CsrfResponse | null = null;
 let csrfInFlight: Promise<CsrfResponse> | null = null;
 let sessionInFlight: Promise<AuthSession> | null = null;
 let detailSessionInFlight: Promise<void> | null = null;
@@ -51,6 +52,31 @@ const postalCodeCache = new Map<string, { expiresAt: number; results: AddressRes
 const postalCodeRequests = new Map<string, Promise<AddressResult[]>>();
 const POSTAL_CODE_CACHE_TTL_MS = 30 * 60 * 1_000;
 const MAX_POSTAL_CODE_CACHE_SIZE = 32;
+const BROWSER_SESSION_KEY = 'zik.auth.browser-session';
+
+function hasBrowserSession(): boolean {
+  try {
+    return window.sessionStorage.getItem(BROWSER_SESSION_KEY) === 'active';
+  } catch {
+    return false;
+  }
+}
+
+function markBrowserSession(): void {
+  try {
+    window.sessionStorage.setItem(BROWSER_SESSION_KEY, 'active');
+  } catch {
+    // Access Token still remains memory-only when browser storage is unavailable.
+  }
+}
+
+function clearBrowserSession(): void {
+  try {
+    window.sessionStorage.removeItem(BROWSER_SESSION_KEY);
+  } catch {
+    // Nothing else is required when browser storage is unavailable.
+  }
+}
 
 export class ApiError extends Error {
   constructor(public readonly messages: string[], public readonly status: number) {
@@ -71,11 +97,13 @@ async function readError(response: Response) {
 }
 
 export async function getCsrfToken(): Promise<CsrfResponse> {
+  if (csrfCache !== null) return csrfCache;
   if (csrfInFlight === null) {
     csrfInFlight = fetch('/api/auth/csrf', { credentials: 'include' })
       .then(async (response) => {
         if (!response.ok) throw await readError(response);
-        return response.json() as Promise<CsrfResponse>;
+        csrfCache = await response.json() as CsrfResponse;
+        return csrfCache;
       })
       .finally(() => {
         csrfInFlight = null;
@@ -95,20 +123,31 @@ async function performAccessTokenRefresh(): Promise<boolean> {
       headers: { [csrf.headerName]: csrf.token },
     });
     if (!response.ok || logoutInProgress || requestedGeneration !== authGeneration) {
-      setMemoryAccessToken(null);
+      clearAccessSession();
       return false;
     }
-    const body = await response.json() as AccessTokenResponse;
-    setMemoryAccessToken(body.accessToken);
+    const body = await response.json() as AccessSessionResponse;
+    setAccessSession(body.expiresAt);
     return true;
   } catch {
     return false;
   }
 }
 
+async function performSerializedAccessTokenRefresh(): Promise<boolean> {
+  if (typeof navigator !== 'undefined' && navigator.locks) {
+    return navigator.locks.request(
+      'zik00-refresh-token',
+      { mode: 'exclusive' },
+      performAccessTokenRefresh,
+    );
+  }
+  return performAccessTokenRefresh();
+}
+
 function refreshAccessToken(): Promise<boolean> {
   if (refreshInFlight === null) {
-    refreshInFlight = performAccessTokenRefresh()
+    refreshInFlight = performSerializedAccessTokenRefresh()
       .finally(() => {
         refreshInFlight = null;
       });
@@ -116,16 +155,43 @@ function refreshAccessToken(): Promise<boolean> {
   return refreshInFlight;
 }
 
+function logoutExpiredSession(): Promise<void> {
+  if (expiredSessionInFlight === null) {
+    expiredSessionInFlight = (async () => {
+      try {
+        await logout();
+      } catch {
+        // Local credentials are cleared by logout() even when the server is unavailable.
+      } finally {
+        window.location.replace('/login?expired');
+      }
+    })();
+  }
+  return expiredSessionInFlight;
+}
+
 export async function fetchAuthenticated(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-  const authenticatedOptions = () => {
-    const headers = new Headers(init?.headers);
-    const accessToken = getMemoryAccessToken();
-    if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
-    return { ...init, headers, credentials: 'include' as const };
-  };
+  const initialAccessSession = hasActiveAccessSession();
+  const hadExistingSession = hasBrowserSession() || initialAccessSession;
+  let refreshAttempted = false;
+
+  if (!initialAccessSession && !logoutInProgress) {
+    refreshAttempted = true;
+    const refreshed = await refreshAccessToken();
+    if (!refreshed && hadExistingSession) {
+      await logoutExpiredSession();
+      return new Response(null, { status: 401 });
+    }
+  }
+
+  const authenticatedOptions = () => ({ ...init, credentials: 'include' as const });
   let response = await fetch(input, authenticatedOptions());
-  if (response.status === 401 && !logoutInProgress && await refreshAccessToken()) {
-    response = await fetch(input, authenticatedOptions());
+  if (response.status === 401 && !logoutInProgress && !refreshAttempted) {
+    if (await refreshAccessToken()) {
+      response = await fetch(input, authenticatedOptions());
+    } else if (hadExistingSession) {
+      await logoutExpiredSession();
+    }
   }
   return response;
 }
@@ -143,7 +209,9 @@ export async function completeOAuthLogin(code: string): Promise<OAuthCompleteRes
   });
   if (!response.ok) throw await readError(response);
   const result = await response.json() as OAuthCompleteResponse;
-  setMemoryAccessToken(result.accessToken ?? null);
+  if (result.expiresAt) setAccessSession(result.expiresAt);
+  else clearAccessSession();
+  markBrowserSession();
   return result;
 }
 
@@ -245,27 +313,25 @@ export async function submitRegistrationDetail(payload: RegistrationDetailPayloa
     body: JSON.stringify(payload),
   });
   if (!response.ok) throw await readError(response);
-  const result = await response.json() as AccessTokenResponse;
-  setMemoryAccessToken(result.accessToken);
+  const result = await response.json() as AccessSessionResponse;
+  setAccessSession(result.expiresAt);
+  markBrowserSession();
 }
 
 export async function logout(): Promise<void> {
-  const csrf = await getCsrfToken();
-  const headers = new Headers({ [csrf.headerName]: csrf.token });
-  const accessToken = getMemoryAccessToken();
-  if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
   logoutInProgress = true;
   authGeneration += 1;
-  setMemoryAccessToken(null);
+  clearBrowserSession();
+  clearAccessSession();
   try {
     const response = await fetch('/logout', {
       method: 'POST',
       credentials: 'include',
-      headers,
     });
     if (!response.ok) throw await readError(response);
   } finally {
-    setMemoryAccessToken(null);
+    clearAccessSession();
+    csrfCache = null;
     sessionInFlight = null;
     logoutInProgress = false;
   }

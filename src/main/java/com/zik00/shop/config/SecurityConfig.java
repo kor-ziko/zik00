@@ -4,6 +4,7 @@ import com.zik00.admin.config.AdminSessionAuthenticationFilter;
 import com.zik00.shop.service.auth.OAuthUserService;
 import com.zik00.shop.service.auth.RegistrationService;
 import com.zik00.shop.service.auth.JwtService;
+import com.zik00.shop.service.auth.JwtCookieService;
 import com.zik00.shop.service.auth.RedisRefreshTokenStore;
 import com.zik00.shop.repository.UserRepository;
 import org.springframework.context.annotation.Bean;
@@ -26,6 +27,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -42,6 +44,7 @@ public class SecurityConfig {
     private final RegistrationService registrationService;
     private final WebClientOrigins webClientOrigins;
     private final JwtService jwtService;
+    private final JwtCookieService jwtCookieService;
     private final UserRepository userRepository;
     private final RedisRefreshTokenStore refreshTokenStore;
 
@@ -50,6 +53,7 @@ public class SecurityConfig {
             OAuthLoginSuccessHandler oauthLoginSuccessHandler,
             RegistrationService registrationService,
             JwtService jwtService,
+            JwtCookieService jwtCookieService,
             UserRepository userRepository,
             RedisRefreshTokenStore refreshTokenStore,
             WebClientOrigins webClientOrigins
@@ -59,6 +63,7 @@ public class SecurityConfig {
         this.registrationService = registrationService;
         this.webClientOrigins = webClientOrigins;
         this.jwtService = jwtService;
+        this.jwtCookieService = jwtCookieService;
         this.userRepository = userRepository;
         this.refreshTokenStore = refreshTokenStore;
     }
@@ -73,6 +78,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                         .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
+                        .ignoringRequestMatchers("/logout")
                 )
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(
@@ -101,6 +107,9 @@ public class SecurityConfig {
                 )
                 .formLogin(formLogin -> formLogin.disable())
                 .httpBasic(httpBasic -> httpBasic.disable())
+                .securityContext(context -> context.securityContextRepository(
+                        new RequestAttributeSecurityContextRepository()
+                ))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .requestCache(cache -> cache.disable())
                 .exceptionHandling(exceptions -> exceptions.defaultAuthenticationEntryPointFor(
@@ -127,7 +136,7 @@ public class SecurityConfig {
                         OAuth2LoginAuthenticationFilter.class
                 )
                 .addFilterBefore(
-                        new JwtAuthenticationFilter(jwtService, userRepository, refreshTokenStore),
+                        new JwtAuthenticationFilter(jwtService, jwtCookieService, userRepository, refreshTokenStore),
                         UsernamePasswordAuthenticationFilter.class
                 )
                 .addFilterBefore(

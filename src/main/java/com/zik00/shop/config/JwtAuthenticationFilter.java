@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.zik00.shop.repository.UserRepository;
 import com.zik00.shop.service.auth.InvalidJwtException;
+import com.zik00.shop.service.auth.JwtCookieService;
 import com.zik00.shop.service.auth.JwtService;
 import com.zik00.shop.service.auth.RedisRefreshTokenStore;
 import jakarta.servlet.FilterChain;
@@ -20,15 +21,18 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String ADMIN_API_PREFIX = "/api/admin/";
     private final JwtService jwtService;
+    private final JwtCookieService cookieService;
     private final UserRepository userRepository;
     private final RedisRefreshTokenStore refreshTokenStore;
 
     public JwtAuthenticationFilter(
             JwtService jwtService,
+            JwtCookieService cookieService,
             UserRepository userRepository,
             RedisRefreshTokenStore refreshTokenStore
     ) {
         this.jwtService = jwtService;
+        this.cookieService = cookieService;
         this.userRepository = userRepository;
         this.refreshTokenStore = refreshTokenStore;
     }
@@ -42,7 +46,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
-            readBearerToken(request).ifPresent(token -> authenticate(token, request));
+            cookieService.readAccessToken(request)
+                    .or(() -> readBearerToken(request))
+                    .ifPresent(token -> authenticate(token, request));
         }
         filterChain.doFilter(request, response);
     }

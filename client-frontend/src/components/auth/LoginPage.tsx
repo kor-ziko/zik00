@@ -14,6 +14,7 @@ function LoginPage() {
   const params = new URLSearchParams(window.location.search);
   const hasError = params.has('error');
   const loggedOut = params.has('logout');
+  const sessionExpired = params.has('expired');
   const registrationExpired = params.get('reason') === 'registration-expired';
   const oauthEmailMissing = params.get('reason') === 'oauth-email-missing';
 
@@ -53,6 +54,11 @@ function LoginPage() {
             </p>
           )}
           {loggedOut && <p className="form-notice" role="status">로그아웃되었습니다.</p>}
+          {sessionExpired && (
+            <p className="form-notice" role="status">
+              로그인 세션이 만료되었습니다. 다시 로그인해주세요.
+            </p>
+          )}
           <a className="google-login-button" href="/oauth2/authorization/google">
             <span className="google-mark" aria-hidden="true">G</span>
             <span>Google로 계속하기</span>

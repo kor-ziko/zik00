@@ -79,7 +79,6 @@ public class AuthApiController {
             OAuthLoginCompletionService.CompletionResult result =
                     oAuthLoginCompletionService.complete(request.code(), httpRequest, response);
             return ResponseEntity.ok(new OAuthCompleteResponse(
-                    result.accessToken(),
                     result.expiresAt(),
                     result.destination()
             ));
@@ -92,8 +91,8 @@ public class AuthApiController {
     @PostMapping("/refresh")
     public ResponseEntity<?> refresh(HttpServletRequest request, HttpServletResponse response) {
         try {
-            JwtSessionService.AccessTokenResult result = jwtSessionService.refresh(request, response);
-            return ResponseEntity.ok(new AccessTokenResponse(result.accessToken(), result.expiresAt()));
+            JwtSessionService.AccessSessionResult result = jwtSessionService.refresh(request, response);
+            return ResponseEntity.ok(new AccessSessionResponse(result.expiresAt()));
         } catch (InvalidJwtException exception) {
             jwtCookieService.clearRefreshToken(response);
             return ResponseEntity.status(401).body(new ApiErrorResponse(List.of(exception.getMessage())));
@@ -124,7 +123,7 @@ public class AuthApiController {
     }
 
     @PostMapping("/detail")
-    public AccessTokenResponse completeRegistration(
+    public AccessSessionResponse completeRegistration(
             @Valid @RequestBody RegistrationDetailRequest request,
             HttpServletRequest httpRequest,
             HttpServletResponse response
@@ -138,8 +137,8 @@ public class AuthApiController {
             throw new InvalidJwtException("가입 요청 정보가 일치하지 않습니다. OAuth 로그인을 다시 진행해주세요.");
         }
         var user = registrationService.completeOAuthRegistration(consumed, detail);
-        JwtSessionService.AccessTokenResult token = jwtSessionService.issue(user, response);
-        return new AccessTokenResponse(token.accessToken(), token.expiresAt());
+        JwtSessionService.AccessSessionResult token = jwtSessionService.issue(user, response);
+        return new AccessSessionResponse(token.expiresAt());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -169,13 +168,13 @@ public class AuthApiController {
     public record AuthSessionResponse(boolean authenticated, boolean registrationComplete, String nickname) {
     }
 
-    public record AccessTokenResponse(String accessToken, Instant expiresAt) {
+    public record AccessSessionResponse(Instant expiresAt) {
     }
 
     public record OAuthCompleteRequest(String code) {
     }
 
-    public record OAuthCompleteResponse(String accessToken, Instant expiresAt, String destination) {
+    public record OAuthCompleteResponse(Instant expiresAt, String destination) {
     }
 
     public record DetailSessionResponse(boolean pending) {

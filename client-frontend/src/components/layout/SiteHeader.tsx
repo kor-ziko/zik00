@@ -5,8 +5,9 @@ import Menu from 'lucide-react/dist/esm/icons/menu.js';
 import ShoppingBag from 'lucide-react/dist/esm/icons/shopping-bag.js';
 import Truck from 'lucide-react/dist/esm/icons/truck.js';
 import UserRound from 'lucide-react/dist/esm/icons/user-round.js';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { type AuthSession, getAuthSession, logout } from '../../api/auth';
+import { useAuthMemory } from '../../auth/AuthMemory';
 import SearchBox from '../search/SearchBox';
 
 const navigationItems = [
@@ -19,7 +20,6 @@ const navigationItems = [
   ['디지털', '/#digital'],
   ['기획전', '/#events'],
 ];
-
 function Brand() {
   return (
     <a className="brand" href="/#top" aria-label="ZIK:00 홈">
@@ -32,23 +32,36 @@ function SiteHeader() {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const { accessSessionActive } = useAuthMemory();
+
+  const checkSession = useCallback(() => {
+    getAuthSession()
+      .then(setSession)
+      .catch(() => setSession(null))
+      .finally(() => setSessionChecked(true));
+  }, []);
 
   useEffect(() => {
-    let active = true;
-    getAuthSession()
-      .then((result) => {
-        if (active) setSession(result);
-      })
-      .catch(() => {
-        if (active) setSession(null);
-      })
-      .finally(() => {
-        if (active) setSessionChecked(true);
-      });
-    return () => {
-      active = false;
+    checkSession();
+
+    const checkVisibleSession = () => {
+      if (document.visibilityState === 'visible') checkSession();
     };
-  }, []);
+    window.addEventListener('focus', checkSession);
+    window.addEventListener('pageshow', checkSession);
+    document.addEventListener('visibilitychange', checkVisibleSession);
+    return () => {
+      window.removeEventListener('focus', checkSession);
+      window.removeEventListener('pageshow', checkSession);
+      document.removeEventListener('visibilitychange', checkVisibleSession);
+    };
+  }, [checkSession]);
+
+  useEffect(() => {
+    if (sessionChecked && session?.authenticated && !accessSessionActive) {
+      checkSession();
+    }
+  }, [accessSessionActive, checkSession, session, sessionChecked]);
 
   const handleLogout = async () => {
     if (loggingOut) return;

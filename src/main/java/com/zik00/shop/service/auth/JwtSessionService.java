@@ -27,25 +27,26 @@ public class JwtSessionService {
         this.userRepository = userRepository;
     }
 
-    public AccessTokenResult issue(User user, HttpServletResponse response) {
+    public AccessSessionResult issue(User user, HttpServletResponse response) {
         refreshTokenStore.revokeAllForUser(user.getAccessId());
         JwtService.JwtPair pair = jwtService.issue(user.getAccessId());
+        cookieService.clearRefreshToken(response);
         persist(user, pair, response);
-        return new AccessTokenResult(pair.accessToken(), pair.accessExpiresAt());
+        return new AccessSessionResult(pair.accessExpiresAt());
     }
 
-    private AccessTokenResult rotate(User user, String familyId, HttpServletResponse response) {
+    private AccessSessionResult rotate(User user, String familyId, HttpServletResponse response) {
         JwtService.JwtPair pair = jwtService.rotate(user.getAccessId(), familyId);
         persist(user, pair, response);
-        return new AccessTokenResult(pair.accessToken(), pair.accessExpiresAt());
+        return new AccessSessionResult(pair.accessExpiresAt());
     }
 
     private void persist(User user, JwtService.JwtPair pair, HttpServletResponse response) {
         refreshTokenStore.save(pair, jwtService.hash(pair.refreshToken()), user.getAccessId());
-        cookieService.writeRefreshToken(response, pair);
+        cookieService.writeTokenPair(response, pair);
     }
 
-    public AccessTokenResult refresh(HttpServletRequest request, HttpServletResponse response) {
+    public AccessSessionResult refresh(HttpServletRequest request, HttpServletResponse response) {
         String refreshTokenValue = cookieService.readRefreshToken(request)
                 .orElseThrow(() -> new InvalidJwtException("Refresh Token이 없습니다."));
         JwtService.JwtClaims claims = jwtService.validate(refreshTokenValue, JwtService.REFRESH);
@@ -80,7 +81,8 @@ public class JwtSessionService {
         try {
             cookieService.readRefreshToken(request)
                     .ifPresent(token -> revokeTokenFamily(token, JwtService.REFRESH));
-            readBearerToken(request)
+            cookieService.readAccessToken(request)
+                    .or(() -> readBearerToken(request))
                     .ifPresent(token -> revokeTokenFamily(token, JwtService.ACCESS));
         } finally {
             cookieService.clearRefreshToken(response);
@@ -110,6 +112,6 @@ public class JwtSessionService {
         return token.isEmpty() ? java.util.Optional.empty() : java.util.Optional.of(token);
     }
 
-    public record AccessTokenResult(String accessToken, java.time.Instant expiresAt) {
+    public record AccessSessionResult(java.time.Instant expiresAt) {
     }
 }

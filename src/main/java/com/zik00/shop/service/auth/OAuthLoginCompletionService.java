@@ -86,15 +86,15 @@ public class OAuthLoginCompletionService {
             User user = userRepository.findByAccessId(parts[1])
                     .orElseThrow(() -> new InvalidJwtException("OAuth 로그인 회원을 찾을 수 없습니다."));
             pendingRegistrationService.clear(response);
-            JwtSessionService.AccessTokenResult token = jwtSessionService.issue(user, response);
-            return new CompletionResult(token.accessToken(), token.expiresAt(), "/");
+            JwtSessionService.AccessSessionResult token = jwtSessionService.issue(user, response);
+            return new CompletionResult(token.expiresAt(), "/");
         }
 
         if ((parts.length == 4 || parts.length == 5) && REGISTRATION.equals(parts[0])) {
             OAuthProfile account = decodeAccount(parts);
             jwtCookieService.clearRefreshToken(response);
             pendingRegistrationService.issue(account, response);
-            return new CompletionResult(null, null, "/login/terms");
+            return new CompletionResult(null, "/login/terms");
         }
 
         throw invalidCompletionCode();
@@ -149,7 +149,7 @@ public class OAuthLoginCompletionService {
                 fingerprint(code).getBytes(StandardCharsets.US_ASCII))) {
             throw invalidCompletionCode();
         }
-        session.removeAttribute(SESSION_BINDING_ATTRIBUTE);
+        session.invalidate();
     }
 
     private String fingerprint(String code) {
@@ -160,6 +160,6 @@ public class OAuthLoginCompletionService {
         return new InvalidJwtException("OAuth 로그인 완료 코드가 만료되었거나 유효하지 않습니다.");
     }
 
-    public record CompletionResult(String accessToken, Instant expiresAt, String destination) {
+    public record CompletionResult(Instant expiresAt, String destination) {
     }
 }

@@ -92,8 +92,9 @@ shop:
     private-key: ${JWT_PRIVATE_KEY}
     public-key: ${JWT_PUBLIC_KEY}
     issuer: zik00-shop
-    access-token-ttl: PT15M
-    refresh-token-ttl: P14D
+    access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:PT15M}
+    refresh-token-ttl: ${JWT_REFRESH_TOKEN_TTL:P14D}
+    refresh-cookie-ttl: ${JWT_REFRESH_COOKIE_TTL:PT30M}
     cookie-secure: ${JWT_COOKIE_SECURE:false}
   pii:
     current-key-version: ${PII_CURRENT_KEY_VERSION:v1}
