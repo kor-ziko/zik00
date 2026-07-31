@@ -1,5 +1,7 @@
+import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left.js';
 import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right.js';
 import Menu from 'lucide-react/dist/esm/icons/menu.js';
+import X from 'lucide-react/dist/esm/icons/x.js';
 import { useEffect, useRef, useState } from 'react';
 import { categoryGroups, categorySearchHref, type CategoryGroup, type CategorySection } from '../../categoryData';
 import { type Locale, useLocale } from '../../locale';
@@ -34,10 +36,10 @@ const topLabels: Record<Locale, Record<string, string>> = {
   },
 };
 
-const menuCopy: Record<Locale, { primary: string; secondary: string; tertiary: string; all: string }> = {
-  ko: { primary: '카테고리', secondary: '하위 카테고리', tertiary: '상세 카테고리', all: '전체 상품 보기' },
-  ja: { primary: 'カテゴリー', secondary: 'サブカテゴリー', tertiary: '詳細カテゴリー', all: 'すべての商品を見る' },
-  en: { primary: 'Categories', secondary: 'Subcategories', tertiary: 'Detailed categories', all: 'View all products' },
+const menuCopy: Record<Locale, { primary: string; secondary: string; tertiary: string; back: string; close: string }> = {
+  ko: { primary: '카테고리', secondary: '하위 카테고리', tertiary: '상세 카테고리', back: '이전 카테고리', close: '카테고리 닫기' },
+  ja: { primary: 'カテゴリー', secondary: 'サブカテゴリー', tertiary: '詳細カテゴリー', back: '前のカテゴリー', close: 'カテゴリーを閉じる' },
+  en: { primary: 'Categories', secondary: 'Subcategories', tertiary: 'Detailed categories', back: 'Previous category', close: 'Close categories' },
 };
 
 function middleSections(group: CategoryGroup) {
@@ -46,7 +48,7 @@ function middleSections(group: CategoryGroup) {
 }
 
 function groupedLeaves(group: CategoryGroup, section: CategorySection) {
-  if (group.name !== '패션의류' || section.name === '아동의류') {
+  if (group.name !== '패션의류') {
     return [{ name: '', items: section.children }];
   }
 
@@ -58,10 +60,13 @@ function groupedLeaves(group: CategoryGroup, section: CategorySection) {
 
 function CategoryMegaMenu() {
   const { locale, copy } = useLocale();
+  const [mobileMenu, setMobileMenu] = useState(() => window.matchMedia('(max-width: 820px)').matches);
   const [open, setOpen] = useState(false);
   const [activeGroupName, setActiveGroupName] = useState<string | null>(null);
   const [activeSectionName, setActiveSectionName] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const categoryButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileCloseButtonRef = useRef<HTMLButtonElement>(null);
   const closeTimerRef = useRef<number | null>(null);
 
   const activeGroup = categoryGroups.find((group) => group.name === activeGroupName) ?? null;
@@ -69,6 +74,8 @@ function CategoryMegaMenu() {
   const activeSection = activeMiddleSections.find((section) => section.name === activeSectionName) ?? null;
   const leafGroups = activeGroup && activeSection ? groupedLeaves(activeGroup, activeSection) : [];
   const labels = menuCopy[locale];
+  const mobileMenuTitle = activeSection?.name
+    ?? (activeGroup ? topLabels[locale][activeGroup.name] ?? activeGroup.name : copy.header.category);
 
   const cancelClose = () => {
     if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
@@ -104,6 +111,55 @@ function CategoryMegaMenu() {
     setActiveSectionName(null);
   };
 
+  const closeMobileMenu = () => {
+    closeMenu();
+    window.requestAnimationFrame(() => categoryButtonRef.current?.focus());
+  };
+
+  const openMobileMenu = () => {
+    if (open) {
+      closeMobileMenu();
+      return;
+    }
+    setActiveGroupName(null);
+    setActiveSectionName(null);
+    setOpen(true);
+  };
+
+  const showPreviousMobileLevel = () => {
+    if (activeSectionName !== null) {
+      setActiveSectionName(null);
+      return;
+    }
+    if (activeGroupName !== null) {
+      setActiveGroupName(null);
+      return;
+    }
+    closeMobileMenu();
+  };
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 820px)');
+    const updateMode = () => {
+      setMobileMenu(mediaQuery.matches);
+      setOpen(false);
+      setActiveGroupName(null);
+      setActiveSectionName(null);
+    };
+    mediaQuery.addEventListener('change', updateMode);
+    return () => mediaQuery.removeEventListener('change', updateMode);
+  }, []);
+
+  useEffect(() => {
+    if (!mobileMenu || !open) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    mobileCloseButtonRef.current?.focus();
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [mobileMenu, open]);
+
   useEffect(() => {
     const closeOnOutsideClick = (event: MouseEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) closeMenu();
@@ -124,23 +180,25 @@ function CategoryMegaMenu() {
     <div
       className="category-menu-anchor"
       ref={rootRef}
-      onMouseEnter={openPrimaryMenu}
-      onMouseLeave={scheduleClose}
-      onFocusCapture={openPrimaryMenu}
+      onMouseEnter={mobileMenu ? undefined : openPrimaryMenu}
+      onMouseLeave={mobileMenu ? undefined : scheduleClose}
+      onFocusCapture={mobileMenu ? undefined : openPrimaryMenu}
     >
       <button
         className="category-button"
         type="button"
+        ref={categoryButtonRef}
         aria-label={copy.header.category}
         aria-expanded={open}
         aria-controls="category-mega-menu"
-        onClick={openPrimaryMenu}
+        aria-haspopup={mobileMenu ? 'dialog' : undefined}
+        onClick={mobileMenu ? openMobileMenu : openPrimaryMenu}
       >
         <Menu size={24} aria-hidden="true" />
         <span>{copy.header.category}</span>
       </button>
 
-      {open && (
+      {open && !mobileMenu && (
         <div
           className={`category-mega-menu ${activeSection ? 'stage-tertiary' : activeGroup ? 'stage-secondary' : 'stage-primary'}`}
           id="category-mega-menu"
@@ -162,9 +220,6 @@ function CategoryMegaMenu() {
 
           {activeGroup && (
             <nav className="category-menu-column category-menu-secondary" aria-label={labels.secondary}>
-              <a className="category-view-all" href={categorySearchHref([activeGroup.name])}>
-                {topLabels[locale][activeGroup.name] ?? activeGroup.name} {labels.all}
-              </a>
               {activeMiddleSections.map((section) => (
                 <a
                   className={activeSection?.name === section.name ? 'active' : ''}
@@ -182,9 +237,6 @@ function CategoryMegaMenu() {
 
           {activeGroup && activeSection && (
             <div className="category-menu-column category-menu-tertiary" aria-label={labels.tertiary}>
-              <a className="category-view-all" href={categorySearchHref([activeGroup.name, activeSection.name])}>
-                {activeSection.name} {labels.all}
-              </a>
               <div className="category-leaf-groups">
                 {leafGroups.map((leafGroup) => {
                   const groupPath = [activeGroup.name, activeSection.name, leafGroup.name].filter(Boolean);
@@ -205,6 +257,95 @@ function CategoryMegaMenu() {
             </div>
           )}
         </div>
+      )}
+
+      {open && mobileMenu && (
+        <>
+          <button
+            className="category-mobile-backdrop"
+            type="button"
+            aria-label={labels.close}
+            onClick={closeMobileMenu}
+          />
+          <section
+            className="category-mobile-drawer"
+            id="category-mega-menu"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="category-mobile-title"
+          >
+            <header className="category-mobile-header">
+              {activeGroup ? (
+                <button type="button" onClick={showPreviousMobileLevel} aria-label={labels.back}>
+                  <ArrowLeft size={21} aria-hidden="true" />
+                </button>
+              ) : <span aria-hidden="true" />}
+              <h2 id="category-mobile-title">{mobileMenuTitle}</h2>
+              <button
+                type="button"
+                ref={mobileCloseButtonRef}
+                onClick={closeMobileMenu}
+                aria-label={labels.close}
+              >
+                <X size={21} aria-hidden="true" />
+              </button>
+            </header>
+
+            <div className="category-mobile-content">
+              {!activeGroup && categoryGroups.map((group) => (
+                <button
+                  className="category-mobile-row"
+                  type="button"
+                  key={group.name}
+                  onClick={() => selectGroup(group)}
+                >
+                  <span>{topLabels[locale][group.name] ?? group.name}</span>
+                  <ChevronRight size={17} aria-hidden="true" />
+                </button>
+              ))}
+
+              {activeGroup && !activeSection && (
+                <>
+                  {activeMiddleSections.map((section) => (
+                    <button
+                      className="category-mobile-row"
+                      type="button"
+                      key={section.name}
+                      onClick={() => setActiveSectionName(section.name)}
+                    >
+                      <span>{section.name}</span>
+                      <ChevronRight size={17} aria-hidden="true" />
+                    </button>
+                  ))}
+                </>
+              )}
+
+              {activeGroup && activeSection && (
+                <>
+                  <div className="category-mobile-leaf-groups">
+                    {leafGroups.map((leafGroup) => {
+                      const groupPath = [activeGroup.name, activeSection.name, leafGroup.name].filter(Boolean);
+                      return (
+                        <section key={leafGroup.name || activeSection.name}>
+                          {leafGroup.name && (
+                            <a className="category-mobile-leaf-heading" href={categorySearchHref(groupPath)}>
+                              {leafGroup.name}
+                            </a>
+                          )}
+                          {leafGroup.items.map((item) => (
+                            <a className="category-mobile-leaf-link" href={categorySearchHref([...groupPath, item])} key={item}>
+                              <span>{item}</span>
+                            </a>
+                          ))}
+                        </section>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          </section>
+        </>
       )}
     </div>
   );
