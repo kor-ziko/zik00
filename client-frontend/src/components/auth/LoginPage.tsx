@@ -2,6 +2,7 @@ import ArrowRight from 'lucide-react/dist/esm/icons/arrow-right.js';
 import BadgeCheck from 'lucide-react/dist/esm/icons/badge-check.js';
 import PackageCheck from 'lucide-react/dist/esm/icons/package-check.js';
 import ShieldCheck from 'lucide-react/dist/esm/icons/shield-check.js';
+import { rememberLoginDestination, safeReturnTo } from '../../auth/authNavigation';
 import AuthShell from './AuthShell';
 
 const benefits = [
@@ -17,6 +18,8 @@ function LoginPage() {
   const sessionExpired = params.has('expired');
   const registrationExpired = params.get('reason') === 'registration-expired';
   const oauthEmailMissing = params.get('reason') === 'oauth-email-missing';
+  const returnTo = safeReturnTo(params.get('returnTo'));
+  const rememberDestination = () => rememberLoginDestination(returnTo);
 
   return (
     <AuthShell>
@@ -59,18 +62,18 @@ function LoginPage() {
               로그인 세션이 만료되었습니다. 다시 로그인해주세요.
             </p>
           )}
-          <a className="google-login-button" href="/oauth2/authorization/google">
+          <a className="google-login-button" href="/oauth2/authorization/google" onClick={rememberDestination}>
             <span className="google-mark" aria-hidden="true">G</span>
             <span>Google로 계속하기</span>
             <ArrowRight size={19} aria-hidden="true" />
           </a>
           <div className="social-login-buttons">
-            <a className="social-login-button kakao" href="/oauth2/authorization/kakao">
+            <a className="social-login-button kakao" href="/oauth2/authorization/kakao" onClick={rememberDestination}>
               <span className="social-login-mark" aria-hidden="true">K</span>
               <span>Kakao로 계속하기</span>
               <ArrowRight size={19} aria-hidden="true" />
             </a>
-            <a className="social-login-button line" href="/oauth2/authorization/line">
+            <a className="social-login-button line" href="/oauth2/authorization/line" onClick={rememberDestination}>
               <span className="social-login-mark line-mark" aria-hidden="true">LINE</span>
               <span>LINE으로 계속하기</span>
               <ArrowRight size={19} aria-hidden="true" />

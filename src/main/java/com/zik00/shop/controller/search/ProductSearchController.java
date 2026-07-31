@@ -21,6 +21,7 @@ public class ProductSearchController {
     @GetMapping
     public SearchResultResponse search(
             @RequestParam(defaultValue = "") String q,
+            @RequestParam(defaultValue = "all") String scope,
             @RequestParam(required = false) String category,
             @RequestParam(required = false) List<String> brand,
             @RequestParam(required = false) Long minPrice,
@@ -29,6 +30,6 @@ public class ProductSearchController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        return productSearchService.search(q, category, brand, minPrice, maxPrice, sort, page, size);
+        return productSearchService.search(q, scope, category, brand, minPrice, maxPrice, sort, page, size);
     }
 }

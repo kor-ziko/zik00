@@ -1,16 +1,39 @@
 import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right.js';
 import Heart from 'lucide-react/dist/esm/icons/heart.js';
+import { useState } from 'react';
+import { useAuthMemory } from '../../auth/AuthMemory';
+import { currentRelativeUrl, loginHref } from '../../auth/authNavigation';
 import { products } from '../../data';
+import { useLocale } from '../../locale';
 
 function ProductSection() {
+  const { copy } = useLocale();
+  const { accessSessionActive } = useAuthMemory();
+  const [favoriteIds, setFavoriteIds] = useState<Set<number | string>>(() => new Set());
+
+  const toggleFavorite = (productId: number | string) => {
+    if (!accessSessionActive) {
+      window.location.assign(loginHref(currentRelativeUrl()));
+      return;
+    }
+    setFavoriteIds((current) => {
+      const next = new Set(current);
+      if (next.has(productId)) next.delete(productId);
+      else next.add(productId);
+      return next;
+    });
+  };
+
   return (
     <section className="recommendations" id="recommendations">
+      <span className="section-anchor" id="reviews" aria-hidden="true" />
+      <span className="section-anchor" id="wishlist" aria-hidden="true" />
       <div className="section-heading">
         <div>
-          <span>SEOUL SUMMER PICKS</span>
-          <h2>이번 여름 한국에서 뜨는 상품</h2>
+          <span>{copy.products.eyebrow}</span>
+          <h2>{copy.products.title}</h2>
         </div>
-        <a href="#all-products">전체 보기 <ChevronRight size={16} /></a>
+        <a href="/search">{copy.products.all} <ChevronRight size={16} /></a>
       </div>
 
       <div className="product-grid">
@@ -27,8 +50,14 @@ function ProductSection() {
                 />
               </a>
               {product.badge && <span>{product.badge}</span>}
-              <button type="button" aria-label={`${product.name} 찜하기`}>
-                <Heart size={19} />
+              <button
+                className={favoriteIds.has(product.id) ? 'is-favorite' : ''}
+                type="button"
+                aria-label={`${product.name} ${copy.products.favorite}`}
+                aria-pressed={favoriteIds.has(product.id)}
+                onClick={() => toggleFavorite(product.id)}
+              >
+                <Heart size={19} fill={favoriteIds.has(product.id) ? 'currentColor' : 'none'} />
               </button>
             </div>
 
@@ -39,7 +68,7 @@ function ProductSection() {
                 <strong>{product.currency === 'KRW' ? '₩' : '¥'}{product.price.toLocaleString()}</strong>
                 {product.originalPrice && <del>{product.currency === 'KRW' ? '₩' : '¥'}{product.originalPrice.toLocaleString()}</del>}
               </div>
-              <p className="shipping-note">예상 국제배송비 별도</p>
+              <p className="shipping-note">{copy.products.shipping}</p>
             </a>
           </article>
         ))}

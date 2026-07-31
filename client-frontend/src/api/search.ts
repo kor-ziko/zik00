@@ -33,6 +33,7 @@ export type SearchResult = {
 
 export type SearchRequest = {
   query: string;
+  scope?: string;
   category?: string;
   brands?: string[];
   minPrice?: number;
@@ -43,6 +44,7 @@ export type SearchRequest = {
 
 export async function searchProducts(request: SearchRequest, signal?: AbortSignal) {
   const params = new URLSearchParams({ q: request.query, size: '20' });
+  if (request.scope) params.set('scope', request.scope);
   if (request.category) params.set('category', request.category);
   request.brands?.forEach((brand) => params.append('brand', brand));
   if (request.minPrice !== undefined) params.set('minPrice', String(request.minPrice));

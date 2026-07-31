@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import LoaderCircle from 'lucide-react/dist/esm/icons/loader-circle.js';
 import { completeOAuthLogin } from '../../api/auth';
+import { consumeLoginDestination } from '../../auth/authNavigation';
 import AuthShell from './AuthShell';
 
 function OAuthCallbackPage() {
@@ -18,7 +19,10 @@ function OAuthCallbackPage() {
     }
     completeOAuthLogin(code)
       .then((result) => {
-        window.history.replaceState({}, '', result.destination);
+        const destination = result.destination === '/'
+          ? consumeLoginDestination() ?? result.destination
+          : result.destination;
+        window.history.replaceState({}, '', destination);
         window.dispatchEvent(new PopStateEvent('popstate'));
       })
       .catch(() => setError('Google 로그인을 완료하지 못했습니다. 다시 시도해주세요.'));

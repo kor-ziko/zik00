@@ -8,6 +8,8 @@ import Star from 'lucide-react/dist/esm/icons/star.js';
 import X from 'lucide-react/dist/esm/icons/x.js';
 import { useEffect, useMemo, useState } from 'react';
 import { searchProducts, type SearchResult } from '../../api/search';
+import { useAuthMemory } from '../../auth/AuthMemory';
+import { currentRelativeUrl, loginHref } from '../../auth/authNavigation';
 import SiteFooter from '../layout/SiteFooter';
 import SiteHeader from '../layout/SiteHeader';
 
@@ -21,6 +23,10 @@ function getInitialCategory() {
   return new URLSearchParams(window.location.search).get('category')?.trim() ?? '';
 }
 
+function getInitialScope() {
+  return new URLSearchParams(window.location.search).get('scope')?.trim() ?? 'all';
+}
+
 function formatPrice(value: number, currency: 'KRW' | 'JPY') {
   return new Intl.NumberFormat('ko-KR', {
     style: 'currency',
@@ -31,6 +37,8 @@ function formatPrice(value: number, currency: 'KRW' | 'JPY') {
 
 function SearchResultsPage() {
   const query = useMemo(getInitialQuery, []);
+  const scope = useMemo(getInitialScope, []);
+  const { accessSessionActive } = useAuthMemory();
   const [result, setResult] = useState<SearchResult | null>(null);
   const [category, setCategory] = useState(getInitialCategory);
   const [brands, setBrands] = useState<string[]>([]);
@@ -43,6 +51,7 @@ function SearchResultsPage() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set());
   const [reloadKey, setReloadKey] = useState(0);
+  const selectedCategoryLabel = category.split(' > ').at(-1) ?? '';
 
   useEffect(() => {
     const controller = new AbortController();
@@ -50,6 +59,7 @@ function SearchResultsPage() {
     setError('');
     searchProducts({
       query,
+      scope,
       category,
       brands,
       minPrice: appliedPrice.min ? Number(appliedPrice.min) : undefined,
@@ -66,7 +76,7 @@ function SearchResultsPage() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [appliedPrice, brands, category, page, query, reloadKey, sort]);
+  }, [appliedPrice, brands, category, page, query, reloadKey, scope, sort]);
 
   const resetFilters = () => {
     setCategory('');
@@ -96,6 +106,10 @@ function SearchResultsPage() {
   };
 
   const toggleFavorite = (productId: string) => {
+    if (!accessSessionActive) {
+      window.location.assign(loginHref(currentRelativeUrl()));
+      return;
+    }
     setFavoriteIds((current) => {
       const next = new Set(current);
       if (next.has(productId)) next.delete(productId);
@@ -128,6 +142,13 @@ function SearchResultsPage() {
           <span>전체</span>
           <small>{result?.categories.reduce((sum, item) => sum + item.count, 0) ?? 0}</small>
         </label>
+        {category && !result?.categories.some((item) => item.value === category) && (
+          <label className="filter-option selected-category-path">
+            <input type="radio" name="category" checked readOnly />
+            <span>{category.split(' > ').at(-1)}</span>
+            <small>{result?.totalCount ?? 0}</small>
+          </label>
+        )}
         {result?.categories.map((item) => (
           <label className="filter-option" key={item.value}>
             <input
@@ -200,7 +221,11 @@ function SearchResultsPage() {
         <header className="search-result-heading">
           <div>
             <p>SEARCH RESULT</p>
-            <h1>{query ? <><strong>‘{query}’</strong> 검색 결과</> : '전체 상품'}</h1>
+            <h1>
+              {query
+                ? <><strong>‘{query}’</strong> 검색 결과</>
+                : selectedCategoryLabel || '전체 상품'}
+            </h1>
             <span>총 {result?.totalCount ?? 0}개의 상품을 찾았습니다.</span>
           </div>
           <button type="button" className="mobile-filter-button" onClick={() => setFilterOpen(true)}>
