@@ -51,21 +51,39 @@ public class ProductSearchService {
             int page,
             int size
     ) {
+        return search(query, "all", category, brands, minPrice, maxPrice, sort, page, size);
+    }
+
+    public SearchResultResponse search(
+            String query,
+            String scope,
+            String category,
+            List<String> brands,
+            Long minPrice,
+            Long maxPrice,
+            String sort,
+            int page,
+            int size
+    ) {
         String normalizedQuery = normalize(query);
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
 
-        List<SearchProductResponse> queryMatches = allProducts()
-                .filter(product -> matchesQuery(product, normalizedQuery))
+        List<SearchCandidate> queryMatches = allCandidates()
+                .filter(candidate -> matchesQuery(candidate, normalizedQuery, scope))
                 .toList();
 
         List<SearchFacetResponse> categories = buildFacets(
-                queryMatches,
+                queryMatches.stream().map(SearchCandidate::product).toList(),
                 product -> product.category().split(" > ", 2)[0]
         );
-        List<SearchFacetResponse> brandFacets = buildFacets(queryMatches, SearchProductResponse::brand);
+        List<SearchFacetResponse> brandFacets = buildFacets(
+                queryMatches.stream().map(SearchCandidate::product).toList(),
+                SearchProductResponse::brand
+        );
 
         List<SearchProductResponse> filtered = queryMatches.stream()
+                .map(SearchCandidate::product)
                 .filter(product -> category == null || category.isBlank() || product.category().startsWith(category))
                 .filter(product -> brands == null || brands.isEmpty() || brands.contains(product.brand()))
                 .filter(product -> minPrice == null || product.price() >= minPrice)
@@ -89,10 +107,11 @@ public class ProductSearchService {
         );
     }
 
-    private Stream<SearchProductResponse> allProducts() {
+    private Stream<SearchCandidate> allCandidates() {
         return Stream.concat(
-                kreamProductCatalogRepository.findAll().stream().map(this::toSearchProduct),
-                LOCAL_PRODUCTS.stream()
+                kreamProductCatalogRepository.findAll().stream()
+                        .map(product -> new SearchCandidate(toSearchProduct(product), product.description())),
+                LOCAL_PRODUCTS.stream().map(product -> new SearchCandidate(product, ""))
         );
     }
 
@@ -129,17 +148,25 @@ public class ProductSearchService {
                 + URLEncoder.encode(imageUrl, StandardCharsets.UTF_8);
     }
 
-    private boolean matchesQuery(SearchProductResponse product, String normalizedQuery) {
+    private boolean matchesQuery(SearchCandidate candidate, String normalizedQuery, String scope) {
         if (normalizedQuery.isBlank()) {
             return true;
         }
-        return List.of(
-                        product.name(),
-                        product.productId(),
-                        product.category(),
-                        product.brand(),
-                        product.source()
-                ).stream()
+        SearchProductResponse product = candidate.product();
+        Stream<String> searchableValues = switch (normalize(scope)) {
+            case "title" -> Stream.of(product.name());
+            case "title-content" -> Stream.of(product.name(), candidate.description());
+            default -> Stream.of(
+                    product.name(),
+                    candidate.description(),
+                    product.productId(),
+                    product.category(),
+                    product.brand(),
+                    product.source(),
+                    product.sourceUrl()
+            );
+        };
+        return searchableValues
                 .map(this::normalize)
                 .anyMatch(value -> value.contains(normalizedQuery));
     }
@@ -171,5 +198,8 @@ public class ProductSearchService {
 
     private String normalize(String value) {
         return value == null ? "" : value.strip().toLowerCase(Locale.ROOT);
+    }
+
+    private record SearchCandidate(SearchProductResponse product, String description) {
     }
 }

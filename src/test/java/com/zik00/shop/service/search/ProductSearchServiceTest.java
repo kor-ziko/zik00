@@ -71,4 +71,30 @@ class ProductSearchServiceTest {
 
         assertEquals(40, result.size());
     }
+
+    @Test
+    void distinguishesTitleSearchFromTitleAndDescriptionSearch() {
+        SearchResultResponse titleOnly = productSearchService.search(
+                "정품 검수 완료", "title", null, List.of(), null, null, "relevance", 0, 20
+        );
+        SearchResultResponse titleAndDescription = productSearchService.search(
+                "정품 검수 완료", "title-content", null, List.of(), null, null, "relevance", 0, 20
+        );
+
+        assertEquals(0, titleOnly.totalCount());
+        assertTrue(titleAndDescription.totalCount() > 0);
+    }
+
+    @Test
+    void filtersByTheFullCategoryPathSelectedFromTheMegaMenu() {
+        SearchResultResponse result = productSearchService.search(
+                "", "all", "패션의류 > 여성의류 > 여성 상의 > 여성 니트",
+                List.of(), null, null, "relevance", 0, 20
+        );
+
+        assertTrue(result.totalCount() > 0);
+        assertTrue(result.items().stream().allMatch(product ->
+                product.category().startsWith("패션의류 > 여성의류 > 여성 상의 > 여성 니트")
+        ));
+    }
 }

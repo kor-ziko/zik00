@@ -14,6 +14,7 @@ import {
   searchJapaneseAddress,
   submitRegistrationDetail,
 } from '../../api/auth';
+import { consumeLoginDestination } from '../../auth/authNavigation';
 import AuthShell from './AuthShell';
 
 const prefectures = [
@@ -133,7 +134,7 @@ function RegistrationDetailPage() {
     setSubmitting(true);
     try {
       await submitRegistrationDetail(form);
-      window.location.replace('/');
+      window.location.replace(consumeLoginDestination() ?? '/');
     } catch (error) {
       if (error instanceof ApiError) {
         if (error.status === 401) {

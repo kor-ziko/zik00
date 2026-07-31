@@ -1,23 +1,32 @@
-import HelpCircle from 'lucide-react/dist/esm/icons/help-circle.js';
+import HelpCircle from 'lucide-react/dist/esm/icons/circle-help.js';
+import { useAuthMemory } from '../../auth/AuthMemory';
+import { loginHref } from '../../auth/authNavigation';
+import { useLocale } from '../../locale';
 import { Brand } from './SiteHeader';
 
 function SiteFooter() {
+  const { copy } = useLocale();
+  const { accessSessionActive } = useAuthMemory();
+  const supportHref = accessSessionActive ? '/mypage/inquiries' : loginHref('/mypage/inquiries');
+
   return (
-    <footer className="site-footer">
+    <footer className="site-footer" id="notices">
       <div className="header-inner footer-links">
-        <a href="#about">회사소개</a>
-        <a href="#terms">이용약관</a>
-        <a href="#privacy"><strong>개인정보처리방침</strong></a>
-        <a href="#support">고객센터</a>
+        <a href="#about">{copy.footer.about}</a>
+        <a href="#terms">{copy.footer.terms}</a>
+        <a href="#privacy"><strong>{copy.footer.privacy}</strong></a>
       </div>
       <div className="header-inner footer-main">
         <div className="footer-brand"><Brand /></div>
         <div>
-          <p>한국의 좋은 상품을 일본까지 편리하게 연결합니다.</p>
-          <p className="company-info">상호명: ZIK:00 · 고객센터: 02-0000-0000 · 운영시간: 평일 10:00–17:00</p>
-          <p className="copyright">© 2026 ZIK:00. All rights reserved.</p>
+          <p>{copy.footer.intro}</p>
+          <p className="company-info">{copy.footer.company}</p>
+          <p className="copyright">{copy.footer.copyright}</p>
         </div>
-        <a className="support-call" href="#support"><HelpCircle size={20} />고객센터</a>
+        <a className="support-call" href={supportHref}>
+          <HelpCircle size={16} aria-hidden="true" />
+          {copy.header.support}
+        </a>
       </div>
     </footer>
   );
