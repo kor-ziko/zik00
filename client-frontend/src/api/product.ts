@@ -43,6 +43,18 @@ export type OperatingExchangeRate = {
   stale: boolean;
 };
 
+export type DeliveryEstimate = {
+  minimumDays: number;
+  maximumDays: number;
+  stages: Array<{
+    code: string;
+    label: string;
+    minimumDays: number;
+    maximumDays: number;
+  }>;
+  basis: string;
+};
+
 let operatingRateCache: OperatingExchangeRate | null = null;
 let operatingRateRequest: Promise<OperatingExchangeRate> | null = null;
 
@@ -73,6 +85,24 @@ export async function getProductDetail(productId: string, signal?: AbortSignal) 
     throw new Error('상품 정보를 불러오지 못했습니다.');
   }
   return response.json() as Promise<Product>;
+}
+
+export async function getDeliveryEstimate(input: {
+  productName: string;
+  category: string;
+  sourceUrl?: string;
+}, signal?: AbortSignal) {
+  const params = new URLSearchParams({
+    productName: input.productName,
+    category: input.category,
+  });
+  if (input.sourceUrl) params.set('sourceUrl', input.sourceUrl);
+  const response = await fetch(`/api/products/delivery/estimate?${params.toString()}`, {
+    headers: { Accept: 'application/json' },
+    signal,
+  });
+  if (!response.ok) throw new Error('예상 배송일을 계산하지 못했습니다.');
+  return response.json() as Promise<DeliveryEstimate>;
 }
 
 export async function resolveProductUrl(url: string) {

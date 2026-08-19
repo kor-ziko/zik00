@@ -81,6 +81,15 @@ public class SettingEntryService {
                 required(fields, "phone", "연락처");
                 phone(fields, "phone", "연락처");
             }
+            case "REGISTRATION_TERM" -> {
+                required(fields, "shortTitle", "약관 구분명");
+                required(fields, "consentLabel", "동의 문구");
+                String requirement = required(fields, "requirement", "필수 여부");
+                if (!Set.of("REQUIRED", "OPTIONAL").contains(requirement)) {
+                    throw bad("필수 여부가 올바르지 않습니다.");
+                }
+                if (clean(request.content()).isEmpty()) throw bad("약관 본문을 입력해주세요.");
+            }
             default -> { }
         }
     }

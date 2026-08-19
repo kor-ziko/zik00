@@ -104,6 +104,7 @@ public class SecurityConfig {
                                 "/api/homepage-images/**",
                                 "/api/reviews",
                                 "/api/notices/**",
+                                "/api/registration-terms",
                                 "/api/payment/sbps/callback", "/api/payment/sbps/return/**",
                                 "/api/auth/csrf", "/api/auth/refresh", "/api/auth/oauth/complete",
                                 "/logout", "/error"

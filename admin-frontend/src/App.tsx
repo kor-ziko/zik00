@@ -50,6 +50,7 @@ import { DepositAccountPage } from './components/settings_management/deposit_acc
 import { MailManagementPage } from './components/settings_management/mail_management/MailManagementPage';
 import { MailAddressManagementPage } from './components/settings_management/mail_address_management/MailAddressManagementPage';
 import { CompanyInfoPage } from './components/settings_management/company_info/CompanyInfoPage';
+import { RegistrationTermsPage } from './components/settings_management/registration_terms/RegistrationTermsPage';
 import './App.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
@@ -271,6 +272,7 @@ function App() {
         <Route path="/admin/settings/member-grades" element={<MemberGradePage />} />
         <Route path="/admin/settings/shipping-addresses" element={<ShippingAddressPage />} />
         <Route path="/admin/settings/deposit-accounts" element={<DepositAccountPage />} />
+        <Route path="/admin/settings/registration-terms" element={<RegistrationTermsPage />} />
         <Route path="/admin/settings/mail-address" element={<MailAddressManagementPage />} />
         <Route path="/admin/settings/mail" element={<MailManagementPage />} />
         <Route path="/admin/settings/signup-mail" element={<Navigate to="/admin/settings/mail" replace />} />

@@ -1,4 +1,5 @@
 import { clearAccessSession, hasActiveAccessSession, setAccessSession } from '../auth/AuthMemory';
+import type { RegistrationTerm } from '../content/registrationTerms';
 
 export type AuthSession = {
   authenticated: boolean;
@@ -303,6 +304,14 @@ export async function getRegistrationTerms(): Promise<TermsSessionResponse> {
       });
   }
   return termsSessionInFlight;
+}
+
+export async function getRegistrationTermDocuments(): Promise<RegistrationTerm[]> {
+  const response = await fetch('/api/registration-terms', {
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) throw await readError(response);
+  return response.json() as Promise<RegistrationTerm[]>;
 }
 
 export async function acceptRegistrationTerms(payload: TermsAgreementPayload): Promise<void> {

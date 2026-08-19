@@ -4,7 +4,7 @@ import Check from 'lucide-react/dist/esm/icons/check.js';
 import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right.js';
 import LoaderCircle from 'lucide-react/dist/esm/icons/loader-circle.js';
 import ShieldCheck from 'lucide-react/dist/esm/icons/shield-check.js';
-import { acceptRegistrationTerms, ApiError, getRegistrationTerms } from '../../api/auth';
+import { acceptRegistrationTerms, ApiError, getRegistrationTermDocuments, getRegistrationTerms } from '../../api/auth';
 import { registrationTerms, type RegistrationTermId } from '../../content/registrationTerms';
 import AuthShell from './AuthShell';
 
@@ -13,29 +13,33 @@ const initialAgreements = Object.fromEntries(
 ) as Record<RegistrationTermId, boolean>;
 
 function RegistrationTermsPage() {
+  const [terms, setTerms] = useState(registrationTerms);
   const [agreements, setAgreements] = useState(initialAgreements);
   const [checkingSession, setCheckingSession] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const submittingRef = useRef(false);
-  const allRequired = registrationTerms
+  const allRequired = terms
     .filter((term) => term.required)
     .every((term) => agreements[term.id]);
-  const allAgreed = registrationTerms.every((term) => agreements[term.id]);
+  const allAgreed = terms.every((term) => agreements[term.id]);
 
   useEffect(() => {
     let active = true;
-    getRegistrationTerms()
-      .then(({ accepted, alarmConsent }) => {
+    Promise.all([
+      getRegistrationTerms(),
+      getRegistrationTermDocuments().catch(() => registrationTerms),
+    ])
+      .then(([{ accepted, alarmConsent }, managedTerms]) => {
         if (!active) return;
-        if (accepted) {
-          setAgreements(Object.fromEntries(
-            registrationTerms.map((term) => [
-              term.id,
-              term.required ? true : term.id === 'alarmConsent' && alarmConsent,
-            ]),
-          ) as Record<RegistrationTermId, boolean>);
-        }
+        const nextTerms = managedTerms.length > 0 ? managedTerms : registrationTerms;
+        setTerms(nextTerms);
+        setAgreements(Object.fromEntries(
+          nextTerms.map((term) => [
+            term.id,
+            accepted && (term.required || alarmConsent),
+          ]),
+        ) as Record<RegistrationTermId, boolean>);
       })
       .catch((requestError) => {
         if (!active) return;
@@ -55,7 +59,7 @@ function RegistrationTermsPage() {
 
   const toggleAll = (checked: boolean) => {
     setAgreements(Object.fromEntries(
-      registrationTerms.map((term) => [term.id, checked]),
+      terms.map((term) => [term.id, checked]),
     ) as Record<RegistrationTermId, boolean>);
   };
 
@@ -71,7 +75,7 @@ function RegistrationTermsPage() {
     try {
       await acceptRegistrationTerms({
         accepted: allRequired,
-        alarmConsent: agreements.alarmConsent ?? false,
+        alarmConsent: terms.filter((term) => !term.required).some((term) => agreements[term.id]),
       });
       window.location.assign('/login/detail');
     } catch (requestError) {
@@ -122,7 +126,7 @@ function RegistrationTermsPage() {
           </label>
 
           <div className="terms-documents">
-            {registrationTerms.map((term) => (
+            {terms.map((term) => (
               <article className="terms-document" key={term.id}>
                 <header>
                   <div>

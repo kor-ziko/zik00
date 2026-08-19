@@ -7,11 +7,10 @@ import Bookmark from 'lucide-react/dist/esm/icons/bookmark.js';
 import Minus from 'lucide-react/dist/esm/icons/minus.js';
 import Plus from 'lucide-react/dist/esm/icons/plus.js';
 import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw.js';
-import Share2 from 'lucide-react/dist/esm/icons/share-2.js';
 import ShoppingBag from 'lucide-react/dist/esm/icons/shopping-bag.js';
 import Truck from 'lucide-react/dist/esm/icons/truck.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { getLandedPriceEstimate, getProductDetail, type LandedPriceEstimate } from '../../api/product';
+import { getDeliveryEstimate, getLandedPriceEstimate, getProductDetail, type DeliveryEstimate, type LandedPriceEstimate } from '../../api/product';
 import { addCartItem, addWishlist, getWishlistStatus, removeWishlist, ShoppingAuthRequiredError } from '../../api/shopping';
 import { loginHref } from '../../auth/authNavigation';
 import { products, type Product } from '../../data';
@@ -156,6 +155,7 @@ function ProductDetailPage({ productId }: ProductDetailPageProps) {
   const [notice, setNotice] = useState('');
   const [activeTab, setActiveTab] = useState<DetailTab>('details');
   const [priceEstimate, setPriceEstimate] = useState<LandedPriceEstimate | null>(null);
+  const [deliveryEstimate, setDeliveryEstimate] = useState<DeliveryEstimate | null>(null);
 
   const product = localProduct ?? remoteProduct;
   const detail = product
@@ -259,6 +259,20 @@ function ProductDetailPage({ productId }: ProductDetailPageProps) {
     });
     return () => controller.abort();
   }, [effectivePrice, localDistributionFee, product, quantity]);
+
+  useEffect(() => {
+    if (!product) return undefined;
+    const controller = new AbortController();
+    setDeliveryEstimate(null);
+    getDeliveryEstimate({
+      productName: product.name,
+      category: product.category,
+      sourceUrl: product.sourceUrl,
+    }, controller.signal).then(setDeliveryEstimate).catch((reason: unknown) => {
+      if (!(reason instanceof DOMException && reason.name === 'AbortError')) setDeliveryEstimate(null);
+    });
+    return () => controller.abort();
+  }, [product]);
 
   const displayedProductSubtotal = priceEstimate?.convertedProductPrice ?? productSubtotal;
   const displayedUnitPrice = Math.ceil(displayedProductSubtotal / quantity);
@@ -383,7 +397,6 @@ function ProductDetailPage({ productId }: ProductDetailPageProps) {
                 <button type="button" onClick={() => void toggleWishlist()} disabled={savingWishlist} className={liked ? 'liked' : ''} aria-label={savingWishlist ? '찜 처리 중' : liked ? '찜 삭제' : '찜하기'} aria-pressed={liked} aria-busy={savingWishlist} title={savingWishlist ? '처리 중' : liked ? '찜 삭제' : '찜하기'}>
                   <Bookmark size={21} fill={liked ? 'currentColor' : 'none'} />
                 </button>
-                <button type="button" onClick={() => setNotice('상품 링크를 복사했습니다.')} aria-label="공유하기"><Share2 size={21} /></button>
               </div>
             </div>
 
@@ -399,15 +412,20 @@ function ProductDetailPage({ productId }: ProductDetailPageProps) {
             <div className="purchase-shipping">
               <div className="shipping-estimate">
                 <span className="shipping-title"><Truck size={21} /><strong>배송</strong></span>
-                <span className="shipping-range"><small>약</small><b>12일 ~ 19일</b><small>예상</small></span>
+                <span className="shipping-range"><small>약</small><b>{deliveryEstimate ? `${deliveryEstimate.minimumDays}일 ~ ${deliveryEstimate.maximumDays}일` : '계산 중'}</b><small>예상</small></span>
               </div>
               <div className="shipping-breakdown">
                 <strong>배송안내</strong>
                 <ol className="shipping-flow" aria-label="배송 진행 단계">
-                  <li><i aria-hidden="true" /><span>판매처 발송</span><b>4~7일</b></li>
-                  <li><i aria-hidden="true" /><span>발송 후 현지 이동</span><b>2~4일</b></li>
-                  <li><i aria-hidden="true" /><span>국제배송 및 수령</span><b>6~8일</b></li>
+                  {(deliveryEstimate?.stages ?? [
+                    { code: 'SELLER_TO_KOREA', label: '판매처 → 한국 물류센터', minimumDays: 2, maximumDays: 4 },
+                    { code: 'KOREA_TO_JAPAN', label: '한국 물류센터 → 일본 물류센터', minimumDays: 3, maximumDays: 6 },
+                    { code: 'JAPAN_TO_CUSTOMER', label: '일본 물류센터 → 고객', minimumDays: 1, maximumDays: 3 },
+                  ]).map((stage) => (
+                    <li key={stage.code}><i aria-hidden="true" /><span>{stage.label}</span><b>{stage.minimumDays}~{stage.maximumDays}일</b></li>
+                  ))}
                 </ol>
+                <small className="shipping-basis">{deliveryEstimate?.basis ?? '상품별 예상 배송 일정을 계산하고 있습니다.'}</small>
               </div>
             </div>
 
