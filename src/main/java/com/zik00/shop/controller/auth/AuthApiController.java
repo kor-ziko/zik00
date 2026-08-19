@@ -13,6 +13,7 @@ import com.zik00.shop.service.auth.InvalidJwtException;
 import com.zik00.shop.service.auth.OAuthLoginCompletionService;
 import com.zik00.shop.service.auth.PendingOAuthRegistrationService;
 import com.zik00.shop.service.auth.RegistrationTermsRequiredException;
+import com.zik00.shop.service.auth.signup_mail.SignupWelcomeMailService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -37,6 +38,7 @@ public class AuthApiController {
     private final JwtCookieService jwtCookieService;
     private final OAuthLoginCompletionService oAuthLoginCompletionService;
     private final PendingOAuthRegistrationService pendingRegistrationService;
+    private final SignupWelcomeMailService signupWelcomeMailService;
 
     public AuthApiController(
             AuthenticatedUserService authenticatedUserService,
@@ -44,7 +46,8 @@ public class AuthApiController {
             JwtSessionService jwtSessionService,
             JwtCookieService jwtCookieService,
             OAuthLoginCompletionService oAuthLoginCompletionService,
-            PendingOAuthRegistrationService pendingRegistrationService
+            PendingOAuthRegistrationService pendingRegistrationService,
+            SignupWelcomeMailService signupWelcomeMailService
     ) {
         this.authenticatedUserService = authenticatedUserService;
         this.registrationService = registrationService;
@@ -52,6 +55,7 @@ public class AuthApiController {
         this.jwtCookieService = jwtCookieService;
         this.oAuthLoginCompletionService = oAuthLoginCompletionService;
         this.pendingRegistrationService = pendingRegistrationService;
+        this.signupWelcomeMailService = signupWelcomeMailService;
     }
 
     @GetMapping("/session")
@@ -138,6 +142,7 @@ public class AuthApiController {
         }
         var user = registrationService.completeOAuthRegistration(consumed, detail);
         JwtSessionService.AccessSessionResult token = jwtSessionService.issue(user, response);
+        signupWelcomeMailService.send(user);
         return new AccessSessionResponse(token.expiresAt());
     }
 

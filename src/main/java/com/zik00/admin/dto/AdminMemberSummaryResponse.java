@@ -21,7 +21,6 @@ public record AdminMemberSummaryResponse(
 ) {
     private static final String DEFAULT_PROVIDER = "LOCAL";
     private static final String DEFAULT_ROLE = "USER";
-    private static final String DEFAULT_STATUS = "ACTIVE";
 
     public static AdminMemberSummaryResponse from(User user, UnaryOperator<String> decrypt) {
         return new AdminMemberSummaryResponse(
@@ -33,7 +32,7 @@ public record AdminMemberSummaryResponse(
                 decrypt.apply(phoneOf(user)),
                 DEFAULT_PROVIDER,
                 DEFAULT_ROLE,
-                DEFAULT_STATUS,
+                user.getMemberStatus(),
                 user.getCompletedOrderCount(),
                 toDateTime(user.getJoinedDate())
         );

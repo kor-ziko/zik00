@@ -3,6 +3,7 @@ package com.zik00.shop.domain;
 import com.zik00.shop.config.PiiLocalDateAttributeConverter;
 import com.zik00.shop.config.PiiStringAttributeConverter;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -75,6 +76,12 @@ public class User {
     @Column(name = "member_detail", nullable = false, length = 500)
     private String memberDetail;
 
+    @Column(name = "member_status", nullable = false, length = 20)
+    private String memberStatus = "ACTIVE";
+
+    @Column(name = "withdrawn_at")
+    private LocalDateTime withdrawnAt;
+
     @Column(name = "alarm_consent")
     private boolean alarmConsent;
 
@@ -137,6 +144,31 @@ public class User {
             throw new IllegalArgumentException("OAuth 이메일이 비어 있습니다.");
         }
         this.email = normalizedEmail;
+    }
+
+    public void adjustRewardPoint(int amount) {
+        int nextBalance = rewardPoint + amount;
+        if (nextBalance < 0) {
+            throw new IllegalArgumentException("보유 포인트보다 많이 차감할 수 없습니다.");
+        }
+        rewardPoint = nextBalance;
+    }
+
+    public void adjustDepositBalance(int amount) {
+        int nextBalance = depositBalance + amount;
+        if (nextBalance < 0) {
+            throw new IllegalArgumentException("보유 예치금보다 많이 차감할 수 없습니다.");
+        }
+        depositBalance = nextBalance;
+    }
+
+    public void changeMemberStatus(String status) {
+        String normalized = normalizeValue(status).toUpperCase();
+        if (!normalized.equals("ACTIVE") && !normalized.equals("SUSPENDED") && !normalized.equals("WITHDRAWN")) {
+            throw new IllegalArgumentException("지원하지 않는 회원 상태입니다.");
+        }
+        memberStatus = normalized;
+        withdrawnAt = normalized.equals("WITHDRAWN") ? LocalDateTime.now() : null;
     }
 
     public static User createOAuthUser(String loginId, String email) {

@@ -23,6 +23,10 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/customs-schema.sql
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -106,3 +110,38 @@ shop:
     base-url: ${SHOP_ADMIN_BASE_URL:http://127.0.0.1:5173}
   upload:
     inquiry-image-dir: ${SHOP_INQUIRY_IMAGE_DIR:uploads/inquiries_images}
+    homepage-image-dir: ${SHOP_HOMEPAGE_IMAGE_DIR:uploads/homepage_images}
+  product-discovery:
+    provider: ${PRODUCT_SEARCH_PROVIDER:disabled}
+    serpapi-key: ${SERPAPI_API_KEY:}
+    search-cache-ttl: ${PRODUCT_SEARCH_CACHE_TTL:P1D}
+    detail-cache-ttl: ${PRODUCT_DETAIL_CACHE_TTL:P7D}
+    quota-reserve: ${SERPAPI_QUOTA_RESERVE:10}
+    ai-provider: ${PRODUCT_AI_PROVIDER:disabled}
+    ollama-base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+    ollama-model: ${OLLAMA_MODEL:qwen2.5:7b}
+    browser-rendering-enabled: ${PRODUCT_BROWSER_RENDERING_ENABLED:true}
+  payment:
+    sbps:
+      enabled: ${SBPS_ENABLED:false}
+      merchant-id: ${SBPS_MERCHANT_ID:}
+      service-id: ${SBPS_SERVICE_ID:}
+      hash-key: ${SBPS_HASH_KEY:}
+      request-url: ${SBPS_REQUEST_URL:}
+      callback-base-url: ${SBPS_CALLBACK_BASE_URL:}
+      client-base-url: ${SBPS_CLIENT_BASE_URL:http://localhost:5174}
+      payment-methods: ${SBPS_PAYMENT_METHODS:credit3d2,paypay,paypal}
+    japan:
+      krw-to-jpy-rate: ${PAYMENT_KRW_TO_JPY_RATE:0}
+      automatic-rate-markup: ${PAYMENT_AUTOMATIC_RATE_MARKUP:1.03}
+  pricing:
+    agency-fee-rate: ${SHOP_AGENCY_FEE_RATE:0}
+    default-domestic-shipping-fee-krw: ${SHOP_DEFAULT_DOMESTIC_SHIPPING_FEE_KRW:3000}
+  customs:
+    japan:
+      refresh-interval: ${JAPAN_CUSTOMS_REFRESH_INTERVAL:PT24H}
+      initial-refresh-delay: ${JAPAN_CUSTOMS_INITIAL_REFRESH_DELAY:PT1M}
+      fallback-krw-to-jpy-rate: ${JAPAN_CUSTOMS_KRW_TO_JPY_RATE:0}
+      exchange-index-url: ${JAPAN_CUSTOMS_EXCHANGE_INDEX_URL:https://www.customs.go.jp/english/kawase/index_e.htm}
+      simplified-tariff-url: ${JAPAN_CUSTOMS_TARIFF_URL:https://www.customs.go.jp/english/c-answer_e/imtsukan/1001_e.htm}
+      consumption-tax-url: ${JAPAN_CUSTOMS_CONSUMPTION_TAX_URL:https://www.customs.go.jp/english/c-answer_e/imtsukan/1111_e.htm}

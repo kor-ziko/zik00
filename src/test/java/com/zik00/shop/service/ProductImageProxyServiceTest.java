@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.net.URI;
 
+import com.zik00.shop.service.product.ProductImageSourceRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
@@ -29,6 +30,17 @@ class ProductImageProxyServiceTest {
         );
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+    }
+
+    @Test
+    void acceptsAnImageUrlRegisteredByProductSearch() {
+        ProductImageSourceRegistry registry = new ProductImageSourceRegistry();
+        registry.register("https://images.example.com/products/123.jpg");
+        ProductImageProxyService registeredService = new ProductImageProxyService(registry);
+
+        URI source = registeredService.validateSource("https://images.example.com/products/123.jpg");
+
+        assertEquals("images.example.com", source.getHost());
     }
 
     @Test

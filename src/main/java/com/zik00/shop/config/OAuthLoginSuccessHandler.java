@@ -59,7 +59,9 @@ public class OAuthLoginSuccessHandler implements AuthenticationSuccessHandler {
         }
         User existingUser = oauthAccountService.findExistingAndBackfillEmail(profile).orElse(null);
         String completionCode;
-        if (existingUser != null && registrationService.isRegistrationComplete(existingUser)) {
+        if (existingUser != null
+                && !"WITHDRAWN".equals(existingUser.getMemberStatus())
+                && registrationService.isRegistrationComplete(existingUser)) {
             completionCode = loginCompletionService.prepareExisting(existingUser);
         } else {
             completionCode = loginCompletionService.prepareRegistration(profile);

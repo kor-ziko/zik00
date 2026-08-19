@@ -53,6 +53,16 @@ const postalCodeRequests = new Map<string, Promise<AddressResult[]>>();
 const POSTAL_CODE_CACHE_TTL_MS = 30 * 60 * 1_000;
 const MAX_POSTAL_CODE_CACHE_SIZE = 32;
 const BROWSER_SESSION_KEY = 'zik.auth.browser-session';
+const CSRF_COOKIE_NAME = 'XSRF-TOKEN';
+
+function readCookie(name: string): string | null {
+  const prefix = `${encodeURIComponent(name)}=`;
+  const cookie = document.cookie
+    .split('; ')
+    .find((item) => item.startsWith(prefix));
+  if (!cookie) return null;
+  return decodeURIComponent(cookie.slice(prefix.length));
+}
 
 function hasBrowserSession(): boolean {
   try {
@@ -97,7 +107,11 @@ async function readError(response: Response) {
 }
 
 export async function getCsrfToken(): Promise<CsrfResponse> {
-  if (csrfCache !== null) return csrfCache;
+  if (csrfCache !== null) {
+    const cookieToken = readCookie(CSRF_COOKIE_NAME);
+    if (cookieToken === csrfCache.token) return csrfCache;
+    csrfCache = null;
+  }
   if (csrfInFlight === null) {
     csrfInFlight = fetch('/api/auth/csrf', { credentials: 'include' })
       .then(async (response) => {

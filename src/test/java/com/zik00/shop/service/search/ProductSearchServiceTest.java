@@ -1,10 +1,16 @@
 package com.zik00.shop.service.search;
 
+import com.zik00.shop.domain.search.DiscoveredProduct;
+import com.zik00.shop.dto.product.ProductDetailResponse;
 import com.zik00.shop.dto.search.SearchResultResponse;
 import com.zik00.shop.repository.search.KreamProductCatalogRepository;
+import com.zik00.shop.service.product.ProductImageSourceRegistry;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -69,7 +75,7 @@ class ProductSearchServiceTest {
                 "", null, List.of(), null, null, "relevance", 0, 100
         );
 
-        assertEquals(40, result.size());
+        assertEquals(30, result.size());
     }
 
     @Test
@@ -96,5 +102,40 @@ class ProductSearchServiceTest {
         assertTrue(result.items().stream().allMatch(product ->
                 product.category().startsWith("패션의류 > 여성의류 > 여성 상의 > 여성 니트")
         ));
+    }
+
+    @Test
+    void mergesExternalProductsWhenOnlyCategoryIsSelected() {
+        AtomicReference<String> requestedCategory = new AtomicReference<>();
+        ExternalProductCatalog externalCatalog = new ExternalProductCatalog() {
+            @Override
+            public List<DiscoveredProduct> search(String query, String category) {
+                requestedCategory.set(category);
+                return List.of(new DiscoveredProduct(
+                        "SERP-category-product", "provider-id", null, "외부 패션 상품",
+                        category, "외부 브랜드", 39_000L, null, "KRW",
+                        "https://shop.example/product", "https://shop.example/product.jpg",
+                        4.5, 10, "Google Shopping", "", Map.of()
+                ));
+            }
+
+            @Override public Optional<DiscoveredProduct> findProduct(String productId) { return Optional.empty(); }
+            @Override public void saveProduct(DiscoveredProduct product) { }
+            @Override public Optional<ProductDetailResponse> findDetail(String productId) { return Optional.empty(); }
+            @Override public void saveDetail(ProductDetailResponse detail) { }
+            @Override public DiscoveredProduct resolveMerchant(DiscoveredProduct product) { return product; }
+        };
+        ProductSearchService service = new ProductSearchService(
+                kreamRepository, externalCatalog, new ProductImageSourceRegistry()
+        );
+
+        SearchResultResponse result = service.search(
+                "", "all", "패션의류", List.of(), null, null, "relevance", 0, 5
+        );
+
+        assertEquals("패션의류", requestedCategory.get());
+        assertTrue(result.totalCount() > 0);
+        assertTrue(result.brands().stream().anyMatch(facet -> facet.value().equals("외부 브랜드")));
+        assertTrue(result.items().stream().anyMatch(product -> product.productId().equals("SERP-category-product")));
     }
 }

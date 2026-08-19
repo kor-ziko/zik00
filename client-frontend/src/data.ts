@@ -14,16 +14,16 @@ export type HeroSlide = {
   accent: string;
 };
 
-export type ProductReview = {
-  reviewId: string;
-  reviewType?: string;
-  author?: string | null;
-  content?: string | null;
-  createdAt?: string | null;
-  rating?: number | null;
-  likeCount?: number;
-  images?: string[];
-  reviewUrl?: string;
+export type ProductOption = {
+  optionType: string;
+  values: string[];
+};
+
+export type ProductVariant = {
+  variantId: string;
+  attributes: Record<string, string>;
+  price?: number | null;
+  available: boolean;
 };
 
 export type Product = {
@@ -40,9 +40,12 @@ export type Product = {
   brand?: string;
   description?: string;
   currency?: 'JPY' | 'KRW';
+  domesticShippingFee?: number;
+  domesticShippingFeeEstimated?: boolean;
   rating?: number | null;
   reviewCount?: number;
-  reviews?: ProductReview[];
+  options?: ProductOption[];
+  variants?: ProductVariant[];
   tags?: string[];
 };
 
@@ -91,6 +94,7 @@ export const products: Product[] = [
     category: '디지털 · 계절가전',
     price: 4190,
     originalPrice: 5200,
+    currency: 'JPY',
     image: '/assets/product-mini-fan.webp',
     badge: '급상승',
   },
@@ -99,6 +103,7 @@ export const products: Product[] = [
     name: '24시간 보냉 와이드 텀블러',
     category: '리빙 · 피크닉',
     price: 3650,
+    currency: 'JPY',
     image: '/assets/product-tumbler.webp',
     badge: '신상품',
   },
@@ -107,6 +112,7 @@ export const products: Product[] = [
     name: '라이트 데님 서머 메쉬 캡',
     category: '패션 · 액세서리',
     price: 2890,
+    currency: 'JPY',
     image: '/assets/product-summer-cap.webp',
   },
   {
@@ -115,6 +121,7 @@ export const products: Product[] = [
     category: '패션 · 슈즈',
     price: 6790,
     originalPrice: 8100,
+    currency: 'JPY',
     image: '/assets/product-sandals.webp',
     badge: '서울 픽',
   },

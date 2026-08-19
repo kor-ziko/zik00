@@ -15,6 +15,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class AllowedOriginFilter extends OncePerRequestFilter {
     private static final String OAUTH_AUTHORIZATION_START = "/oauth2/authorization/";
     private static final String OAUTH_CALLBACK = "/login/oauth2/code/";
+    private static final String SBPS_CALLBACK = "/api/payment/sbps/callback";
+    private static final String SBPS_RETURN = "/api/payment/sbps/return/";
     private static final byte[] FORBIDDEN_RESPONSE =
             "{\"message\":\"허용되지 않은 요청 출처입니다.\"}".getBytes(StandardCharsets.UTF_8);
 
@@ -33,6 +35,8 @@ public class AllowedOriginFilter extends OncePerRequestFilter {
         String path = request.getRequestURI().substring(request.getContextPath().length());
         if (path.startsWith(OAUTH_AUTHORIZATION_START)
                 || path.startsWith(OAUTH_CALLBACK)
+                || path.equals(SBPS_CALLBACK)
+                || path.startsWith(SBPS_RETURN)
                 || comesFromAllowedOrigin(request)) {
             filterChain.doFilter(request, response);
             return;

@@ -72,9 +72,12 @@ public class RegistrationService {
                         loginId,
                         oauthAccount.email()
                 ));
-        boolean hasDeliveryAddress = user.getMemberId() > 0
-                && deliveryAddressRepository.existsByMemberId(user.getMemberId());
-        if (user.hasCompletedRegistration() && hasDeliveryAddress) {
+        boolean rejoining = "WITHDRAWN".equals(user.getMemberStatus());
+        List<DeliveryAddress> deliveryAddresses = user.getMemberId() > 0
+                ? deliveryAddressRepository.findUserAddresses(user.getMemberId())
+                : List.of();
+        boolean hasDeliveryAddress = !deliveryAddresses.isEmpty();
+        if (!rejoining && user.hasCompletedRegistration() && hasDeliveryAddress) {
             return user;
         }
 
@@ -88,9 +91,24 @@ public class RegistrationService {
                 detail.mobilePhone(),
                 acceptedRegistration.alarmConsent()
         );
+        if (rejoining) {
+            user.changeMemberStatus("ACTIVE");
+        }
         user = userRepository.save(user);
 
-        if (!hasDeliveryAddress) {
+        if (rejoining && hasDeliveryAddress) {
+            DeliveryAddress primaryAddress = deliveryAddresses.getFirst();
+            deliveryAddresses.forEach(DeliveryAddress::clearDefaultAddress);
+            primaryAddress.update(
+                    "기본 배송지",
+                    detail.nameKanji(),
+                    detail.mobilePhone(),
+                    detail.zipCode(),
+                    detail.province(),
+                    detail.detailAddress(),
+                    true
+            );
+        } else if (!hasDeliveryAddress) {
             deliveryAddressRepository.save(new DeliveryAddress(
                     0,
                     user.getMemberId(),

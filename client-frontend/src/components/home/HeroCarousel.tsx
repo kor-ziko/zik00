@@ -3,16 +3,23 @@ import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right.js';
 import { useEffect, useState } from 'react';
 import { heroSlides } from '../../data';
 import { useLocale } from '../../locale';
+import { useHomepageContent } from '../../homepage/HomepageContentContext';
+import { managedHref } from '../../homepage/managedLink';
 
 const AUTO_PLAY_DELAY = 6000;
 
 function HeroCarousel() {
   const { copy } = useLocale();
+  const managedSlides = useHomepageContent('MAIN_BANNER');
+  const slides = managedSlides.length ? managedSlides.map((item) => ({
+    eyebrow:item.subtitle??'', title:item.title.replace(/\\n/g, '\n'), description:item.content??'', image:item.imageUrl??'/assets/hero-seoul-summer.webp',
+    accent:'#f2bf3d', link:managedHref(item.linkUrl,'#recommendations'), linkLabel:item.linkLabel??copy.hero.cta,
+  })) : heroSlides.map((item,index)=>({...item,...copy.hero.slides[index],link:'#recommendations',linkLabel:copy.hero.cta}));
   const [activeSlide, setActiveSlide] = useState(0);
 
   useEffect(() => {
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-    if (reducedMotion.matches || heroSlides.length < 2) return undefined;
+    if (reducedMotion.matches || slides.length < 2) return undefined;
 
     let timer: number | undefined;
     const stopTimer = () => {
@@ -22,7 +29,7 @@ function HeroCarousel() {
     const startTimer = () => {
       if (document.hidden || timer !== undefined) return;
       timer = window.setInterval(() => {
-        setActiveSlide((current) => (current + 1) % heroSlides.length);
+        setActiveSlide((current) => (current + 1) % slides.length);
       }, AUTO_PLAY_DELAY);
     };
     const handleVisibilityChange = () => {
@@ -36,17 +43,16 @@ function HeroCarousel() {
       stopTimer();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []);
+  }, [slides.length]);
 
   const selectedSlide = {
-    ...heroSlides[activeSlide],
-    ...copy.hero.slides[activeSlide],
+    ...slides[Math.min(activeSlide, slides.length - 1)],
   };
   const showPreviousSlide = () => {
-    setActiveSlide((current) => (current - 1 + heroSlides.length) % heroSlides.length);
+    setActiveSlide((current) => (current - 1 + slides.length) % slides.length);
   };
   const showNextSlide = () => {
-    setActiveSlide((current) => (current + 1) % heroSlides.length);
+    setActiveSlide((current) => (current + 1) % slides.length);
   };
 
   return (
@@ -58,7 +64,7 @@ function HeroCarousel() {
           <span style={{ color: selectedSlide.accent }}>{selectedSlide.eyebrow}</span>
           <h1>{selectedSlide.title}</h1>
           <p>{selectedSlide.description}</p>
-          <a href="#recommendations">{copy.hero.cta} <ChevronRight size={17} /></a>
+          <a href={selectedSlide.link}>{selectedSlide.linkLabel} <ChevronRight size={17} /></a>
         </div>
       </div>
 
@@ -70,7 +76,7 @@ function HeroCarousel() {
       </button>
 
       <div className="hero-dots" aria-label={copy.hero.select}>
-        {heroSlides.map((slide, index) => (
+        {slides.map((slide, index) => (
           <button
             key={slide.eyebrow}
             className={activeSlide === index ? 'active' : ''}

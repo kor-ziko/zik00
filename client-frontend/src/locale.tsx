@@ -105,7 +105,7 @@ const copies: Record<Locale, LocaleCopy> = {
       { title: '비용을 한눈에', body: '예상 금액 미리 확인' },
       { title: '진행 상황 확인', body: '주문부터 배송까지' },
     ],
-    products: { eyebrow: 'SEOUL SUMMER PICKS', title: '이번 여름 한국에서 뜨는 상품', all: '전체 보기', shipping: '예상 국제배송비 별도', favorite: '찜하기' },
+    products: { eyebrow: 'SEOUL SUMMER PICKS', title: '이번 여름 한국에서 뜨는 상품', all: '전체 보기', shipping: '예상 국제배송비 결제 시 반영', favorite: '찜하기' },
     quick: ['현지 배송조회', '출고 일정', '예상비용 계산', '1:1 문의'],
     footer: {
       about: '회사소개',

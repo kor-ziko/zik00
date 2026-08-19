@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useState } from 'react';
 import Bell from 'lucide-react/dist/esm/icons/bell.js';
+import CircleAlert from 'lucide-react/dist/esm/icons/circle-alert.js';
 import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right.js';
 import CircleDollarSign from 'lucide-react/dist/esm/icons/circle-dollar-sign.js';
 import CreditCard from 'lucide-react/dist/esm/icons/credit-card.js';
@@ -24,9 +25,9 @@ import {
   type InquiryThread, type MypageProfile, type MypageSection, type ProfileData,
   type Purchase, type SectionData, addDeliveryAddress, createInquiry,
   deleteDeliveryAddress, getMypageDashboard, getMypageSection, updateDeliveryAddress,
-  updateMypageProfile,
+  updateMypageProfile, withdrawMypageAccount,
 } from '../../api/mypage';
-import { fetchAuthenticated, searchJapaneseAddress } from '../../api/auth';
+import { fetchAuthenticated, logout, searchJapaneseAddress } from '../../api/auth';
 import SiteFooter from '../layout/SiteFooter';
 import SiteHeader from '../layout/SiteHeader';
 
@@ -209,6 +210,52 @@ function ProfileEditor({ profile, onSaved }: { profile: MypageProfile; onSaved: 
   </section>;
 }
 
+function MemberWithdrawalPanel() {
+  const [open, setOpen] = useState(false);
+  const [confirmation, setConfirmation] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const close = () => {
+    if (submitting) return;
+    setOpen(false);
+    setConfirmation('');
+    setMessage('');
+  };
+
+  const withdraw = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSubmitting(true);
+    setMessage('');
+    try {
+      await withdrawMypageAccount(confirmation);
+      await logout().catch(() => undefined);
+      window.location.assign('/');
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : '회원탈퇴를 처리하지 못했습니다.');
+      setSubmitting(false);
+    }
+  };
+
+  return <section className="member-withdrawal-panel">
+    <div><strong>회원탈퇴</strong><p>회원 계정과 서비스 이용을 종료합니다.</p></div>
+    <button type="button" onClick={() => setOpen(true)}>회원탈퇴</button>
+    {open && <div className="withdrawal-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
+      <div className="withdrawal-modal" role="dialog" aria-modal="true" aria-labelledby="withdrawal-title">
+        <button className="withdrawal-modal-close" type="button" aria-label="닫기" onClick={close}><X size={20} /></button>
+        <CircleAlert size={28} />
+        <h2 id="withdrawal-title">정말 탈퇴하시겠습니까?</h2>
+        <p>탈퇴 즉시 로그아웃되며 찜, 장바구니 등 회원 기능을 이용할 수 없습니다. 주문 및 결제 기록은 관련 법령과 운영 정책에 따라 보관될 수 있습니다.</p>
+        <form onSubmit={withdraw}>
+          <label><span>계속하려면 <b>회원탈퇴</b>를 입력해주세요.</span><input autoFocus value={confirmation} onChange={(event) => setConfirmation(event.target.value)} placeholder="회원탈퇴" autoComplete="off" /></label>
+          {message && <p className="withdrawal-error">{message}</p>}
+          <div><button type="button" onClick={close}>취소</button><button type="submit" disabled={confirmation !== '회원탈퇴' || submitting}>{submitting ? '처리 중' : '탈퇴하기'}</button></div>
+        </form>
+      </div>
+    </div>}
+  </section>;
+}
+
 const emptyAddress = (profile: MypageProfile): AddressUpdatePayload => ({
   addressName: '', receiverName: profile.name, receiverPhone: profile.mobilePhone,
   zipCode: '', province: '', baseAddress: '', detailAddress: '', defaultAddress: false,
@@ -357,7 +404,7 @@ function MypagePage() {
     }
     const profileData = sectionData as ProfileData | null;
     const profile = profileData?.profile ?? dashboard.profile;
-    return <div className="profile-layout"><ProfileEditor profile={profile} onSaved={refreshProfile} /><AddressManager profile={profile} addresses={profileData?.addresses ?? []} onSaved={refreshProfile} /></div>;
+    return <div className="profile-layout"><ProfileEditor profile={profile} onSaved={refreshProfile} /><AddressManager profile={profile} addresses={profileData?.addresses ?? []} onSaved={refreshProfile} /><MemberWithdrawalPanel /></div>;
   };
 
   return <div className="app-shell"><SiteHeader /><main className="mypage-main"><div className="header-inner"><div className="mypage-heading"><div><p>MY ZIK:00</p><h1>{active.label}</h1><span>{active.description}</span></div><div className="mypage-heading-user"><strong>{dashboard?.profile.nickname || '회원'}님</strong><small>반갑습니다.</small></div></div><div className="mypage-shell"><aside className="mypage-sidebar"><nav>{menuItems.map(({ section: itemSection, label, icon: Icon }) => <a className={section === itemSection ? 'active' : ''} href={itemSection === 'home' ? '/mypage' : `/mypage/${itemSection}`} key={itemSection}><Icon size={19} /><span>{label}</span><ChevronRight size={16} /></a>)}</nav><div className="mypage-help"><Bell size={20} /><strong>도움이 필요하신가요?</strong><a href="/#support">고객센터 바로가기</a></div></aside><div className="mypage-content">{loading ? <div className="mypage-loading"><LoaderCircle className="spin" /><span>회원정보를 불러오고 있습니다.</span></div> : error ? <div className="mypage-error">{error}</div> : renderContent()}</div></div></div></main><SiteFooter /></div>;

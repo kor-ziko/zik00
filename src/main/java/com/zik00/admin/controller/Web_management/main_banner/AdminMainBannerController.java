@@ -1,0 +1,22 @@
+package com.zik00.admin.controller.Web_management.main_banner;
+
+import com.zik00.admin.dto.Web_management.HomepageContentRequest;
+import com.zik00.admin.dto.Web_management.HomepageContentResponse;
+import com.zik00.admin.service.Web_management.HomepageContentService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/admin/web-management/main-banners")
+public class AdminMainBannerController {
+    private static final String TYPE = "MAIN_BANNER";
+    private final HomepageContentService service;
+    public AdminMainBannerController(HomepageContentService service) { this.service = service; }
+    @GetMapping public List<HomepageContentResponse> findAll() { return service.findByType(TYPE); }
+    @PostMapping @ResponseStatus(HttpStatus.CREATED) public HomepageContentResponse create(@Valid @RequestBody HomepageContentRequest request) { return service.create(TYPE, request); }
+    @PutMapping("/{id}") public HomepageContentResponse update(@PathVariable long id, @Valid @RequestBody HomepageContentRequest request) { return service.update(TYPE, id, request); }
+    @DeleteMapping("/{id}") @ResponseStatus(HttpStatus.NO_CONTENT) public void delete(@PathVariable long id) { service.delete(TYPE, id); }
+}

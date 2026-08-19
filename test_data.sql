@@ -32,10 +32,72 @@ CREATE TABLE IF NOT EXISTS `user` (
   completed_order_count INT NOT NULL DEFAULT 0,
   joined_date DATE,
   member_detail VARCHAR(500) NOT NULL DEFAULT '일반회원',
+  member_status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+  withdrawn_at DATETIME NULL,
   alarm_consent BOOLEAN NOT NULL DEFAULT FALSE,
   PRIMARY KEY (user_id),
   UNIQUE KEY uk_user_access_id (access_id),
   UNIQUE KEY uk_user_login_id (login_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- noinspection SqlResolve
+SET @member_status_exists = (
+  SELECT COUNT(*) FROM `information_schema`.`COLUMNS`
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'member_status'
+);
+SET @member_status_sql = IF(@member_status_exists = 0,
+  'ALTER TABLE `user` ADD COLUMN member_status VARCHAR(20) NOT NULL DEFAULT ''ACTIVE'' AFTER member_detail', 'SELECT 1');
+PREPARE member_status_statement FROM @member_status_sql;
+EXECUTE member_status_statement;
+DEALLOCATE PREPARE member_status_statement;
+
+-- noinspection SqlResolve
+SET @withdrawn_at_exists = (
+  SELECT COUNT(*) FROM `information_schema`.`COLUMNS`
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'withdrawn_at'
+);
+SET @withdrawn_at_sql = IF(@withdrawn_at_exists = 0,
+  'ALTER TABLE `user` ADD COLUMN withdrawn_at DATETIME NULL AFTER member_status', 'SELECT 1');
+PREPARE withdrawn_at_statement FROM @withdrawn_at_sql;
+EXECUTE withdrawn_at_statement;
+DEALLOCATE PREPARE withdrawn_at_statement;
+
+CREATE TABLE IF NOT EXISTS reward_point_history (
+  point_history_id BIGINT NOT NULL AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  amount INT NOT NULL,
+  balance_after INT NOT NULL,
+  reason VARCHAR(255) NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (point_history_id),
+  KEY idx_reward_point_member_created (user_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS deposit_request (
+  deposit_request_id BIGINT NOT NULL AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  amount INT NOT NULL,
+  depositor_name VARCHAR(100) NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+  admin_memo VARCHAR(500) NULL,
+  requested_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  processed_at DATETIME NULL,
+  PRIMARY KEY (deposit_request_id),
+  KEY idx_deposit_request_status_created (status, requested_at),
+  KEY idx_deposit_request_member (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS deposit_history (
+  deposit_history_id BIGINT NOT NULL AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  transaction_type VARCHAR(20) NOT NULL,
+  amount INT NOT NULL,
+  balance_after INT NOT NULL,
+  description VARCHAR(255) NOT NULL,
+  deposit_request_id BIGINT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (deposit_history_id),
+  KEY idx_deposit_history_member_created (user_id, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 예전 시드에서 사용한 순차형 placeholder access_id만 한 번 실제 UUID로 교체한다.
@@ -332,6 +394,45 @@ ON DUPLICATE KEY UPDATE
   member_detail = VALUES(member_detail),
   alarm_consent = VALUES(alarm_consent);
 
+UPDATE `user`
+SET member_status = 'ACTIVE', withdrawn_at = NULL
+WHERE user_id IN (@demo_user_id, @tester1_user_id, @tester2_user_id);
+
+UPDATE `user`
+SET member_status = 'WITHDRAWN', withdrawn_at = '2026-08-01 15:30:00'
+WHERE user_id = @tester3_user_id;
+
+INSERT INTO reward_point_history
+  (point_history_id, user_id, amount, balance_after, reason, created_at)
+VALUES
+  (1, @demo_user_id, 1200, 1200, '신규 가입 및 구매 적립', '2026-07-07 10:00:00'),
+  (2, @tester1_user_id, 100, 100, '첫 구매 적립', '2026-07-09 11:30:00'),
+  (3, @tester2_user_id, 500, 500, '상품 구매 적립', '2026-07-10 14:20:00'),
+  (4, @tester2_user_id, -300, 200, '주문 결제 사용', '2026-07-11 09:40:00')
+ON DUPLICATE KEY UPDATE
+  user_id = VALUES(user_id), amount = VALUES(amount), balance_after = VALUES(balance_after),
+  reason = VALUES(reason), created_at = VALUES(created_at);
+
+INSERT INTO deposit_request
+  (deposit_request_id, user_id, amount, depositor_name, status, admin_memo, requested_at, processed_at)
+VALUES
+  (1, @tester1_user_id, 30000, '테스터1', 'PENDING', NULL, '2026-08-10 10:10:00', NULL),
+  (2, @tester2_user_id, 20000, '테스터2', 'APPROVED', '입금 확인', '2026-08-08 13:25:00', '2026-08-08 14:00:00')
+ON DUPLICATE KEY UPDATE
+  user_id = VALUES(user_id), amount = VALUES(amount), depositor_name = VALUES(depositor_name),
+  status = VALUES(status), admin_memo = VALUES(admin_memo), requested_at = VALUES(requested_at), processed_at = VALUES(processed_at);
+
+INSERT INTO deposit_history
+  (deposit_history_id, user_id, transaction_type, amount, balance_after, description, deposit_request_id, created_at)
+VALUES
+  (1, @demo_user_id, 'CHARGE', 60000, 60000, '예치금 충전', NULL, '2026-07-07 10:30:00'),
+  (2, @demo_user_id, 'USE', -10000, 50000, '구매대행 주문 결제', NULL, '2026-07-12 16:15:00'),
+  (3, @tester2_user_id, 'CHARGE', 20000, 20000, '예치금 신청 승인', 2, '2026-08-08 14:00:00')
+ON DUPLICATE KEY UPDATE
+  user_id = VALUES(user_id), transaction_type = VALUES(transaction_type), amount = VALUES(amount),
+  balance_after = VALUES(balance_after), description = VALUES(description), deposit_request_id = VALUES(deposit_request_id),
+  created_at = VALUES(created_at);
+
 INSERT INTO addresses (
   address_id,
   user_id,
@@ -518,3 +619,299 @@ ON DUPLICATE KEY UPDATE
   inquiry_id = VALUES(inquiry_id),
   image_uuid = VALUES(image_uuid),
   image_path = VALUES(image_path);
+
+-- @Daeyoung - 사용자 서비스 소개와 공지사항 공개 콘텐츠
+CREATE TABLE IF NOT EXISTS service_intro_sections (
+  section_id BIGINT NOT NULL AUTO_INCREMENT,
+  section_type VARCHAR(40) NOT NULL,
+  eyebrow VARCHAR(100) NULL,
+  title VARCHAR(200) NOT NULL,
+  content LONGTEXT NOT NULL,
+  detail VARCHAR(500) NULL,
+  image_url VARCHAR(500) NULL,
+  display_order INT NOT NULL,
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (section_id),
+  KEY idx_service_intro_active_order (active, display_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS admin_setting_entries (
+  setting_id BIGINT NOT NULL AUTO_INCREMENT,
+  setting_type VARCHAR(40) NOT NULL,
+  code VARCHAR(100) NOT NULL,
+  name VARCHAR(200) NOT NULL,
+  content LONGTEXT NULL,
+  field_data LONGTEXT NOT NULL,
+  display_order INT NOT NULL DEFAULT 0,
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (setting_id),
+  UNIQUE KEY uk_admin_setting_type_code (setting_type, code),
+  KEY idx_admin_setting_type_order (setting_type, display_order, setting_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO admin_setting_entries
+  (setting_id, setting_type, code, name, content, field_data, display_order, active)
+VALUES
+  (1, 'MEMBER_GRADE', 'BASIC', '일반회원', '기본 회원 등급입니다.', '{"minimumPurchaseAmount":"0","pointRate":"1","discountRate":"0"}', 1, TRUE),
+  (2, 'MEMBER_GRADE', 'VIP', 'VIP', '누적 구매금액 기준 우수 회원입니다.', '{"minimumPurchaseAmount":"1000000","pointRate":"2","discountRate":"1"}', 2, TRUE),
+  (3, 'SHIPPING_ADDRESS', 'SEOUL_CENTER', '서울 물류센터', '상품 입고 시 주문번호와 회원명을 함께 기재합니다.', '{"postalCode":"04524","address1":"서울특별시 중구 세종대로 110","address2":"ZIK00 물류센터","receiverName":"입고담당자","phone":"02-0000-0000"}', 1, TRUE),
+  (4, 'DEPOSIT_ACCOUNT', 'MAIN_DEPOSIT', '기본 입금계좌', '입금 후 예치금 신청에서 입금자명을 정확히 입력해 주세요.', '{"bankName":"국민은행","accountNumber":"000000-00-000000","accountHolder":"주식회사 ZIK00","usage":"ALL"}', 1, TRUE),
+  (9, 'MAIL_TEMPLATE', 'WELCOME', '회원가입 환영 메일', 'ZIK:00 가입을 환영합니다. 원하는 한국 상품을 더 편리하게 만나보세요.', '{"templateType":"SIGNUP","subject":"ZIK:00 회원가입을 환영합니다","senderName":"ZIK:00","replyTo":"support@zik00.example","defaultTemplate":"true"}', 1, TRUE),
+  (10, 'COMPANY_INFO', 'PRIMARY', 'ZIK:00', '운영시간: 평일 10:00-17:00', '{"representative":"대표자","businessNumber":"000-00-00000","commerceNumber":"제2026-서울중구-0000호","phone":"02-0000-0000","email":"support@zik00.example","postalCode":"04524","address":"서울특별시 중구 세종대로 110"}', 1, TRUE)
+ON DUPLICATE KEY UPDATE
+  name=VALUES(name), content=VALUES(content), field_data=VALUES(field_data),
+  display_order=VALUES(display_order), active=VALUES(active);
+
+DELETE FROM admin_setting_entries WHERE setting_type = 'ITEM_CATEGORY';
+UPDATE admin_setting_entries
+SET setting_type = 'MAIL_TEMPLATE',
+    field_data = JSON_SET(field_data, '$.templateType', 'SIGNUP', '$.defaultTemplate', 'true')
+WHERE setting_type = 'SIGNUP_MAIL';
+
+CREATE TABLE IF NOT EXISTS notices (
+  notice_id BIGINT NOT NULL AUTO_INCREMENT,
+  category VARCHAR(50) NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  content LONGTEXT NOT NULL,
+  pinned BOOLEAN NOT NULL DEFAULT FALSE,
+  published BOOLEAN NOT NULL DEFAULT TRUE,
+  published_at DATETIME NOT NULL,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (notice_id),
+  KEY idx_notices_public_list (published, pinned, published_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO service_intro_sections (
+  section_id, section_type, eyebrow, title, content, detail, image_url, display_order, active
+) VALUES
+  (1, 'HERO', 'ZIK:00 SERVICE', '한국 쇼핑을 더 가까이, 주문 과정은 더 분명하게',
+   'ZIK:00은 원하는 한국 상품을 찾고 주문한 뒤 배송 과정을 확인할 수 있도록 돕는 구매대행 서비스입니다.',
+   '상품 탐색부터 국제배송 안내까지 필요한 정보를 한곳에 모았습니다.',
+   '/assets/hero-seoul-summer.webp', 1, TRUE),
+  (2, 'PROCESS', '01', '상품 찾기',
+   '검색창과 카테고리에서 원하는 상품을 찾거나 상품 URL을 직접 입력합니다.',
+   '상품 가격과 선택 가능한 옵션을 확인하세요.', NULL, 2, TRUE),
+  (3, 'PROCESS', '02', '주문 요청',
+   '상품 옵션과 수량을 선택하고 주문을 요청합니다.',
+   '결제 전에 예상 비용과 배송 정보를 확인할 수 있습니다.', NULL, 3, TRUE),
+  (4, 'PROCESS', '03', '한국에서 발송',
+   '판매처 주문과 국내 입고가 완료되면 검수 후 해외 배송을 준비합니다.',
+   '마이페이지에서 진행 상태를 확인할 수 있습니다.', NULL, 4, TRUE),
+  (5, 'VALUE', 'CLEAR', '확인 가능한 진행 과정',
+   '주문 접수부터 배송까지 현재 단계를 알기 쉽게 안내합니다.',
+   '궁금한 점은 주문별 문의에서 이어서 확인할 수 있습니다.', NULL, 5, TRUE),
+  (6, 'VALUE', 'CHOICE', '다양한 상품 탐색',
+   '검색 결과와 원본 상품 페이지 정보를 바탕으로 필요한 상품을 비교할 수 있습니다.',
+   '상품 정보는 판매처 상황에 따라 달라질 수 있습니다.', NULL, 6, TRUE),
+  (7, 'VALUE', 'SUPPORT', '주문별 고객 지원',
+   '주문이나 배송 중 확인이 필요한 내용은 고객센터를 통해 문의할 수 있습니다.',
+   '문의 내역과 답변은 마이페이지에서 관리됩니다.', NULL, 7, TRUE)
+ON DUPLICATE KEY UPDATE
+  section_type = VALUES(section_type), eyebrow = VALUES(eyebrow), title = VALUES(title),
+  content = VALUES(content), detail = VALUES(detail), image_url = VALUES(image_url),
+  display_order = VALUES(display_order), active = VALUES(active);
+
+INSERT INTO notices (
+  notice_id, category, title, content, pinned, published, published_at
+) VALUES
+  (1, '안내', 'ZIK:00 서비스 이용 안내',
+   'ZIK:00을 이용해 주셔서 감사합니다.\n\n상품 검색 후 상세 페이지에서 가격과 옵션을 확인하고 주문을 진행해 주세요. 판매처의 재고와 가격은 주문 시점에 달라질 수 있습니다.',
+   TRUE, TRUE, '2026-08-01 09:00:00'),
+  (2, '배송', '국제배송 진행 단계 안내',
+   '판매처 주문, 국내 입고, 검수, 국제배송 순서로 진행됩니다. 주문별 진행 상태는 마이페이지에서 확인할 수 있습니다.',
+   TRUE, TRUE, '2026-08-03 10:30:00'),
+  (3, '점검', '정기 시스템 점검 안내',
+   '더 안정적인 서비스를 위해 정기 점검을 진행할 예정입니다. 점검 시간에는 일부 기능 이용이 일시적으로 제한될 수 있습니다.',
+   FALSE, TRUE, '2026-08-07 14:00:00'),
+  (4, '상품', '상품 가격 및 재고 표시에 관한 안내',
+   '상품 가격과 재고는 원본 판매처의 상황에 따라 변경될 수 있습니다. 최종 주문 전 상품 상세 정보를 다시 확인해 주세요.',
+   FALSE, TRUE, '2026-08-09 11:20:00'),
+  (5, '배송', '배송지 정보 입력 시 유의사항',
+   '정확한 배송을 위해 우편번호, 주소, 연락처를 빠짐없이 입력해 주세요. 주소 오류로 인한 배송 지연이 발생할 수 있습니다.',
+   FALSE, TRUE, '2026-08-10 16:10:00')
+ON DUPLICATE KEY UPDATE
+  category = VALUES(category), title = VALUES(title), content = VALUES(content),
+  pinned = VALUES(pinned), published = VALUES(published), published_at = VALUES(published_at);
+
+CREATE TABLE IF NOT EXISTS service_reviews (
+  review_id BIGINT NOT NULL AUTO_INCREMENT,
+  author_name VARCHAR(100) NOT NULL,
+  title VARCHAR(200) NOT NULL,
+  content LONGTEXT NOT NULL,
+  rating INT NOT NULL,
+  product_name VARCHAR(200) NOT NULL,
+  image_url VARCHAR(500) NULL,
+  featured BOOLEAN NOT NULL DEFAULT FALSE,
+  published BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (review_id),
+  KEY idx_service_reviews_public_list (published, created_at),
+  KEY idx_service_reviews_public_rating (published, rating)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS service_review_comments (
+  comment_id BIGINT NOT NULL AUTO_INCREMENT,
+  review_id BIGINT NOT NULL,
+  admin_id BIGINT NOT NULL,
+  admin_name VARCHAR(100) NOT NULL,
+  content LONGTEXT NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (comment_id),
+  KEY idx_service_review_comments_review_created (review_id, created_at),
+  CONSTRAINT fk_service_review_comments_review
+    FOREIGN KEY (review_id) REFERENCES service_reviews (review_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS notice_categories (
+  category_id BIGINT NOT NULL AUTO_INCREMENT,
+  name VARCHAR(50) NOT NULL,
+  display_order INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (category_id),
+  UNIQUE KEY uk_notice_categories_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO notice_categories (category_id, name, display_order) VALUES
+  (1, '배송', 1),
+  (2, '상품', 2),
+  (3, '안내', 3),
+  (4, '점검', 4)
+ON DUPLICATE KEY UPDATE name=VALUES(name), display_order=VALUES(display_order);
+
+CREATE TABLE IF NOT EXISTS homepage_contents (
+  content_id BIGINT NOT NULL AUTO_INCREMENT,
+  content_type VARCHAR(40) NOT NULL,
+  title VARCHAR(200) NOT NULL,
+  subtitle VARCHAR(300) NULL,
+  content LONGTEXT NULL,
+  image_url VARCHAR(1000) NULL,
+  link_url VARCHAR(1000) NULL,
+  link_label VARCHAR(100) NULL,
+  application_type VARCHAR(30) NULL,
+  display_order INT NOT NULL DEFAULT 0,
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  starts_at DATETIME NULL,
+  ends_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (content_id),
+  KEY idx_homepage_contents_type_order (content_type, active, display_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- noinspection SqlResolve
+SET @homepage_application_type_exists = (
+  SELECT COUNT(*)
+  FROM `information_schema`.`COLUMNS`
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'homepage_contents'
+    AND COLUMN_NAME = 'application_type'
+);
+SET @homepage_application_type_sql = IF(
+  @homepage_application_type_exists = 0,
+  'ALTER TABLE homepage_contents ADD COLUMN application_type VARCHAR(30) NULL AFTER link_label',
+  'SELECT 1'
+);
+PREPARE homepage_application_type_statement FROM @homepage_application_type_sql;
+EXECUTE homepage_application_type_statement;
+DEALLOCATE PREPARE homepage_application_type_statement;
+
+INSERT INTO homepage_contents
+  (content_id, content_type, title, subtitle, content, image_url, link_url, link_label, display_order, active)
+VALUES
+  (1, 'MAIN_BANNER', '한국의 여름을\n가볍게 즐기는 방법', 'SEOUL SUMMER 2026', '서울에서 지금 뜨는 여름 아이템을 일본까지 만나보세요.', '/assets/hero-seoul-summer.webp', '#recommendations', '기획전 보기', 1, TRUE),
+  (2, 'MAIN_BANNER', '오늘의 스타일을\n가볍게 업데이트', 'SEOUL STREET', '스니커즈부터 데일리 아이템까지 빠르게 둘러보세요.', '/assets/hero-style.webp', '#recommendations', '기획전 보기', 2, TRUE),
+  (3, 'MAIN_BANNER', '취향을 채우는\n작고 좋은 물건들', 'K-LIFESTYLE', '문구, 리빙, 굿즈를 현지 배송부터 통관까지 편리하게.', '/assets/hero-living.webp', '#recommendations', '기획전 보기', 3, TRUE),
+  (4, 'OTHER_BANNER', '검수부터 포장까지', '안전한 배송 대행', NULL, NULL, '/service-intro', NULL, 1, TRUE),
+  (5, 'OTHER_BANNER', '비용을 한눈에', '예상 금액 미리 확인', NULL, NULL, '/service-intro', NULL, 2, TRUE),
+  (6, 'OTHER_BANNER', '진행 상황 확인', '주문부터 배송까지', NULL, NULL, '/mypage/orders', NULL, 3, TRUE),
+  (7, 'FOOTER_COPYRIGHT', '한국의 좋은 상품을 일본까지 편리하게 연결합니다.', '상호명: ZIK:00 · 운영시간: 평일 10:00-17:00', '© 2026 ZIK:00. All rights reserved.', NULL, NULL, NULL, 1, TRUE)
+ON DUPLICATE KEY UPDATE
+  content_type=VALUES(content_type), title=VALUES(title), subtitle=VALUES(subtitle),
+  content=VALUES(content), image_url=VALUES(image_url), link_url=VALUES(link_url),
+  link_label=VALUES(link_label), display_order=VALUES(display_order), active=VALUES(active);
+
+INSERT INTO service_reviews (
+  review_id, author_name, title, content, rating, product_name, image_url, featured, published, created_at
+) VALUES
+  (1, '미나***', '처음 이용했는데 진행 상황을 알기 쉬웠어요',
+   '찾던 운동화를 주문했습니다. 국내 입고와 국제배송 단계가 구분되어 있어서 기다리는 동안에도 안심할 수 있었어요.',
+   5, '나이키 데일리 스니커즈', '/assets/product-shoes.webp', TRUE, TRUE, '2026-08-10 18:20:00'),
+  (2, '하루***', '상품 포장이 꼼꼼했습니다',
+   '가방 모양이 흐트러지지 않게 포장되어 도착했습니다. 문의 답변도 필요한 내용을 정확하게 알려줬어요.',
+   5, '미니 크로스백', '/assets/product-bag.webp', TRUE, TRUE, '2026-08-09 14:40:00'),
+  (3, '유키***', '생각보다 배송이 빨랐어요',
+   '예상 배송 기간 안에 잘 도착했습니다. 주문 전에 비용을 확인할 수 있어서 편리했습니다.',
+   4, '서머 스트랩 샌들', '/assets/product-sandals.webp', FALSE, TRUE, '2026-08-08 09:15:00'),
+  (4, '지아***', '한국 한정 상품을 편하게 주문했어요',
+   '직접 구매하기 어려웠던 상품을 검색해서 주문할 수 있었습니다. 다음에도 이용할 생각입니다.',
+   5, '서울 에디션 볼캡', '/assets/product-summer-cap.webp', FALSE, TRUE, '2026-08-06 20:05:00'),
+  (5, '렌***', '문의 답변이 친절했어요',
+   '옵션을 잘못 선택해서 문의했는데 주문 전 빠르게 확인해 주셨습니다.',
+   4, '데일리 손목시계', '/assets/product-watch.webp', FALSE, TRUE, '2026-08-05 11:50:00'),
+  (6, '소라***', '제품 상태가 좋았습니다',
+   '외부 포장과 제품 상태 모두 문제없이 도착했습니다. 배송 조회도 편리했어요.',
+   5, '무선 헤드폰', '/assets/product-headphones.webp', FALSE, TRUE, '2026-08-03 16:25:00'),
+  (7, '나오***', '전체적으로 만족합니다',
+   '주문 과정은 편리했지만 인기 상품이라 국내 입고까지 시간이 조금 걸렸습니다.',
+   4, '선케어 세트', '/assets/product-suncare.webp', FALSE, TRUE, '2026-08-02 13:10:00'),
+  (8, '아키***', '다시 이용하고 싶은 서비스예요',
+   '여러 쇼핑몰을 따로 확인하지 않아도 원하는 상품을 찾을 수 있어 좋았습니다.',
+   5, '24시간 보냉 텀블러', '/assets/product-tumbler.webp', FALSE, TRUE, '2026-07-31 10:30:00')
+ON DUPLICATE KEY UPDATE
+  author_name = VALUES(author_name), title = VALUES(title), content = VALUES(content),
+  rating = VALUES(rating), product_name = VALUES(product_name), image_url = VALUES(image_url),
+  featured = VALUES(featured), published = VALUES(published), created_at = VALUES(created_at);
+
+CREATE TABLE IF NOT EXISTS wishlist_items (
+  wishlist_item_id BIGINT NOT NULL AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  product_id VARCHAR(255) NOT NULL,
+  product_name VARCHAR(500) NOT NULL,
+  brand VARCHAR(200) NULL,
+  image_url VARCHAR(1500) NULL,
+  price BIGINT NOT NULL,
+  currency VARCHAR(10) NOT NULL,
+  source_url VARCHAR(2000) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (wishlist_item_id),
+  UNIQUE KEY uk_wishlist_user_product (user_id, product_id),
+  KEY idx_wishlist_user_created (user_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS cart_items (
+  cart_item_id BIGINT NOT NULL AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  product_id VARCHAR(255) NOT NULL,
+  product_name VARCHAR(500) NOT NULL,
+  brand VARCHAR(200) NULL,
+  image_url VARCHAR(1500) NULL,
+  unit_price BIGINT NOT NULL,
+  currency VARCHAR(10) NOT NULL,
+  source_url VARCHAR(2000) NULL,
+  option_data LONGTEXT NOT NULL,
+  option_key VARCHAR(64) NOT NULL,
+  quantity INT NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (cart_item_id),
+  UNIQUE KEY uk_cart_user_product_option (user_id, product_id, option_key),
+  KEY idx_cart_user_created (user_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS japan_customs_snapshots (
+  snapshot_id BIGINT NOT NULL AUTO_INCREMENT,
+  krw_to_jpy_rate DECIMAL(12,6) NULL,
+  rate_from DATE NULL,
+  rate_to DATE NULL,
+  simplified_tariff_rates LONGTEXT NOT NULL,
+  consumption_tax_rate DECIMAL(8,6) NOT NULL,
+  exchange_source_url VARCHAR(1000) NOT NULL,
+  tariff_source_url VARCHAR(1000) NOT NULL,
+  fetched_at DATETIME(6) NOT NULL,
+  fallback BIT(1) NOT NULL DEFAULT b'0',
+  PRIMARY KEY (snapshot_id),
+  KEY idx_japan_customs_fetched (fallback, fetched_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

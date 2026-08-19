@@ -7,6 +7,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 public interface PurchaseRepository extends JpaRepository<Purchase, Long> {
+    boolean existsByOrderNumber(String orderNumber);
+
+    boolean existsByOrderNumberAndMemberId(String orderNumber, long memberId);
+
     @Query("""
             select p
             from Purchase p

@@ -15,6 +15,8 @@ import {
   Send,
   Settings,
   SlidersHorizontal,
+  Moon,
+  Sun,
   TicketPercent,
   Trash2,
   UserRound,
@@ -24,6 +26,30 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { NavLink, Navigate, Outlet, Route, Routes } from 'react-router-dom';
+import { NoticeCreatePage } from './components/board_management/notice_create/NoticeCreatePage';
+import { NoticeManagementPage } from './components/board_management/notice_management/NoticeManagementPage';
+import { OneToOneInquiryPage } from './components/board_management/one_to_one_inquiry/OneToOneInquiryPage';
+import { ReviewManagementPage } from './components/board_management/review_management/ReviewManagementPage';
+import { ADMIN_PAGE_REFRESH_EVENT, useAdminPageRefresh } from './hooks/useAdminPageRefresh';
+import { MainBannerManagementPage } from './components/Web_management/main_banner/MainBannerManagementPage';
+import { OtherBannerManagementPage } from './components/Web_management/other_banner/OtherBannerManagementPage';
+import { PopupManagementPage } from './components/Web_management/popup/PopupManagementPage';
+import { FooterCopyrightPage } from './components/Web_management/footer_copyright/FooterCopyrightPage';
+import { PrecautionManagementPage } from './components/Web_management/precaution/PrecautionManagementPage';
+import { RecommendedSitePage } from './components/Web_management/recommended_site/RecommendedSitePage';
+import { RecommendedProductPage } from './components/Web_management/recommended_product/RecommendedProductPage';
+import { MemberListPage } from './components/member_management/member_list/MemberListPage';
+import { WithdrawnMemberPage } from './components/member_management/withdrawn_member/WithdrawnMemberPage';
+import { RewardPointPage } from './components/member_management/reward_point/RewardPointPage';
+import { DepositRequestPage } from './components/member_management/deposit_request/DepositRequestPage';
+import { DepositHistoryPage } from './components/member_management/deposit_history/DepositHistoryPage';
+import { AdminManagementPage } from './components/settings_management/admin_management/AdminManagementPage';
+import { MemberGradePage } from './components/settings_management/member_grade/MemberGradePage';
+import { ShippingAddressPage } from './components/settings_management/shipping_address/ShippingAddressPage';
+import { DepositAccountPage } from './components/settings_management/deposit_account/DepositAccountPage';
+import { MailManagementPage } from './components/settings_management/mail_management/MailManagementPage';
+import { MailAddressManagementPage } from './components/settings_management/mail_address_management/MailAddressManagementPage';
+import { CompanyInfoPage } from './components/settings_management/company_info/CompanyInfoPage';
 import './App.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
@@ -177,16 +203,26 @@ function App() {
   const [isAuthChecking, setIsAuthChecking] = useState(true);
 
   useEffect(() => {
-    request<AdminSession>('/api/admin/auth/me')
+    getCurrentAdminSession()
       .then(setAdminSession)
       .catch(() => setAdminSession(null))
       .finally(() => setIsAuthChecking(false));
   }, []);
 
   useEffect(() => {
-    const handleAuthExpired = () => setAdminSession(null);
+    let active = true;
+    const handleAuthExpired = () => {
+      void getCurrentAdminSession()
+        .then((session) => { if (active) setAdminSession(session); })
+        .catch(() => {
+          // A temporary network failure must not erase a valid admin session.
+        });
+    };
     window.addEventListener(ADMIN_AUTH_EXPIRED_EVENT, handleAuthExpired);
-    return () => window.removeEventListener(ADMIN_AUTH_EXPIRED_EVENT, handleAuthExpired);
+    return () => {
+      active = false;
+      window.removeEventListener(ADMIN_AUTH_EXPIRED_EVENT, handleAuthExpired);
+    };
   }, []);
 
   const handleLogout = useCallback(async () => {
@@ -209,12 +245,36 @@ function App() {
       >
         <Route index element={<Navigate to="/admin/agency" replace />} />
         <Route path="/admin" element={<Navigate to="/admin/agency" replace />} />
-        <Route path="/admin/members" element={<MemberManagementPage />} />
+        <Route path="/admin/members" element={<Navigate to="/admin/members/list" replace />} />
+        <Route path="/admin/members/list" element={<MemberListPage />} />
+        <Route path="/admin/members/withdrawn" element={<WithdrawnMemberPage />} />
+        <Route path="/admin/members/reward-points" element={<RewardPointPage />} />
+        <Route path="/admin/members/deposit-requests" element={<DepositRequestPage />} />
+        <Route path="/admin/members/deposit-histories" element={<DepositHistoryPage />} />
         <Route path="/admin/agency" element={<PlaceholderPage title="대행관리" />} />
-        <Route path="/admin/boards" element={<InquiryManagementPage />} />
-        <Route path="/admin/homepage" element={<PlaceholderPage title="홈페이지 관리" />} />
+        <Route path="/admin/boards" element={<Navigate to="/admin/boards/notices/new" replace />} />
+        <Route path="/admin/boards/notices/new" element={<NoticeCreatePage />} />
+        <Route path="/admin/boards/notices" element={<NoticeManagementPage />} />
+        <Route path="/admin/boards/inquiries" element={<OneToOneInquiryPage />} />
+        <Route path="/admin/boards/reviews" element={<ReviewManagementPage />} />
+        <Route path="/admin/homepage" element={<Navigate to="/admin/homepage/main-banners" replace />} />
+        <Route path="/admin/homepage/main-banners" element={<MainBannerManagementPage />} />
+        <Route path="/admin/homepage/other-banners" element={<OtherBannerManagementPage />} />
+        <Route path="/admin/homepage/popups" element={<PopupManagementPage />} />
+        <Route path="/admin/homepage/footer-copyright" element={<FooterCopyrightPage />} />
+        <Route path="/admin/homepage/precautions" element={<PrecautionManagementPage />} />
+        <Route path="/admin/homepage/recommended-sites" element={<RecommendedSitePage />} />
+        <Route path="/admin/homepage/recommended-products" element={<RecommendedProductPage />} />
         <Route path="/admin/coupons" element={<CouponManagementPage />} />
-        <Route path="/admin/settings" element={<PlaceholderPage title="환경설정" />} />
+        <Route path="/admin/settings" element={<Navigate to="/admin/settings/admins" replace />} />
+        <Route path="/admin/settings/admins" element={<AdminManagementPage />} />
+        <Route path="/admin/settings/member-grades" element={<MemberGradePage />} />
+        <Route path="/admin/settings/shipping-addresses" element={<ShippingAddressPage />} />
+        <Route path="/admin/settings/deposit-accounts" element={<DepositAccountPage />} />
+        <Route path="/admin/settings/mail-address" element={<MailAddressManagementPage />} />
+        <Route path="/admin/settings/mail" element={<MailManagementPage />} />
+        <Route path="/admin/settings/signup-mail" element={<Navigate to="/admin/settings/mail" replace />} />
+        <Route path="/admin/settings/company-info" element={<CompanyInfoPage />} />
       </Route>
       <Route path="*" element={<Navigate to={adminSession ? '/admin/members' : '/admin/login'} replace />} />
     </Routes>
@@ -324,16 +384,33 @@ function Shell({
   adminSession: AdminSession | null;
   onLogout: () => void;
 }) {
+  const [theme, setTheme] = useState<'light' | 'dark'>(() =>
+    window.localStorage.getItem('zik00-admin-theme') === 'dark' ? 'dark' : 'light',
+  );
+  const [isPageRefreshing, setIsPageRefreshing] = useState(false);
+
+  useEffect(() => {
+    document.documentElement.dataset.adminTheme = theme;
+    window.localStorage.setItem('zik00-admin-theme', theme);
+    return () => { delete document.documentElement.dataset.adminTheme; };
+  }, [theme]);
+
+  const refreshCurrentPage = () => {
+    setIsPageRefreshing(true);
+    window.dispatchEvent(new Event(ADMIN_PAGE_REFRESH_EVENT));
+    window.setTimeout(() => setIsPageRefreshing(false), 650);
+  };
+
   return (
     <div className="admin-shell">
       <aside className="admin-sidebar">
-        <div className="admin-brand">
+        <NavLink className="admin-brand" to="/admin/agency" aria-label="대행관리로 이동">
           <LayoutDashboard size={22} />
           <div>
             <strong>ZIK00</strong>
             <span>Admin</span>
           </div>
-        </div>
+        </NavLink>
 
         <nav className="admin-nav-list" aria-label="관리자 메뉴">
           {adminNavItems.map((item) => (
@@ -356,6 +433,20 @@ function Shell({
       </aside>
 
       <main className="admin-content">
+        <div className="admin-global-actions">
+          <button type="button" className="admin-global-icon-button" onClick={refreshCurrentPage} aria-label="현재 페이지 정보 새로고침" title="현재 페이지 새로고침">
+            <RefreshCw className={isPageRefreshing ? 'is-spinning' : ''} size={19} />
+          </button>
+          <button
+            type="button"
+            className="admin-global-icon-button admin-theme-toggle"
+            onClick={() => setTheme((current) => current === 'light' ? 'dark' : 'light')}
+            aria-label={theme === 'light' ? '다크 모드로 변경' : '화이트 모드로 변경'}
+            title={theme === 'light' ? '다크 모드' : '화이트 모드'}
+          >
+            {theme === 'light' ? <Moon size={19} /> : <Sun size={19} />}
+          </button>
+        </div>
         <Outlet />
       </main>
     </div>
@@ -418,6 +509,7 @@ function MemberManagementPage() {
   useEffect(() => {
     void loadMembers();
   }, [loadMembers]);
+  useAdminPageRefresh(loadMembers);
 
   const filteredMembers = useMemo(() => {
     const normalizedQuery = normalize(query);
@@ -448,15 +540,7 @@ function MemberManagementPage() {
 
   return (
     <section className="admin-page">
-      <PageHeader
-        title="회원관리"
-        eyebrow="관리자"
-        actions={
-          <button className="admin-icon-button" type="button" onClick={loadMembers} aria-label="새로고침">
-            <RefreshCw size={18} />
-          </button>
-        }
-      />
+      <PageHeader title="회원관리" eyebrow="관리자" />
 
       {errorMessage && (
         <div className="admin-alert-line" role="alert">
@@ -956,18 +1040,18 @@ function CouponManagementPage() {
 
   const [templateForm, setTemplateForm] = useState({
     couponName: '',
-    discountType: 'percent',
+    discountType: '',
     discountValue: '10',
     minimumOrderAmount: '0',
     startedDate: '',
     expiredDate: '',
-    targetType: 'ALL',
+    targetType: '',
     active: true,
   });
   const [memberIssueForm, setMemberIssueForm] = useState<CouponIssueForm>({
     couponTemplateId: '',
     couponName: '',
-    discountType: 'percent',
+    discountType: '',
     discountValue: '10',
     minimumOrderAmount: '0',
     startedDate: '',
@@ -978,7 +1062,7 @@ function CouponManagementPage() {
   const [guestIssueForm, setGuestIssueForm] = useState<CouponIssueForm & { guestIdentifier: string; couponCode: string }>({
     couponTemplateId: '',
     couponName: '',
-    discountType: 'percent',
+    discountType: '',
     discountValue: '10',
     minimumOrderAmount: '0',
     startedDate: '',
@@ -1010,6 +1094,7 @@ function CouponManagementPage() {
   useEffect(() => {
     void loadCoupons();
   }, [loadCoupons]);
+  useAdminPageRefresh(loadCoupons);
 
   const handleCreateTemplate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1033,12 +1118,12 @@ function CouponManagementPage() {
       });
       setTemplateForm({
         couponName: '',
-        discountType: 'percent',
+        discountType: '',
         discountValue: '10',
         minimumOrderAmount: '0',
         startedDate: '',
         expiredDate: '',
-        targetType: 'ALL',
+        targetType: '',
         active: true,
       });
       setSuccessMessage('쿠폰 발급 이벤트가 저장되었습니다.');
@@ -1060,7 +1145,7 @@ function CouponManagementPage() {
       await request<IssuedCoupon[]>('/api/admin/coupons/issued/members', {
         method: 'POST',
         body: JSON.stringify({
-          couponTemplateId: memberIssueForm.couponTemplateId ? Number(memberIssueForm.couponTemplateId) : null,
+          couponTemplateId: memberIssueForm.couponTemplateId && memberIssueForm.couponTemplateId !== 'CUSTOM' ? Number(memberIssueForm.couponTemplateId) : null,
           memberIds: selectedMemberIds,
           couponName: memberIssueForm.couponName,
           discountType: memberIssueForm.discountType,
@@ -1073,7 +1158,7 @@ function CouponManagementPage() {
       setMemberIssueForm({
         couponTemplateId: '',
         couponName: '',
-        discountType: 'percent',
+        discountType: '',
         discountValue: '10',
         minimumOrderAmount: '0',
         startedDate: '',
@@ -1099,7 +1184,7 @@ function CouponManagementPage() {
       await request<IssuedCoupon>('/api/admin/coupons/issued/guests', {
         method: 'POST',
         body: JSON.stringify({
-          couponTemplateId: guestIssueForm.couponTemplateId ? Number(guestIssueForm.couponTemplateId) : null,
+          couponTemplateId: guestIssueForm.couponTemplateId && guestIssueForm.couponTemplateId !== 'CUSTOM' ? Number(guestIssueForm.couponTemplateId) : null,
           guestIdentifier: guestIssueForm.guestIdentifier,
           couponCode: guestIssueForm.couponCode || null,
           couponName: guestIssueForm.couponName,
@@ -1113,7 +1198,7 @@ function CouponManagementPage() {
       setGuestIssueForm({
         couponTemplateId: '',
         couponName: '',
-        discountType: 'percent',
+        discountType: '',
         discountValue: '10',
         minimumOrderAmount: '0',
         startedDate: '',
@@ -1145,15 +1230,7 @@ function CouponManagementPage() {
 
   return (
     <section className="admin-page">
-      <PageHeader
-        title="쿠폰관리"
-        eyebrow="관리자"
-        actions={
-          <button className="admin-icon-button" type="button" onClick={loadCoupons} aria-label="새로고침">
-            <RefreshCw size={18} />
-          </button>
-        }
-      />
+      <PageHeader title="쿠폰관리" eyebrow="관리자" />
 
       {errorMessage && (
         <div className="admin-alert-line" role="alert">
@@ -1326,7 +1403,7 @@ function CouponIssuePanel({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   const templateId = mode === 'member' ? memberIssueForm?.couponTemplateId || '' : guestIssueForm?.couponTemplateId || '';
-  const showCustomCouponFields = !templateId;
+  const showCustomCouponFields = templateId === 'CUSTOM';
   const filteredMembers = members.filter((member) => {
     const normalizedQuery = normalize(memberQuery || '');
     if (!normalizedQuery) {
@@ -1344,7 +1421,7 @@ function CouponIssuePanel({
       <form className="admin-coupon-form" onSubmit={onSubmit}>
         <label>
           <span>쿠폰 종류</span>
-          <select
+          <select required
             value={templateId}
             onChange={(event) => {
               if (mode === 'member' && memberIssueForm && onMemberIssueFormChange) {
@@ -1355,7 +1432,8 @@ function CouponIssuePanel({
               }
             }}
           >
-            <option value="">임의 쿠폰 직접 입력</option>
+            <option value="" disabled hidden>쿠폰 종류를 선택하세요</option>
+            <option value="CUSTOM">임의 쿠폰 직접 입력</option>
             {templates.map((template) => (
               <option value={template.id} key={template.id}>
                 {template.couponName}
@@ -1467,7 +1545,8 @@ function CustomCouponFields({
       </label>
       <label>
         <span>할인 타입</span>
-        <select value={form.discountType} onChange={(event) => onChange({ ...form, discountType: event.target.value })}>
+        <select required value={form.discountType} onChange={(event) => onChange({ ...form, discountType: event.target.value })}>
+          <option value="" disabled hidden>할인 타입을 선택하세요</option>
           <option value="percent">percent</option>
           <option value="amount">amount</option>
           <option value="shipping">shipping</option>
@@ -1548,10 +1627,11 @@ function CouponEventPanel({
           </label>
           <label>
             <span>할인 타입</span>
-            <select
+            <select required
               value={templateForm.discountType}
               onChange={(event) => onTemplateFormChange({ ...templateForm, discountType: event.target.value })}
             >
+              <option value="" disabled hidden>할인 타입을 선택하세요</option>
               <option value="percent">percent</option>
               <option value="amount">amount</option>
               <option value="shipping">shipping</option>
@@ -1593,7 +1673,8 @@ function CouponEventPanel({
           </label>
           <label>
             <span>발급 대상</span>
-            <select value={templateForm.targetType} onChange={(event) => onTemplateFormChange({ ...templateForm, targetType: event.target.value })}>
+            <select required value={templateForm.targetType} onChange={(event) => onTemplateFormChange({ ...templateForm, targetType: event.target.value })}>
+              <option value="" disabled hidden>발급 대상을 선택하세요</option>
               <option value="ALL">전체</option>
               <option value="MEMBER">회원</option>
               <option value="GUEST">비회원</option>
@@ -1706,6 +1787,15 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
 
   return response.json() as Promise<T>;
+}
+
+async function getCurrentAdminSession(): Promise<AdminSession | null> {
+  const response = await fetch(`${API_BASE_URL}/api/admin/auth/me`, {
+    credentials: 'include',
+  });
+  if (response.status === 401) return null;
+  if (!response.ok) throw new Error(await errorMessage(response));
+  return response.json() as Promise<AdminSession>;
 }
 
 type CsrfToken = {

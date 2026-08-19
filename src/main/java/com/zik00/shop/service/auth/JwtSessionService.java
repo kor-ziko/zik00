@@ -28,6 +28,7 @@ public class JwtSessionService {
     }
 
     public AccessSessionResult issue(User user, HttpServletResponse response) {
+        requireActive(user);
         refreshTokenStore.revokeAllForUser(user.getAccessId());
         JwtService.JwtPair pair = jwtService.issue(user.getAccessId());
         cookieService.clearRefreshToken(response);
@@ -69,9 +70,9 @@ public class JwtSessionService {
             throw new InvalidJwtException("Refresh Token 로그인 세션 정보가 올바르지 않습니다.");
         }
         User user = userRepository.findByAccessId(claims.accessId()).orElse(null);
-        if (user == null) {
+        if (user == null || !"ACTIVE".equals(user.getMemberStatus())) {
             refreshTokenStore.revokeFamily(claims.familyId());
-            throw new InvalidJwtException("Refresh Token 회원을 찾을 수 없습니다.");
+            throw new InvalidJwtException("로그인할 수 없는 회원입니다.");
         }
 
         return rotate(user, claims.familyId(), response);
@@ -110,6 +111,12 @@ public class JwtSessionService {
         }
         String token = authorization.substring(7).trim();
         return token.isEmpty() ? java.util.Optional.empty() : java.util.Optional.of(token);
+    }
+
+    private void requireActive(User user) {
+        if (!"ACTIVE".equals(user.getMemberStatus())) {
+            throw new InvalidJwtException("로그인할 수 없는 회원입니다.");
+        }
     }
 
     public record AccessSessionResult(java.time.Instant expiresAt) {

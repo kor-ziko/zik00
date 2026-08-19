@@ -1,0 +1,2 @@
+import { HomepageContentManagementPage } from '../HomepageContentManagementPage';
+export function PrecautionManagementPage(){return <HomepageContentManagementPage config={{endpoint:'precautions',title:'유의사항관리',description:'구매대행과 배송대행 신청 시 고객이 확인하고 체크할 항목을 관리합니다.',itemName:'유의사항',contentLabel:'상세 안내',applicationType:true,previewPath:(item)=>`/precautions?type=${item.applicationType??'DELIVERY_AGENCY'}`}}/>}

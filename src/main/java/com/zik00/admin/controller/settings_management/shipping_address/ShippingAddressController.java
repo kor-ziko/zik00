@@ -1,0 +1,3 @@
+package com.zik00.admin.controller.settings_management.shipping_address;
+import com.zik00.admin.controller.settings_management.common.SettingEntryControllerSupport;import com.zik00.admin.service.settings_management.common.SettingEntryService;import org.springframework.web.bind.annotation.RequestMapping;import org.springframework.web.bind.annotation.RestController;
+@RestController @RequestMapping("/api/admin/settings-management/shipping-addresses") public class ShippingAddressController extends SettingEntryControllerSupport{public ShippingAddressController(SettingEntryService s){super(s,"SHIPPING_ADDRESS",false);}}

@@ -1,11 +1,16 @@
 package com.zik00.shop.service.search;
 
 import com.zik00.shop.domain.search.KreamCatalogProduct;
+import com.zik00.shop.domain.search.DiscoveredProduct;
 import com.zik00.shop.dto.search.SearchFacetResponse;
 import com.zik00.shop.dto.search.SearchProductResponse;
 import com.zik00.shop.dto.search.SearchResultResponse;
 import com.zik00.shop.repository.search.KreamProductCatalogRepository;
+import com.zik00.shop.service.product.ProductImageSourceRegistry;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -19,26 +24,40 @@ import java.util.stream.Stream;
 
 @Service
 public class ProductSearchService {
-    private static final int MAX_PAGE_SIZE = 40;
+    private static final Logger log = LoggerFactory.getLogger(ProductSearchService.class);
+    private static final int MAX_PAGE_SIZE = 30;
     private static final List<SearchProductResponse> LOCAL_PRODUCTS = List.of(
             new SearchProductResponse("2", "충전식 무선 미니 테이블 팬",
-                    "가전 > 계절가전", "LUMENA", 4190L, 5200L, "JPY",
+                    "가전 > 계절가전", "LUMENA", 4190L, 5200L, "KRW",
                     null, "/assets/product-mini-fan.webp", 4.7, 347, true, "ZIK:00", "급상승"),
             new SearchProductResponse("3", "24시간 보냉 와이드 텀블러",
-                    "생활잡화 > 주방용품", "LOCK&LOCK", 3650L, null, "JPY",
+                    "생활잡화 > 주방용품", "LOCK&LOCK", 3650L, null, "KRW",
                     null, "/assets/product-tumbler.webp", 4.8, 134, true, "ZIK:00", "베스트"),
             new SearchProductResponse("4", "라이트 데님 서머 메쉬 캡",
-                    "패션의류 > 패션잡화", "MARDI MERCREDI", 2890L, null, "JPY",
+                    "패션의류 > 패션잡화", "MARDI MERCREDI", 2890L, null, "KRW",
                     null, "/assets/product-summer-cap.webp", 4.6, 48, false, "ZIK:00", "신상품"),
             new SearchProductResponse("5", "플랫폼 스트랩 서머 샌들",
-                    "패션의류 > 신발", "SAPPUN", 6790L, 8100L, "JPY",
+                    "패션의류 > 신발", "SAPPUN", 6790L, 8100L, "KRW",
                     null, "/assets/product-sandals.webp", 4.7, 92, false, "ZIK:00", "서울 픽")
     );
 
     private final KreamProductCatalogRepository kreamProductCatalogRepository;
+    private final ExternalProductCatalog externalProductCatalog;
+    private final ProductImageSourceRegistry imageSourceRegistry;
 
     public ProductSearchService(KreamProductCatalogRepository kreamProductCatalogRepository) {
+        this(kreamProductCatalogRepository, ExternalProductCatalog.disabled(), new ProductImageSourceRegistry());
+    }
+
+    @Autowired
+    public ProductSearchService(
+            KreamProductCatalogRepository kreamProductCatalogRepository,
+            ExternalProductCatalog externalProductCatalog,
+            ProductImageSourceRegistry imageSourceRegistry
+    ) {
         this.kreamProductCatalogRepository = kreamProductCatalogRepository;
+        this.externalProductCatalog = externalProductCatalog;
+        this.imageSourceRegistry = imageSourceRegistry;
     }
 
     public SearchResultResponse search(
@@ -69,8 +88,16 @@ public class ProductSearchService {
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
 
-        List<SearchCandidate> queryMatches = allCandidates()
+        Stream<SearchCandidate> externalCandidates = externalProductCatalog.search(query, category).stream()
+                .map(product -> new SearchCandidate(toSearchProduct(product), product.description()));
+        List<SearchCandidate> queryMatches = Stream.concat(allCandidates(), externalCandidates)
                 .filter(candidate -> matchesQuery(candidate, normalizedQuery, scope))
+                .collect(Collectors.toMap(
+                        candidate -> candidate.product().productId(),
+                        Function.identity(),
+                        (first, ignored) -> first
+                ))
+                .values().stream()
                 .toList();
 
         List<SearchFacetResponse> categories = buildFacets(
@@ -108,11 +135,15 @@ public class ProductSearchService {
     }
 
     private Stream<SearchCandidate> allCandidates() {
-        return Stream.concat(
-                kreamProductCatalogRepository.findAll().stream()
-                        .map(product -> new SearchCandidate(toSearchProduct(product), product.description())),
-                LOCAL_PRODUCTS.stream().map(product -> new SearchCandidate(product, ""))
-        );
+        Stream<SearchCandidate> kreamCandidates;
+        try {
+            kreamCandidates = kreamProductCatalogRepository.findAll().stream()
+                    .map(product -> new SearchCandidate(toSearchProduct(product), product.description()));
+        } catch (RuntimeException exception) {
+            log.error("KREAM 상품 파일을 읽지 못해 외부 검색과 기본 상품만 사용합니다.", exception);
+            kreamCandidates = Stream.empty();
+        }
+        return Stream.concat(kreamCandidates, LOCAL_PRODUCTS.stream().map(product -> new SearchCandidate(product, "")));
     }
 
     private SearchProductResponse toSearchProduct(KreamCatalogProduct product) {
@@ -140,10 +171,30 @@ public class ProductSearchService {
         );
     }
 
+    private SearchProductResponse toSearchProduct(DiscoveredProduct product) {
+        return new SearchProductResponse(
+                product.productId(),
+                product.name(),
+                product.category(),
+                product.brand().isBlank() ? "브랜드 정보 없음" : product.brand(),
+                product.price(),
+                product.originalPrice(),
+                product.currency().isBlank() ? "KRW" : product.currency(),
+                product.sourceUrl(),
+                proxyImageUrl(product.imageUrl()),
+                product.rating() == null ? 0.0 : product.rating(),
+                product.reviewCount(),
+                false,
+                product.source().isBlank() ? "Google Shopping" : product.source(),
+                "외부 상품"
+        );
+    }
+
     private String proxyImageUrl(String imageUrl) {
         if (imageUrl == null || imageUrl.isBlank()) {
             return "/assets/product-shoes.webp";
         }
+        imageSourceRegistry.register(imageUrl);
         return "/api/product-images/proxy?url="
                 + URLEncoder.encode(imageUrl, StandardCharsets.UTF_8);
     }

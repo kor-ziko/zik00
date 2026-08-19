@@ -1,11 +1,12 @@
 import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down.js';
 import Globe2 from 'lucide-react/dist/esm/icons/globe-2.js';
-import Heart from 'lucide-react/dist/esm/icons/heart.js';
+import Bookmark from 'lucide-react/dist/esm/icons/bookmark.js';
 import ShoppingBag from 'lucide-react/dist/esm/icons/shopping-bag.js';
 import Truck from 'lucide-react/dist/esm/icons/truck.js';
 import UserRound from 'lucide-react/dist/esm/icons/user-round.js';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { type AuthSession, getAuthSession, logout } from '../../api/auth';
+import { getShoppingCounts } from '../../api/shopping';
 import { useAuthMemory } from '../../auth/AuthMemory';
 import { loginHref } from '../../auth/authNavigation';
 import { type Locale, useLocale } from '../../locale';
@@ -23,10 +24,14 @@ function Brand() {
 
 function SiteHeader() {
   const { locale, setLocale, copy } = useLocale();
+  const [currentLocation, setCurrentLocation] = useState(() => (
+    `${window.location.pathname}${window.location.search}${window.location.hash}`
+  ));
   const [session, setSession] = useState<AuthSession | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [languageOpen, setLanguageOpen] = useState(false);
+  const [shoppingCounts, setShoppingCounts] = useState({ wishlist: 0, cart: 0 });
   const languageRef = useRef<HTMLDivElement>(null);
   const { accessSessionActive } = useAuthMemory();
 
@@ -35,6 +40,18 @@ function SiteHeader() {
       .then(setSession)
       .catch(() => setSession(null))
       .finally(() => setSessionChecked(true));
+  }, []);
+
+  useEffect(() => {
+    const updateLocation = () => setCurrentLocation(
+      `${window.location.pathname}${window.location.search}${window.location.hash}`,
+    );
+    window.addEventListener('popstate', updateLocation);
+    window.addEventListener('hashchange', updateLocation);
+    return () => {
+      window.removeEventListener('popstate', updateLocation);
+      window.removeEventListener('hashchange', updateLocation);
+    };
   }, []);
 
   useEffect(() => {
@@ -58,6 +75,17 @@ function SiteHeader() {
       checkSession();
     }
   }, [accessSessionActive, checkSession, session, sessionChecked]);
+
+  useEffect(() => {
+    if (!sessionChecked || !session?.authenticated) {
+      setShoppingCounts({ wishlist: 0, cart: 0 });
+      return undefined;
+    }
+    const updateCounts = () => getShoppingCounts().then(setShoppingCounts).catch(() => undefined);
+    updateCounts();
+    window.addEventListener('shopping-changed', updateCounts);
+    return () => window.removeEventListener('shopping-changed', updateCounts);
+  }, [session?.authenticated, sessionChecked]);
 
   useEffect(() => {
     const closeLanguageMenu = (event: MouseEvent) => {
@@ -89,15 +117,29 @@ function SiteHeader() {
 
   const authenticated = Boolean(sessionChecked && session?.authenticated);
   const mypageHref = authenticated ? '/mypage' : loginHref('/mypage');
-  const wishlistHref = authenticated ? '/#wishlist' : loginHref('/#wishlist');
+  const wishlistHref = authenticated ? '/wishlist' : loginHref('/wishlist');
+  const cartHref = authenticated ? '/cart' : loginHref('/cart');
   const supportHref = authenticated ? '/mypage/inquiries' : loginHref('/mypage/inquiries');
   const navigationItems = [
-    [copy.header.navigation[0], '/#top'],
-    [copy.header.navigation[1], '/#service'],
-    [copy.header.navigation[2], '/#reviews'],
-    [copy.header.navigation[3], supportHref],
-    [copy.header.navigation[4], '/#notices'],
+    { key: 'home', label: copy.header.navigation[0], href: '/#top' },
+    { key: 'service', label: copy.header.navigation[1], href: '/service-intro' },
+    { key: 'reviews', label: copy.header.navigation[2], href: '/reviews' },
+    { key: 'support', label: copy.header.navigation[3], href: supportHref },
+    { key: 'notices', label: copy.header.navigation[4], href: '/notices' },
   ];
+  const locationUrl = new URL(currentLocation, window.location.origin);
+  const activeNavigation = locationUrl.pathname.startsWith('/service-intro')
+    ? 'service'
+    : locationUrl.pathname.startsWith('/reviews')
+      ? 'reviews'
+    : locationUrl.pathname.startsWith('/notices')
+      ? 'notices'
+      : locationUrl.pathname.startsWith('/mypage/inquiries')
+        || (locationUrl.pathname === '/login' && locationUrl.searchParams.get('returnTo') === '/mypage/inquiries')
+        ? 'support'
+        : locationUrl.pathname === '/'
+            ? 'home'
+            : '';
   const languageOptions: Array<{ code: 'KO' | 'JP' | 'EN'; locale: Locale; label: string }> = [
     { code: 'KO', locale: 'ko', label: '한국어' },
     { code: 'JP', locale: 'ja', label: '日本語' },
@@ -162,10 +204,10 @@ function SiteHeader() {
 
         <nav className="primary-actions" aria-label="주요 메뉴">
           <a href={mypageHref}><UserRound size={25} /><span>{copy.header.mypage}</span></a>
-          <a href={wishlistHref}><Heart size={25} /><span>{copy.header.wishlist}</span></a>
-          <a href="#cart" className="cart-link">
+          <a className={locationUrl.pathname === '/wishlist' ? 'active' : undefined} href={wishlistHref}><Bookmark size={25} />{shoppingCounts.wishlist > 0 && <span className="cart-count">{shoppingCounts.wishlist}</span>}<span>{copy.header.wishlist}</span></a>
+          <a href={cartHref} className={locationUrl.pathname === '/cart' ? 'cart-link active' : 'cart-link'}>
             <ShoppingBag size={25} />
-            <span className="cart-count">0</span>
+            <span className="cart-count">{shoppingCounts.cart}</span>
             <span>{copy.header.cart}</span>
           </a>
         </nav>
@@ -177,8 +219,15 @@ function SiteHeader() {
       </div>
 
       <nav className="category-nav header-inner" aria-label="메인 메뉴">
-        {navigationItems.map(([label, href]) => (
-          <a key={label} href={href}>{label}</a>
+        {navigationItems.map((item) => (
+          <a
+            className={activeNavigation === item.key ? 'active' : undefined}
+            aria-current={activeNavigation === item.key ? 'page' : undefined}
+            key={item.key}
+            href={item.href}
+          >
+            {item.label}
+          </a>
         ))}
       </nav>
     </header>

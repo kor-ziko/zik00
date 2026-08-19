@@ -160,6 +160,10 @@ export function updateMypageProfile(payload: ProfileUpdatePayload) {
   return mutateJson('/api/mypage/profile', 'PUT', payload);
 }
 
+export function withdrawMypageAccount(confirmation: string) {
+  return mutateJson('/api/mypage/profile/withdrawal', 'DELETE', { confirmation });
+}
+
 export function addDeliveryAddress(payload: AddressUpdatePayload) {
   return mutateJson('/api/mypage/profile/addresses', 'POST', payload);
 }

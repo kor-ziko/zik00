@@ -14,9 +14,12 @@ public record ProductDetailResponse(
         String brand,
         String description,
         String currency,
+        long domesticShippingFee,
+        boolean domesticShippingFeeEstimated,
         Double rating,
         int reviewCount,
-        List<ProductReviewResponse> reviews,
+        List<ProductOptionResponse> options,
+        List<ProductVariantResponse> variants,
         List<String> tags
 ) {
 }

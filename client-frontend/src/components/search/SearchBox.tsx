@@ -1,7 +1,9 @@
 import Search from 'lucide-react/dist/esm/icons/search.js';
+import LoaderCircle from 'lucide-react/dist/esm/icons/loader-circle.js';
 import X from 'lucide-react/dist/esm/icons/x.js';
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { popularKeywords } from '../../data';
+import { resolveProductUrl } from '../../api/product';
 import { useRecentSearches } from '../../hooks/useRecentSearches';
 import { useLocale } from '../../locale';
 import TrendMark from './TrendMark';
@@ -19,6 +21,8 @@ function SearchBox() {
     return searchScopeValues.includes(initialScope as typeof searchScopeValues[number]) ? initialScope! : 'all';
   });
   const [searchOpen, setSearchOpen] = useState(false);
+  const [resolvingUrl, setResolvingUrl] = useState(false);
+  const [urlError, setUrlError] = useState('');
   const searchAreaRef = useRef<HTMLDivElement>(null);
   const {
     recentSearches,
@@ -40,26 +44,45 @@ function SearchBox() {
     return () => document.removeEventListener('mousedown', closeOnOutsideClick);
   }, [searchOpen]);
 
-  const search = (keyword: string) => {
+  const isProductUrl = (value: string) => {
+    try {
+      const url = new URL(value);
+      return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  };
+
+  const search = async (keyword: string) => {
     const normalized = keyword.trim();
     if (!normalized) return;
 
     setQuery(normalized);
-    addRecentSearch(normalized);
     setSearchOpen(false);
+    setUrlError('');
+    if (isProductUrl(normalized)) {
+      setResolvingUrl(true);
+      try {
+        const result = await resolveProductUrl(normalized);
+        window.location.assign(`/products/${encodeURIComponent(result.productId)}`);
+      } catch (reason) {
+        setUrlError(reason instanceof Error ? reason.message : '상품 정보를 가져오지 못했습니다.');
+        setSearchOpen(true);
+        setResolvingUrl(false);
+      }
+      return;
+    }
+
+    addRecentSearch(normalized);
     const params = new URLSearchParams({ q: normalized, scope });
     window.location.assign(`/search?${params.toString()}`);
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     const normalized = query.trim();
-    if (!normalized) {
-      event.preventDefault();
-      return;
-    }
-    setQuery(normalized);
-    addRecentSearch(normalized);
-    setSearchOpen(false);
+    if (!normalized || resolvingUrl) return;
+    void search(normalized);
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -71,7 +94,7 @@ function SearchBox() {
 
   return (
     <div className="search-area" ref={searchAreaRef}>
-      <form className="search-form" action="/search" method="get" onSubmit={handleSubmit}>
+      <form className="search-form" action="/search" method="get" onSubmit={handleSubmit} aria-busy={resolvingUrl}>
         <label className="sr-only" htmlFor="product-search">{copy.search.label}</label>
         <select
           name="scope"
@@ -88,7 +111,10 @@ function SearchBox() {
           id="product-search"
           name="q"
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setUrlError('');
+          }}
           onFocus={() => setSearchOpen(true)}
           onKeyDown={handleKeyDown}
           placeholder={copy.search.placeholder}
@@ -104,13 +130,14 @@ function SearchBox() {
             <X size={17} />
           </button>
         )}
-        <button className="search-submit" type="submit" aria-label={copy.search.submit}>
-          <Search size={23} />
+        <button className="search-submit" type="submit" aria-label={copy.search.submit} disabled={resolvingUrl}>
+          {resolvingUrl ? <LoaderCircle className="spin" size={20} /> : <Search size={23} />}
         </button>
       </form>
 
       {searchOpen && (
         <section className="search-panel" aria-label={copy.search.label}>
+          {urlError && <p className="search-url-error" role="alert">{urlError}</p>}
           <div className="recent-section">
             <div className="panel-title-row">
               <h2>{copy.search.recent}</h2>
@@ -123,7 +150,7 @@ function SearchBox() {
               <div className="recent-list">
                 {recentSearches.map((keyword) => (
                   <span className="recent-chip" key={keyword}>
-                    <button type="button" onClick={() => search(keyword)}>{keyword}</button>
+                    <button type="button" onClick={() => void search(keyword)}>{keyword}</button>
                     <button
                       className="remove-recent"
                       type="button"
@@ -151,7 +178,7 @@ function SearchBox() {
             <ol className="popular-list">
               {popularKeywords.map((keyword) => (
                 <li key={keyword.rank}>
-                  <button type="button" onClick={() => search(keyword.label)}>
+                  <button type="button" onClick={() => void search(keyword.label)}>
                     <strong>{keyword.rank}</strong>
                     <span>{keyword.label}</span>
                     <TrendMark trend={keyword.trend} />

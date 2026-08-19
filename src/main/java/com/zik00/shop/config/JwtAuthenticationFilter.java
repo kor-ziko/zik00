@@ -14,8 +14,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.http.HttpHeaders;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -24,17 +26,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtCookieService cookieService;
     private final UserRepository userRepository;
     private final RedisRefreshTokenStore refreshTokenStore;
+    private final SecurityContextRepository securityContextRepository;
 
     public JwtAuthenticationFilter(
             JwtService jwtService,
             JwtCookieService cookieService,
             UserRepository userRepository,
-            RedisRefreshTokenStore refreshTokenStore
+            RedisRefreshTokenStore refreshTokenStore,
+            SecurityContextRepository securityContextRepository
     ) {
         this.jwtService = jwtService;
         this.cookieService = cookieService;
         this.userRepository = userRepository;
         this.refreshTokenStore = refreshTokenStore;
+        this.securityContextRepository = securityContextRepository;
     }
 
     @Override
@@ -48,7 +53,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
             cookieService.readAccessToken(request)
                     .or(() -> readBearerToken(request))
-                    .ifPresent(token -> authenticate(token, request));
+                    .ifPresent(token -> authenticate(token, request, response));
         }
         filterChain.doFilter(request, response);
     }
@@ -62,21 +67,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return token.isEmpty() ? java.util.Optional.empty() : java.util.Optional.of(token);
     }
 
-    private void authenticate(String token, HttpServletRequest request) {
+    private void authenticate(String token, HttpServletRequest request, HttpServletResponse response) {
         try {
             JwtService.JwtClaims claims = jwtService.validate(token, JwtService.ACCESS);
             if (refreshTokenStore.isAccessTokenRevoked(claims.tokenId())) {
                 return;
             }
-            userRepository.findByAccessId(claims.accessId()).ifPresent(user -> {
+            userRepository.findByAccessId(claims.accessId())
+                    .filter(user -> "ACTIVE".equals(user.getMemberStatus()))
+                    .ifPresent(user -> {
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                         user.getAccessId(),
                         null,
                         List.of(new SimpleGrantedAuthority("ROLE_USER"))
                 );
                 authentication.setDetails(request.getRemoteAddr());
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-            });
+                SecurityContext securityContext = SecurityContextHolder.createEmptyContext();
+                securityContext.setAuthentication(authentication);
+                SecurityContextHolder.setContext(securityContext);
+                securityContextRepository.saveContext(securityContext, request, response);
+                    });
         } catch (InvalidJwtException ignored) {
             // 만료되거나 변조된 Access Token은 인증에 사용하지 않는다.
         }

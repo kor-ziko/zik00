@@ -96,17 +96,17 @@ public class JwtService {
                 throw new InvalidJwtException("JWT 형식이 올바르지 않습니다.");
             }
 
-            JsonNode header = objectMapper.readTree(Base64.getUrlDecoder().decode(parts[0]));
+            JsonNode header = objectMapper.readTree(decodeCanonicalBase64Url(parts[0]));
             if (!ALGORITHM.equals(header.path("alg").asString())
                     || !"JWT".equals(header.path("typ").asString())) {
                 throw new InvalidJwtException("RS256 알고리즘으로 서명된 JWT만 사용할 수 있습니다.");
             }
 
-            if (!verify(parts[0] + "." + parts[1], Base64.getUrlDecoder().decode(parts[2]))) {
+            if (!verify(parts[0] + "." + parts[1], decodeCanonicalBase64Url(parts[2]))) {
                 throw new InvalidJwtException("JWT 서명이 올바르지 않습니다.");
             }
 
-            JsonNode payload = objectMapper.readTree(Base64.getUrlDecoder().decode(parts[1]));
+            JsonNode payload = objectMapper.readTree(decodeCanonicalBase64Url(parts[1]));
             String accessId = payload.path("sub").asString();
             String type = payload.path("type").asString();
             String tokenIssuer = payload.path("iss").asString();
@@ -240,6 +240,15 @@ public class JwtService {
         } catch (GeneralSecurityException exception) {
             throw new IllegalStateException("SHA-256을 사용할 수 없습니다.", exception);
         }
+    }
+
+    private static byte[] decodeCanonicalBase64Url(String value) {
+        byte[] decoded = Base64.getUrlDecoder().decode(value);
+        String canonical = Base64.getUrlEncoder().withoutPadding().encodeToString(decoded);
+        if (!canonical.equals(value)) {
+            throw new IllegalArgumentException("JWT Base64URL encoding is not canonical");
+        }
+        return decoded;
     }
 
     private static String base64Url(String value) {

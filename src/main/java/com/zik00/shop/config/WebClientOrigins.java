@@ -4,6 +4,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Locale;
+import java.util.stream.Stream;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -18,7 +19,9 @@ public class WebClientOrigins {
             @Value("${shop.admin.base-url:http://127.0.0.1:5173}") String adminBaseUrl
     ) {
         this.clientBaseUrl = normalize(clientBaseUrl);
-        this.allowedOrigins = List.of(this.clientBaseUrl, normalize(adminBaseUrl)).stream()
+        String normalizedAdminBaseUrl = normalize(adminBaseUrl);
+        this.allowedOrigins = Stream.of(this.clientBaseUrl, normalizedAdminBaseUrl)
+                .flatMap(origin -> Stream.of(origin, loopbackAlias(origin)))
                 .distinct()
                 .toList();
     }
@@ -29,6 +32,20 @@ public class WebClientOrigins {
 
     public List<String> allowedOrigins() {
         return allowedOrigins;
+    }
+
+    private static String loopbackAlias(String origin) {
+        URI uri = URI.create(origin);
+        String host = uri.getHost();
+        if (!"localhost".equalsIgnoreCase(host) && !"127.0.0.1".equals(host)) {
+            return origin;
+        }
+        String alias = "localhost".equalsIgnoreCase(host) ? "127.0.0.1" : "localhost";
+        try {
+            return new URI(uri.getScheme(), null, alias, uri.getPort(), null, null, null).toASCIIString();
+        } catch (URISyntaxException exception) {
+            throw new IllegalArgumentException("Web client loopback origin is invalid.", exception);
+        }
     }
 
     private static String normalize(String value) {

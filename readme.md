@@ -54,6 +54,9 @@ password: ${SPRING_DATASOURCE_PASSWORD:1q2w3e}
 # 관리자 페이지 아이디 비번
 admin / admin1234!
 
+로컬 관리자 페이지: http://127.0.0.1:5173/admin/login
+사용자 사이트와 관리자 세션 쿠키가 섞이지 않도록 관리자 페이지는 127.0.0.1 주소를 사용한다.
+
 # OAuth 관련
 google OAuth 설정 방법
 https://goldenrabbit.co.kr/articles/o4WsLGIBrgPikDI5ZA8M
@@ -82,6 +85,80 @@ REDIS_PASSWORD=
 ```
 
 확인 명령은 `redis-cli ping`이며 `PONG`이 반환되어야 한다. Refresh Token 원문은 HttpOnly 쿠키에만 저장한다. Redis는 Refresh Token 해시, Token Family, 사용 완료 토큰과 Access Token `jti` 블랙리스트를 TTL과 함께 관리한다.
+
+# 외부 상품 검색 설정
+
+상품 검색은 SerpApi Google Shopping 결과를 사용한다. 상품을 선택하면 원본 판매처의 JSON-LD와 메타데이터를 우선 읽고, 로컬 Ollama가 원본 페이지에서 확인되는 옵션·상세 설명·리뷰를 보완한다. 검색 결과는 24시간, 상품 상세과 허용된 이미지 주소는 7일 동안 Redis에 저장한다.
+
+SerpApi 무료 플랜을 보호하기 위해 Account API로 남은 호출량을 확인하며 기본적으로 마지막 10회는 사용하지 않고 남겨 둔다. 같은 검색어와 카테고리는 Redis 캐시가 유지되는 동안 다시 과금 호출하지 않는다.
+
+```properties
+PRODUCT_SEARCH_PROVIDER=serpapi
+SERPAPI_API_KEY={your}
+PRODUCT_SEARCH_CACHE_TTL=P1D
+PRODUCT_DETAIL_CACHE_TTL=P7D
+SERPAPI_QUOTA_RESERVE=10
+
+PRODUCT_AI_PROVIDER=ollama
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=qwen2.5:7b
+```
+
+Ollama 모델 준비 명령은 `ollama pull qwen2.5:7b`이다.
+
+# 일본 결제 설정
+
+클라이언트 주문서는 SB Payment Service의 링크형 결제를 사용하며 결제 통화는 JPY이다. 사용자는 주문서에서 계약된 결제수단을 먼저 선택하고, SBPS는 선택한 결제수단의 보안 결제화면을 바로 표시한다. 결제 결과는 브라우저 응답만 신뢰하지 않고 SBPS의 해시 서명을 백엔드에서 검증한다.
+
+```properties
+SBPS_ENABLED=true
+SBPS_MERCHANT_ID=
+SBPS_SERVICE_ID=
+SBPS_HASH_KEY=
+SBPS_REQUEST_URL=
+
+# SBPS에서 계약 및 승인된 결제수단만 쉼표로 등록한다.
+# credit3d2=3D Secure 카드, paypay=PayPay, paypal=PayPal
+SBPS_PAYMENT_METHODS=credit3d2,paypay,paypal
+
+# 외부에서 HTTPS로 접근 가능한 백엔드 주소. localhost는 사용할 수 없다.
+SBPS_CALLBACK_BASE_URL=https://api.example.com
+
+# 결제 후 돌아갈 클라이언트 주소
+SBPS_CLIENT_BASE_URL=https://www.example.com
+
+# 한국 원화를 일본 엔으로 바꾸는 운영 적용환율. 비우면 세관 고시환율로 자동 계산한다.
+PAYMENT_KRW_TO_JPY_RATE=
+
+# 자동 운영환율에 적용할 환율 변동 보호계수. 1.03은 3%를 더 적용한다.
+PAYMENT_AUTOMATIC_RATE_MARKUP=1.03
+
+# 일본 관세청 자료 확인 주기. 운영 환경에서는 최소 하루 한 번 확인한다.
+JAPAN_CUSTOMS_REFRESH_INTERVAL=PT24H
+
+# 앱 시작 후 첫 관세청 자료 확인까지 기다리는 시간
+JAPAN_CUSTOMS_INITIAL_REFRESH_DELAY=PT1M
+
+# 관세청 자료를 처음 받기 전 임시 고시환율. 비워두면 관부가세를 미계산 처리한다.
+JAPAN_CUSTOMS_KRW_TO_JPY_RATE=
+
+# 일본 세관의 수입 소비세 계산 기준 페이지
+JAPAN_CUSTOMS_CONSUMPTION_TAX_URL=https://www.customs.go.jp/english/c-answer_e/imtsukan/1111_e.htm
+
+# 구매대행 수수료율. 예: 5%는 0.05
+SHOP_AGENCY_FEE_RATE=0
+
+# 원본 페이지에서 국내 배송비를 확인하지 못했을 때 적용할 예상값(원)
+SHOP_DEFAULT_DOMESTIC_SHIPPING_FEE_KRW=3000
+```
+
+`SBPS_MERCHANT_ID`, `SBPS_SERVICE_ID`, `SBPS_HASH_KEY`, `SBPS_REQUEST_URL`은 SBPS가 시험 또는 운영 환경 구축 후 제공하는 값을 사용한다. `SBPS_CALLBACK_BASE_URL`의 `/api/payment/sbps/callback`과 `/api/payment/sbps/return/*` 경로는 SBPS 서버에서 접근 가능해야 한다. 원화 상품은 `PAYMENT_KRW_TO_JPY_RATE`를 이용해 상품 단가부터 엔화로 올림 환산하며, 필수 설정이 없으면 실제 결제를 시작하지 않는다.
+
+상품 상세의 운영환율은 `PAYMENT_KRW_TO_JPY_RATE`가 있으면 그 값을 우선 사용한다. 비어 있으면 매일 확인한 일본 세관 고시환율에 `PAYMENT_AUTOMATIC_RATE_MARKUP`을 적용해 자동 계산한다. 관부가세 계산용 환율, 간이세율, 일본 소비세율과 공식 출처는 상품 상세에서 저장 자료가 없을 때 즉시 확인하고 앱 시작 1분 후부터 24시간마다 갱신한다. 최신본은 Redis에 캐시하며 날짜별 이력은 `japan_customs_snapshots` 테이블에 저장한다. 공식 사이트 확인에 실패하면 DB의 마지막 정상 자료를 유지하고, 36시간 이상 지난 자료는 화면에 마지막 저장 자료로 표시한다. 테이블은 `db/customs-schema.sql`로 앱 시작 시 안전하게 생성한다.
+
+관세 품목은 `PRODUCT_AI_PROVIDER=ollama`이고 Ollama가 실행 중이면 AI가 HS 코드 후보와 간이세율 그룹을 제안한다. AI 결과는 신뢰도 0.70 이상일 때만 사용하며 실제 금액은 DB에 저장된 공식 세율로 계산한다. AI가 꺼져 있거나 응답이 불확실하면 규칙 분류로 대체한다. 니트, 신발, 가죽제품처럼 일반세율과 상세 재질 확인이 필요한 품목은 AI가 임의 세율을 만들지 않고 통관 후 확정 대상으로 남긴다.
+
+국내 배송비는 원본 페이지의 구조화 데이터와 배송 문구에서 먼저 가져오고 Ollama가 활성화된 경우 AI 추출로 보완한다. 확인하지 못하면 `SHOP_DEFAULT_DOMESTIC_SHIPPING_FEE_KRW`를 예상값으로 적용한다. 국제배송비는 상품명과 카테고리의 예상 중량 및 우체국 EMS 일본 공개요금으로 범위를 계산하고 그 중간값을 최초 결제에 포함한다. 계산 가능한 예상 관세와 일본 소비세도 별도 항목으로 최초 결제에 포함하며, 국제배송비에는 관부가세가 포함되지 않는다. 입고 및 통관 후 확정액과의 차이는 추가 청구하거나 환불한다.
 
 # .env 파일 format
 ```
@@ -116,5 +193,7 @@ REDIS_DATABASE=0
 PII_ENCRYPTION_KEYS=v1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
 PII_CURRENT_KEY_VERSION=v1
 PII_MIGRATE_PLAINTEXT_ON_STARTUP=trues
+
+# 회원가입 완료 메일 (Gmail은 계정 비밀번호가 아닌 앱 비밀번호 사용)
 
 ```

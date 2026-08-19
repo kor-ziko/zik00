@@ -1,0 +1,3 @@
+package com.zik00.admin.controller.settings_management.member_grade;
+import com.zik00.admin.controller.settings_management.common.SettingEntryControllerSupport;import com.zik00.admin.service.settings_management.common.SettingEntryService;import org.springframework.web.bind.annotation.RequestMapping;import org.springframework.web.bind.annotation.RestController;
+@RestController @RequestMapping("/api/admin/settings-management/member-grades") public class MemberGradeController extends SettingEntryControllerSupport{public MemberGradeController(SettingEntryService s){super(s,"MEMBER_GRADE",false);}}

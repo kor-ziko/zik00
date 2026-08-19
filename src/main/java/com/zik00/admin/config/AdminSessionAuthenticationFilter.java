@@ -12,12 +12,19 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 public class AdminSessionAuthenticationFilter extends OncePerRequestFilter {
     private static final String ADMIN_API_PREFIX = "/api/admin/";
     private static final SimpleGrantedAuthority ADMIN_AUTHORITY = new SimpleGrantedAuthority("ROLE_ADMIN");
+    private final SecurityContextRepository securityContextRepository;
+
+    public AdminSessionAuthenticationFilter(SecurityContextRepository securityContextRepository) {
+        this.securityContextRepository = securityContextRepository;
+    }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -44,7 +51,10 @@ public class AdminSessionAuthenticationFilter extends OncePerRequestFilter {
                             List.of(ADMIN_AUTHORITY)
                     );
             authentication.setDetails(request.getRemoteAddr());
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+            SecurityContext securityContext = SecurityContextHolder.createEmptyContext();
+            securityContext.setAuthentication(authentication);
+            SecurityContextHolder.setContext(securityContext);
+            securityContextRepository.saveContext(securityContext, request, response);
         }
 
         filterChain.doFilter(request, response);

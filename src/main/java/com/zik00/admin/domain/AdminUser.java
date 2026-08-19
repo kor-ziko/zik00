@@ -37,4 +37,21 @@ public class AdminUser {
     protected AdminUser() {
     }
 
+    public AdminUser(String loginId, String passwordHash, String name, boolean active) {
+        this.loginId = loginId;
+        this.passwordHash = passwordHash;
+        this.name = name;
+        this.active = active;
+        this.createdAt = LocalDateTime.now();
+    }
+
+    public void update(String name, boolean active) {
+        this.name = name;
+        this.active = active;
+    }
+
+    public void changePassword(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
 }

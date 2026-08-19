@@ -36,7 +36,6 @@ public record AdminMemberDetailResponse(
 ) {
     private static final String DEFAULT_PROVIDER = "LOCAL";
     private static final String DEFAULT_ROLE = "USER";
-    private static final String DEFAULT_STATUS = "ACTIVE";
 
     public static AdminMemberDetailResponse from(
             User user,
@@ -59,7 +58,7 @@ public record AdminMemberDetailResponse(
                 DEFAULT_PROVIDER,
                 user.getUserId(),
                 DEFAULT_ROLE,
-                DEFAULT_STATUS,
+                user.getMemberStatus(),
                 user.getMemberDetail(),
                 user.getDepositBalance(),
                 user.getRewardPoint(),

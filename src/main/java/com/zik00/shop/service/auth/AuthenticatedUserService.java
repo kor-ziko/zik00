@@ -22,6 +22,7 @@ public class AuthenticatedUserService {
         }
 
         return userRepository.findByAccessId(authentication.getName())
+                .filter(user -> "ACTIVE".equals(user.getMemberStatus()))
                 .orElseThrow(() -> new IllegalStateException("로그인 회원을 찾을 수 없습니다."));
     }
 

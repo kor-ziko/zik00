@@ -28,6 +28,7 @@ import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -73,12 +74,17 @@ public class SecurityConfig {
             HttpSecurity http,
             OAuth2AuthorizationRequestResolver authorizationRequestResolver
     ) throws Exception {
+        SecurityContextRepository requestSecurityContextRepository =
+                new RequestAttributeSecurityContextRepository();
+
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                         .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
-                        .ignoringRequestMatchers("/logout")
+                        .ignoringRequestMatchers(
+                                "/logout", "/api/payment/sbps/callback", "/api/payment/sbps/return/**"
+                        )
                 )
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(
@@ -92,6 +98,13 @@ public class SecurityConfig {
                                 "/api/product-images/proxy",
                                 "/api/search",
                                 "/api/products/**",
+                                "/api/product-links/**",
+                                "/api/service-intro",
+                                "/api/homepage-content",
+                                "/api/homepage-images/**",
+                                "/api/reviews",
+                                "/api/notices/**",
+                                "/api/payment/sbps/callback", "/api/payment/sbps/return/**",
                                 "/api/auth/csrf", "/api/auth/refresh", "/api/auth/oauth/complete",
                                 "/logout", "/error"
                         ).permitAll()
@@ -102,21 +115,21 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/auth/terms").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/terms").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/auth/**", "/api/mypage/**", "/signup/**", "/mypage/**").authenticated()
+                        .requestMatchers(
+                                "/api/auth/**", "/api/mypage/**", "/api/wishlist/**", "/api/cart/**", "/api/payment/**",
+                                "/signup/**", "/mypage/**"
+                        ).authenticated()
                         .anyRequest().denyAll()
                 )
                 .formLogin(formLogin -> formLogin.disable())
                 .httpBasic(httpBasic -> httpBasic.disable())
                 .securityContext(context -> context.securityContextRepository(
-                        new RequestAttributeSecurityContextRepository()
+                        requestSecurityContextRepository
                 ))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .requestCache(cache -> cache.disable())
-                .exceptionHandling(exceptions -> exceptions.defaultAuthenticationEntryPointFor(
-                        new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
-                        request -> request.getServletPath().startsWith("/api/auth/")
-                                || request.getServletPath().startsWith("/api/mypage")
-                                || request.getServletPath().startsWith("/api/admin/")
+                .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(
+                        new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)
                 ))
                 .oauth2Login(oauth2 -> oauth2
                         .loginPage("/login")
@@ -136,11 +149,17 @@ public class SecurityConfig {
                         OAuth2LoginAuthenticationFilter.class
                 )
                 .addFilterBefore(
-                        new JwtAuthenticationFilter(jwtService, jwtCookieService, userRepository, refreshTokenStore),
+                        new JwtAuthenticationFilter(
+                                jwtService,
+                                jwtCookieService,
+                                userRepository,
+                                refreshTokenStore,
+                                requestSecurityContextRepository
+                        ),
                         UsernamePasswordAuthenticationFilter.class
                 )
                 .addFilterBefore(
-                        new AdminSessionAuthenticationFilter(),
+                        new AdminSessionAuthenticationFilter(requestSecurityContextRepository),
                         JwtAuthenticationFilter.class
                 )
                 .addFilterBefore(

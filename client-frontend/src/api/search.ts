@@ -43,7 +43,7 @@ export type SearchRequest = {
 };
 
 export async function searchProducts(request: SearchRequest, signal?: AbortSignal) {
-  const params = new URLSearchParams({ q: request.query, size: '20' });
+  const params = new URLSearchParams({ q: request.query, size: '30' });
   if (request.scope) params.set('scope', request.scope);
   if (request.category) params.set('category', request.category);
   request.brands?.forEach((brand) => params.append('brand', brand));

@@ -28,7 +28,7 @@ public class ProductSearchController {
             @RequestParam(required = false) Long maxPrice,
             @RequestParam(defaultValue = "relevance") String sort,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "30") int size
     ) {
         return productSearchService.search(q, scope, category, brand, minPrice, maxPrice, sort, page, size);
     }

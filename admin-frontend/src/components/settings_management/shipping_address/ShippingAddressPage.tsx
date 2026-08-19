@@ -1,0 +1,2 @@
+import { SettingsEntryPage } from '../SettingsEntryPage';
+export function ShippingAddressPage(){return <SettingsEntryPage config={{endpoint:'shipping-addresses',title:'배송지주소관리',description:'우편번호 검색으로 국내 도로명주소를 찾고 상세주소를 등록합니다.',itemName:'배송지',codeLabel:'배송지 코드',nameLabel:'배송지명',contentLabel:'배송 안내 메모',koreanAddress:true,fields:[{key:'postalCode',label:'우편번호',required:true},{key:'address1',label:'기본 주소',required:true},{key:'address2',label:'상세 주소',required:true},{key:'receiverName',label:'담당자명',required:true},{key:'phone',label:'연락처',type:'tel',required:true}]}}/>}

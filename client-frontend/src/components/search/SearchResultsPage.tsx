@@ -1,19 +1,27 @@
 import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down.js';
 import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left.js';
 import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right.js';
-import Heart from 'lucide-react/dist/esm/icons/heart.js';
+import Bookmark from 'lucide-react/dist/esm/icons/bookmark.js';
 import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw.js';
 import SlidersHorizontal from 'lucide-react/dist/esm/icons/sliders-horizontal.js';
 import Star from 'lucide-react/dist/esm/icons/star.js';
 import X from 'lucide-react/dist/esm/icons/x.js';
 import { useEffect, useMemo, useState } from 'react';
 import { searchProducts, type SearchResult } from '../../api/search';
+import { addWishlist, getWishlist, removeWishlist, ShoppingAuthRequiredError } from '../../api/shopping';
 import { useAuthMemory } from '../../auth/AuthMemory';
 import { currentRelativeUrl, loginHref } from '../../auth/authNavigation';
+import { useOperatingExchangeRate } from '../../hooks/useOperatingExchangeRate';
 import SiteFooter from '../layout/SiteFooter';
 import SiteHeader from '../layout/SiteHeader';
 
 type PriceDraft = { min: string; max: string };
+
+function paginationItems(currentPage: number, totalPages: number, blockSize: number) {
+  const blockStart = Math.floor(currentPage / blockSize) * blockSize;
+  const blockEnd = Math.min(blockStart + blockSize, totalPages);
+  return Array.from({ length: blockEnd - blockStart }, (_, index) => blockStart + index);
+}
 
 function getInitialQuery() {
   return new URLSearchParams(window.location.search).get('q')?.trim() ?? '';
@@ -39,6 +47,7 @@ function SearchResultsPage() {
   const query = useMemo(getInitialQuery, []);
   const scope = useMemo(getInitialScope, []);
   const { accessSessionActive } = useAuthMemory();
+  const { toJpy } = useOperatingExchangeRate();
   const [result, setResult] = useState<SearchResult | null>(null);
   const [category, setCategory] = useState(getInitialCategory);
   const [brands, setBrands] = useState<string[]>([]);
@@ -50,8 +59,33 @@ function SearchResultsPage() {
   const [error, setError] = useState('');
   const [filterOpen, setFilterOpen] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set());
+  const [savingFavoriteIds, setSavingFavoriteIds] = useState<Set<string>>(() => new Set());
   const [reloadKey, setReloadKey] = useState(0);
+  const [pageBlockSize, setPageBlockSize] = useState(() => (
+    window.matchMedia('(max-width: 560px)').matches ? 5 : 10
+  ));
   const selectedCategoryLabel = category.split(' > ').at(-1) ?? '';
+  const totalPages = result?.totalPages ?? 0;
+  const visiblePages = paginationItems(page, totalPages, pageBlockSize);
+  const pageBlockStart = visiblePages[0] ?? 0;
+  const pageBlockEnd = (visiblePages.at(-1) ?? -1) + 1;
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 560px)');
+    const updatePageBlockSize = () => setPageBlockSize(media.matches ? 5 : 10);
+    media.addEventListener('change', updatePageBlockSize);
+    return () => media.removeEventListener('change', updatePageBlockSize);
+  }, []);
+
+  useEffect(() => {
+    if (!accessSessionActive) {
+      setFavoriteIds(new Set());
+      return;
+    }
+    getWishlist()
+      .then((items) => setFavoriteIds(new Set(items.map((item) => item.productId))))
+      .catch(() => setFavoriteIds(new Set()));
+  }, [accessSessionActive]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -105,17 +139,56 @@ function SearchResultsPage() {
     setPage(0);
   };
 
-  const toggleFavorite = (productId: string) => {
+  const changePage = (nextPage: number) => {
+    setPage(nextPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const toggleFavorite = async (product: NonNullable<SearchResult['items']>[number]) => {
     if (!accessSessionActive) {
       window.location.assign(loginHref(currentRelativeUrl()));
       return;
     }
+    const productId = product.productId;
+    if (savingFavoriteIds.has(productId)) return;
+    const shouldSave = !favoriteIds.has(productId);
+    setSavingFavoriteIds((current) => new Set(current).add(productId));
     setFavoriteIds((current) => {
       const next = new Set(current);
-      if (next.has(productId)) next.delete(productId);
-      else next.add(productId);
+      if (shouldSave) next.add(productId);
+      else next.delete(productId);
       return next;
     });
+    try {
+      if (shouldSave) {
+        await addWishlist({
+          productId,
+          productName: product.name,
+          brand: product.brand,
+          imageUrl: product.imageUrl,
+          price: product.price,
+          currency: product.currency,
+          sourceUrl: product.sourceUrl ?? undefined,
+        });
+      } else {
+        await removeWishlist(productId);
+      }
+    } catch (reason) {
+      setFavoriteIds((current) => {
+        const next = new Set(current);
+        if (shouldSave) next.delete(productId);
+        else next.add(productId);
+        return next;
+      });
+      if (reason instanceof ShoppingAuthRequiredError) window.location.assign(loginHref(currentRelativeUrl()));
+      else setError(reason instanceof Error ? reason.message : '찜 상태를 변경하지 못했습니다.');
+    } finally {
+      setSavingFavoriteIds((current) => {
+        const next = new Set(current);
+        next.delete(productId);
+        return next;
+      });
+    }
   };
 
   const filterPanel = (
@@ -288,6 +361,10 @@ function SearchResultsPage() {
                     const discountRate = product.originalPrice
                       ? Math.round((1 - product.price / product.originalPrice) * 100)
                       : 0;
+                    const priceJpy = toJpy(product.price, product.currency);
+                    const originalPriceJpy = product.originalPrice === null
+                      ? null
+                      : toJpy(product.originalPrice, product.currency);
                     return (
                       <article className="search-product-card" key={product.productId}>
                         <div className="search-product-image">
@@ -300,9 +377,10 @@ function SearchResultsPage() {
                             className={favorite ? 'is-favorite' : ''}
                             aria-label={`${product.name} 찜하기`}
                             aria-pressed={favorite}
-                            onClick={() => toggleFavorite(product.productId)}
+                            disabled={savingFavoriteIds.has(product.productId)}
+                            onClick={() => void toggleFavorite(product)}
                           >
-                            <Heart size={19} fill={favorite ? 'currentColor' : 'none'} />
+                            <Bookmark size={19} fill={favorite ? 'currentColor' : 'none'} />
                           </button>
                         </div>
                         <a
@@ -313,17 +391,18 @@ function SearchResultsPage() {
                           <h2>{product.name}</h2>
                           <div className="search-product-price">
                             {discountRate > 0 && <em>{discountRate}%</em>}
-                            <strong>{formatPrice(product.price, product.currency)}</strong>
+                            <strong>{priceJpy === null ? '엔화 환산 중' : formatPrice(priceJpy, 'JPY')}</strong>
+                            {product.currency === 'KRW' && <small className="search-product-source-price">({formatPrice(product.price, 'KRW')})</small>}
                           </div>
-                          {product.originalPrice && (
-                            <del>{formatPrice(product.originalPrice, product.currency)}</del>
+                          {originalPriceJpy !== null && (
+                            <del>{formatPrice(originalPriceJpy, 'JPY')}</del>
                           )}
                           <div className="search-product-meta">
                             <span><Star size={13} fill="currentColor" /> {product.rating.toFixed(1)}</span>
                             <span>리뷰 {product.reviewCount.toLocaleString()}</span>
                           </div>
                           <p className={product.freeShipping ? 'free-shipping' : ''}>
-                            {product.freeShipping ? '무료배송' : '예상 국제배송비 별도'}
+                            {product.freeShipping ? '무료배송' : '예상 국제배송비 결제 시 반영'}
                           </p>
                         </a>
                       </article>
@@ -335,28 +414,29 @@ function SearchResultsPage() {
                   <nav className="search-pagination" aria-label="검색 결과 페이지">
                     <button
                       type="button"
-                      aria-label="이전 페이지"
-                      disabled={page === 0}
-                      onClick={() => setPage((value) => Math.max(0, value - 1))}
+                      aria-label="이전 페이지 묶음"
+                      disabled={pageBlockStart === 0}
+                      onClick={() => changePage(Math.max(0, pageBlockStart - pageBlockSize))}
                     >
                       <ChevronLeft size={17} />
                     </button>
-                    {Array.from({ length: result.totalPages }, (_, index) => (
+                    {visiblePages.map((item) => (
                       <button
                         type="button"
-                        className={page === index ? 'active' : ''}
-                        aria-current={page === index ? 'page' : undefined}
-                        onClick={() => setPage(index)}
-                        key={index}
+                        className={page === item ? 'active' : ''}
+                        aria-current={page === item ? 'page' : undefined}
+                        aria-label={`${item + 1}페이지`}
+                        onClick={() => changePage(item)}
+                        key={item}
                       >
-                        {index + 1}
+                        {item + 1}
                       </button>
                     ))}
                     <button
                       type="button"
-                      aria-label="다음 페이지"
-                      disabled={page + 1 >= result.totalPages}
-                      onClick={() => setPage((value) => value + 1)}
+                      aria-label="다음 페이지 묶음"
+                      disabled={pageBlockEnd >= result.totalPages}
+                      onClick={() => changePage(Math.min(result.totalPages - 1, pageBlockEnd))}
                     >
                       <ChevronRight size={17} />
                     </button>

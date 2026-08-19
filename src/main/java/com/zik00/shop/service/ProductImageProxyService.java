@@ -10,6 +10,8 @@ import java.time.Duration;
 import java.util.Locale;
 import java.util.Set;
 
+import com.zik00.shop.service.product.ProductImageSourceRegistry;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -22,15 +24,25 @@ public class ProductImageProxyService {
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(8);
 
     private final HttpClient httpClient;
+    private final ProductImageSourceRegistry sourceRegistry;
 
     public ProductImageProxyService() {
-        this(HttpClient.newBuilder()
+        this(new ProductImageSourceRegistry(), HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(4))
                 .followRedirects(HttpClient.Redirect.NEVER)
                 .build());
     }
 
-    ProductImageProxyService(HttpClient httpClient) {
+    @Autowired
+    public ProductImageProxyService(ProductImageSourceRegistry sourceRegistry) {
+        this(sourceRegistry, HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(4))
+                .followRedirects(HttpClient.Redirect.NEVER)
+                .build());
+    }
+
+    ProductImageProxyService(ProductImageSourceRegistry sourceRegistry, HttpClient httpClient) {
+        this.sourceRegistry = sourceRegistry;
         this.httpClient = httpClient;
     }
 
@@ -107,7 +119,7 @@ public class ProductImageProxyService {
         String host = source.getHost();
         boolean allowed = "https".equalsIgnoreCase(source.getScheme())
                 && host != null
-                && ALLOWED_HOSTS.contains(host.toLowerCase(Locale.ROOT))
+                && (ALLOWED_HOSTS.contains(host.toLowerCase(Locale.ROOT)) || sourceRegistry.isRegistered(sourceUrl))
                 && source.getUserInfo() == null
                 && (source.getPort() == -1 || source.getPort() == 443);
         if (!allowed) {
